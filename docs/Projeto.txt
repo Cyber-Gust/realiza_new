@@ -1,0 +1,345 @@
+Projeto: Plataforma Imobiliária Digital (End-to-End)
+
+A. Módulos de Captação e Vitrine (Site Público)
+
+Módulo
+
+Componentes e Funcionalidades
+
+A1. Vitrine & Busca
+
+Busca Avançada: Bairro/CEP, Preço, Tipo, Área, Vagas, Pet-Friendly, Mobiliado, Condomínio/IPTU, Status (Locação/Venda).
+
+A2. Páginas de Imóvel
+
+Galeria Responsiva, Planta, Ficha Técnica. Análise de Custo: Custos do mês (Aluguel + Cond + IPTU), Cálculo de Financiamento/Aluguel. 
+
+A3. Conversão (CTAs)
+
+CTA's fortes: Agendar Visita (Presencial/Virtual), Proposta Online, Reservar Imóvel (Pré-aprovação).
+
+A4. Captação de Proprietários
+
+"Anuncie seu Imóvel" com formulário.
+
+A5. Conteúdo e Credibilidade
+
+Blog SEO (Financiamento, Caução, Tendências), Depoimentos, CRECI.
+
+A6. Contato & Suporte
+
+Integrações: WhatsApp, Chatbot qualificador, Callback.
+
+
+
+
+
+B. Módulo de Vendas, Locação e CRM
+
+Módulo
+
+Componentes e Funcionalidades
+
+B1. Gestão de Leads
+
+Omnichannel: Site, WhatsApp, Telefone, Indicações. Qualificação: Orçamento, Perfil (Família, Pet, Vagas), Bairro-alvo. Scoring Automático.
+
+B2. Pipeline & Workflow
+
+Pipeline Kanban: Novo → Qualificado → Visita → Proposta → Documentação → Contrato → Concluído. Tarefas & SLA: Lembretes, Follow-ups.
+
+B3. Agenda & Rotina
+
+Agenda Integrada de Corretores e administradores.
+
+B4. Propostas
+
+Envio, Contraproposta, Condição (Fiador/Seguro Fiança/Caução).
+
+B5. Documentação & KYC
+
+Coleta Segura, Checklist (RG/CPF/Comprovante Renda).
+
+
+
+
+
+C. Módulo de Gestão de Imóveis (Cadastro & Operações)
+
+Módulo
+
+Componentes e Funcionalidades
+
+C1. Cadastro Rico
+
+Endereços, Matrículas, Proprietários, Características, Mobiliário. Controle de Chaves (Retirada/Devolução com QR).
+
+C2. Gestão Financeira Imóvel
+
+Preço Atual, Histórico de Preço, Vacância, Despesas (Cond./IPTU/Manutenção).
+
+C3. Mídia & Publicação
+
+Fotos, Plantas. Publicação Automática no site.
+
+C4. Compliance & Legal
+
+Laudos, ART, AVCB, Habite-se (Anexados e com Validade/Alertas).
+
+
+
+D. Módulo de Contratos e Legal
+
+Módulo
+
+Componentes e Funcionalidades
+
+D1. Geração de Contratos
+
+Templates dinâmicos (Locação/Venda/Adm.) com variáveis.
+
+D2. Assinatura Digital
+
+Integração ICP-Brasil/DocuSign/Clicksign.
+
+D3. Pós-Contrato
+
+Reajuste Automático (IGP-M/IPCA) com geração de aditivo, aviso e aceite. Renovação/Rescisão: Fluxo, Multas Proporcionais, Checklists, Termo de Vistoria.
+
+
+
+E. Módulo Financeiro
+
+Módulo
+
+Componentes e Funcionalidades
+
+E1. Contas a Receber
+
+Boletos, PIX Copia-e-Cola, Cartão. Split Proprietário/Imobiliária (Taxa Admin).
+
+E2. Contas a Pagar
+
+Repasse a Proprietário, Comissões, Fornecedores, Taxas Cartorárias.
+
+E3. Repasse & Extrato
+
+Repasse Automático (Regras, Abatimentos de despesas). Extrato por Proprietário.
+
+E4. Inadimplência
+
+ Multa/Juro Automáticos.
+
+E5. Comissionamento
+
+Regras por Corretor/Canal, Metas, Ranking.
+
+E6. Fluxo de Caixa
+
+
+
+F. Módulo de Manutenção e Operações (Pós-Contrato)
+
+Módulo
+
+Componentes e Funcionalidades
+
+F1. Orçamentos & OS
+
+3 Orçamentos. Ordens de Serviço (OS) para Prestadores.
+
+F2. Vistorias
+
+Laudo com fotos Antes/Depois, Checklist por Cômodo, Assinatura Digital.
+
+F3. Agenda Técnica
+
+Controle de Acesso/Portaria, Termo de Chave, Evidências.
+
+
+
+G. Módulo de Portais Dedicados (Mini-Portais)
+
+Módulo
+
+Componentes e Funcionalidades
+
+G1. Portal de Corretores/Parcerias
+
+Leads Atribuídos, Agenda, Comissões, Materiais de Mídia.
+
+G2. Portal do ADM
+
+Controle total do portal.
+
+G3. Área do Cliente (Site Público)
+
+Navegação livre entre imóveis, envio de propostas em formulários, acesso aos contatos da imobiliária.
+
+
+
+Exportar para as Planilhas
+
+H. Módulo de Inteligência de Negócios e Otimização
+
+Módulo
+
+Componentes e Funcionalidades
+
+H1. Painel Admin (Cockpit C-Level)
+
+Dashboard 360: Funil de Leads → Visitas → Propostas → Contratos, Taxa de Vacância, Ticket Médio, Days-on-Market, Inadimplência, NPS, Top Canais. KPI de Carteira: Rentabilidade, Giro, ROI Captação, Churn Proprietários. Alert Center: Contratos a vencer, Reajustes, Vistorias pendentes, Seguros.
+
+H2. Ferramentas de Produtividade
+
+Checklist Operacionais, Biblioteca de Modelos (Contratos, E-mails, Laudos).
+
+
+
+I. Módulo de Marketing e Growth
+
+Módulo
+
+Componentes e Funcionalidades
+
+I3. Performance & Testes
+
+Pixel & Analytics (GA4, Meta, TikTok), Eventos (Lead, Clique WhatsApp, Agendamento). AB Tests (Headline, Fotos, Ordem de galeria).
+
+I4. SEO & Social
+
+SEO Técnico (Schema.org, Sitemaps, URLs amigáveis), Social Publisher (Carrossel automático).
+
+
+
+J. Módulo de Integrações, Segurança e Arquitetura
+
+Módulo
+
+Componentes e Funcionalidades
+
+J1. Integrações Externas
+
+Assinatura: Clicksign/DocuSign. Mapas: Google/Mapbox. 
+
+J2. Segurança & Acesso
+
+Perfis e Papéis: Admin, Corretor. 2FA (Autenticação Dupla), ReCAPTCHA.
+
+J3. LGPD & Conformidade
+
+Consentimento, Gestão de Bases Legais, Anonimização, DSR (Export/Forget). Auditoria (Trilha de quem mudou preço, status, contrato).
+
+
+
+
+
+K. Gestão de Aluguéis (Hub Operacional)
+
+Módulo
+
+Componentes e Funcionalidades
+
+Origem da Informação / Funcionalidades Novas
+
+K1. Carteira Ativa & Status
+
+Lista de Contratos Ativos de Locação (Inquilino, Proprietário, Imóvel, Status: Normal, Inadimplente, Aviso de Saída).
+
+Puxa de: C1 (Imóvel), D1 (Contrato), E1 (Status Financeiro).
+
+K2. Linha do Tempo Financeira
+
+Visualização mês a mês de cada contrato: Aluguel Cobrado, Data de Pagamento, Repasse, Despesas Aplicadas.
+
+Puxa de: E1 (Contas a Receber), E3 (Repasse). Adiciona: Visão consolidada.
+
+K3. Gestão de Inadimplência
+
+Workflow de Cobrança Ativo: Régua de Cobrança (Disparo de E-mails/SMS automáticos), Registro de Contato (Histórico da negociação), Geração de Boletos Atualizados.
+
+Puxa de: E4 (Multa/Juro Automáticos). Adiciona: Workflow de ações e histórico de cobrança.
+
+K4. Alertas de Pós-Contrato
+
+Painel de Alertas Operacionais: Contratos a Vencer (90/60/30 dias), Próximo Reajuste, Vistoria de Saída Agendada, Chamados de Manutenção Pendentes.
+
+Puxa de: D3 (Reajuste/Renovação), F3 (Agenda Técnica). Adiciona: Visão unificada de alertas.
+
+K5. Workflow de Renovação
+
+Gestão Ativa: Disparo de notificação de renovação (Proprietário/Inquilino), Registro de aceite/negativa, Geração de Aditivo de Renovação (Se D3 gera), Cálculo de honorários.
+
+Puxa de: D3 (Reajuste Automático/Renovação). Adiciona: Gestão do fluxo de comunicação e status.
+
+K6. Workflow de Rescisão/Saída
+
+Gestão de Aviso Prévio, Cálculo Automático de Multa Proporcional, Agendamento de Vistoria de Saída, Checklists de Entrega de Chaves, Termo de Rescisão.
+
+Puxa de: D3 (Cálculo de Multas), F2 (Vistorias), C1 (Controle de Chaves). Adiciona: Orquestração do processo de saída.
+
+K7. Gestão de Chamados Técnicos
+
+Lista de Ordens de Serviço (OS) ativas (Imóvel, Inquilino, Status: Aberta, Orçamento, Aprovada, Concluída), Histórico de Manutenção do Imóvel.
+
+Puxa de: F1 (Orçamentos & OS), F2 (Vistorias).
+
+K8. Auditoria do Aluguel
+
+Trilha de Auditoria: Quem e quando alterou o valor do aluguel, data de repasse, multa ou status do contrato.
+
+Puxa de: J3 (Auditoria).
+
+
+
+
+
+Estrutura de Menus (Sugestão Prática) - Mantida como Visão Global
+
+Menu Principal (Painel Admin)
+
+Sub-menus / Funcionalidades Chave
+
+Dashboard
+
+Visão Macro (Cockpit C-Level), Alert Center.
+
+CRM
+
+Leads, Pipeline, Agenda, Tarefas, Relatórios.
+
+Imóveis
+
+Cadastros, Publicação, Mídias, Chaves, Compliance.
+
+Propostas & Contratos
+
+Propostas, Documentos do Cliente, Assinaturas, Reajustes, Renov/Rescisão.
+
+Financeiro
+
+Contas a Receber, Contas a Pagar, Repasse, Inadimplência, Comissões, DRE.
+
+Alugueis
+
+Carteira Ativa, Inadimplência, Alertas, Renovação, Rescisão, Histórico Financeiro.
+
+Manutenção
+
+Chamados, Orçamentos, Ordens de Serviço (OS), Vistorias.
+
+Portais
+
+Corretores, ADM.
+
+Marketing
+
+Campanhas, Templates, SEO/AB.
+
+Integrações
+
+Portais Imobiliários, Pagamentos, Bureaus, Assinaturas, Contabilidade.
+
+Configurações
+
+Usuários & Papéis, Templates Padrão, LGPD, Webhooks, Branding.

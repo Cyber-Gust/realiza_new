@@ -1,0 +1,120 @@
+{
+  "painel_admin": {
+    "menu_principal": [
+      {
+        "nome": "Dashboard",
+        "icones": "layout-dashboard",
+        "descricao": "Visão geral executiva",
+        "submenus": ["Resumo Operacional", "Alert Center", "Indicadores (KPI)", "Performance de Captação"]
+      },
+      {
+        "nome": "CRM",
+        "icones": "users",
+        "descricao": "Gestão de leads e pipeline",
+        "submenus": ["Leads", "Pipeline", "Agenda", "Propostas", "Relatórios de Conversão"]
+      },
+      {
+        "nome": "Imóveis",
+        "icones": "home",
+        "descricao": "Gestão do portfólio imobiliário",
+        "submenus": [
+          "Cadastro e Edição",
+          "Publicação e Fotos",
+          "Compliance e Documentos",
+          "Controle de Chaves"
+        ]
+      },
+      {
+        "nome": "Contratos & Propostas",
+        "icones": "file-text",
+        "descricao": "Geração e controle de contratos",
+        "submenus": [
+          "Propostas",
+          "Contratos Ativos",
+          "Assinaturas Digitais",
+          "Reajustes e Aditivos",
+          "Rescisões e Renovação"
+        ]
+      },
+      {
+        "nome": "Financeiro",
+        "icones": "banknote",
+        "descricao": "Gestão financeira e repasses",
+        "submenus": [
+          "Contas a Receber",
+          "Contas a Pagar",
+          "Repasse a Proprietário",
+          "Comissões",
+          "Inadimplência",
+          "Fluxo de Caixa"
+        ]
+      },
+      {
+        "nome": "Aluguéis",
+        "icones": "building-2",
+        "descricao": "Operação da carteira de locações",
+        "submenus": [
+          "Carteira Ativa",
+          "Linha Financeira",
+          "Alertas Operacionais",
+          "Renovação e Rescisão",
+          "Histórico de Pagamentos"
+        ]
+      },
+      {
+        "nome": "Manutenção",
+        "icones": "wrench",
+        "descricao": "Controle de OS e vistorias",
+        "submenus": [
+          "Chamados Técnicos",
+          "Ordens de Serviço",
+          "Vistorias",
+          "Histórico de Manutenção"
+        ]
+      },
+      {
+        "nome": "Marketing",
+        "icones": "megaphone",
+        "descricao": "Campanhas e automações de growth",
+        "submenus": ["Campanhas", "SEO & Social", "AB Tests", "Analytics"]
+      },
+      {
+        "nome": "Portais",
+        "icones": "network",
+        "descricao": "Acesso e gestão de mini-portais",
+        "submenus": ["Portal Corretores", "Portal Proprietários", "Portal ADM"]
+      },
+      {
+        "nome": "Integrações",
+        "icones": "plug",
+        "descricao": "Integrações externas e APIs",
+        "submenus": [
+          "Assinatura Digital (Clicksign/DocuSign)",
+          "Pagamentos (Pix, Boletos)",
+          "Mapas (Google/Mapbox)",
+          "Contabilidade",
+          "Webhooks"
+        ]
+      },
+      {
+        "nome": "Configurações",
+        "icones": "settings",
+        "descricao": "Administração e governança",
+        "submenus": [
+          "Usuários e Papéis",
+          "Templates Padrão",
+          "Branding e Tema",
+          "LGPD e Auditoria",
+          "Logs e Segurança"
+        ]
+      }
+    ],
+    "buckets": {
+      "imoveis_media": "fotos e plantas dos imóveis",
+      "documentos_kyc": "documentos pessoais de clientes",
+      "documentos_contratos": "contratos assinados",
+      "documentos_vistorias": "laudos e fotos de vistoria",
+      "documentos_compliance": "documentação técnica do imóvel"
+    }
+  }
+}

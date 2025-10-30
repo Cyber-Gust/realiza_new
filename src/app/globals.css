@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* =========================================================
+     🌞 TEMA CLARO
+     ========================================================= */
+  :root {
+    --background: 240 5% 96%;
+    --foreground: 240 5% 15%;
+
+    --panel-bg: 240 5% 96%;
+    --panel-card: 0 0% 100%;
+    --panel-card-foreground: 240 5% 15%;
+    --panel-active: 162 30% 22%;
+    --panel-active-foreground: 0 0% 98%;
+
+    --muted: 240 5% 90%;
+    --muted-foreground: 240 5% 40%;
+    --secondary: 240 5% 90%;
+    --secondary-foreground: 240 5% 15%;
+
+    --accent: 162 30% 22%;
+    --accent-foreground: 0 0% 98%;
+
+    --border: 240 5% 85%;
+    --input: 240 5% 90%;
+    --ring: 162 30% 22%;
+  }
+
+  /* =========================================================
+     🌚 TEMA ESCURO
+     ========================================================= */
+  .dark {
+    --background: 240 4% 8%;          /* Fundo geral: quase preto, mas não puro */
+    --foreground: 240 5% 85%;         /* Texto cinza-claro */
+    
+    --panel-bg: 240 4% 8%;            /* Fundo da sidebar */
+    --panel-card: 240 6% 13%;         /* Fundo dos cards */
+    --panel-card-foreground: 240 5% 85%;
+    
+    --panel-active: 162 25% 25%;      /* Verde escuro elegante */
+    --panel-active-foreground: 0 0% 98%;
+    
+    --muted: 240 4% 20%;              /* Cinza médio */
+    --muted-foreground: 240 4% 70%;
+    
+    --secondary: 240 4% 20%;
+    --secondary-foreground: 240 5% 85%;
+    
+    --accent: 162 25% 25%;
+    --accent-foreground: 0 0% 98%;
+
+    /* 🔹 Ajuste principal: bordas e inputs com cinza intermediário */
+    --border: 240 4% 25%;             /* Antes era muito claro (#94949E); agora, mais suave */
+    --input: 240 5% 18%;              /* Mantém consistência com fundo */
+    --ring: 162 20% 40%;              /* Sutil, com toque verde esmaecido */
+  }
+}
