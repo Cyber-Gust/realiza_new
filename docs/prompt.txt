@@ -1,0 +1,189 @@
+preciso de ajuda para construir a parte de imoveis do meu portal para imobiliaria estou utilizando Nesxt, arquivos em JS, e banco de dados Supabase. eu preciso que atenda aos seguitne requisitos
+
+siga as minhas tabelas no supabase, e essas funcionalidades do modulo 
+
+C. Módulo de Gestão de Imóveis (Cadastro & Operações)
+
+Módulo
+
+Componentes e Funcionalidades
+
+C1. Cadastro Rico
+
+Endereços, Matrículas, Proprietários, Características, Mobiliário. Controle de Chaves (Retirada/Devolução com QR).
+
+C2. Gestão Financeira Imóvel
+
+Preço Atual, Histórico de Preço, Vacância, Despesas (Cond./IPTU/Manutenção).
+
+C3. Mídia & Publicação
+
+Fotos, Plantas. Publicação Automática no site.
+
+C4. Compliance & Legal
+
+Laudos, ART, AVCB, Habite-se (Anexados e com Validade/Alertas).
+
+quero o estilo identico ao da Meta e Google, clean, minimalista, incones lucide react, ja tenho esses components 
+
+/components
+  /ui
+    Card.jsx
+    Table.jsx
+    Modal.jsx
+    Badge.jsx
+    Toast.jsx
+  /forms
+    Input.jsx
+    Select.jsx
+    Switch.jsx
+    DatePicker.jsx
+  /layout
+    PageHeader.jsx
+    KPIWidget.jsx
+    Footer.js
+    Header.js
+    Sidebar.js
+/hooks
+  useFetchData.js
+  useModal.js
+  useStorageUpload.js
+  useRole.js
+/ui
+  button.jsx
+  dialog.jsx
+  select.jsx
+  switch.jsx
+  use-toast.jsx
+  
+
+minha pasta lib
+
+lib/
+  utils.ks
+  supabase/
+    server.js
+    client.js
+
+e meus estilos
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* =========================================================
+     🌞 TEMA CLARO
+     ========================================================= */
+  :root {
+    --background: 240 5% 96%;
+    --foreground: 240 5% 15%;
+
+    --panel-bg: 240 5% 96%;
+    --panel-card: 0 0% 100%;
+    --panel-card-foreground: 240 5% 15%;
+    --panel-active: 162 30% 22%;
+    --panel-active-foreground: 0 0% 98%;
+
+    --muted: 240 5% 90%;
+    --muted-foreground: 240 5% 40%;
+    --secondary: 240 5% 90%;
+    --secondary-foreground: 240 5% 15%;
+
+    --accent: 162 30% 22%;
+    --accent-foreground: 0 0% 98%;
+
+    --border: 240 5% 85%;
+    --input: 240 5% 90%;
+    --ring: 162 30% 22%;
+  }
+
+  /* =========================================================
+     🌚 TEMA ESCURO
+     ========================================================= */
+  .dark {
+    --background: 240 4% 8%;          /* Fundo geral: quase preto, mas não puro */
+    --foreground: 240 5% 85%;         /* Texto cinza-claro */
+    
+    --panel-bg: 240 4% 8%;            /* Fundo da sidebar */
+    --panel-card: 240 6% 13%;         /* Fundo dos cards */
+    --panel-card-foreground: 240 5% 85%;
+    
+    --panel-active: 162 25% 25%;      /* Verde escuro elegante */
+    --panel-active-foreground: 0 0% 98%;
+    
+    --muted: 240 4% 20%;              /* Cinza médio */
+    --muted-foreground: 240 4% 70%;
+    
+    --secondary: 240 4% 20%;
+    --secondary-foreground: 240 5% 85%;
+    
+    --accent: 162 25% 25%;
+    --accent-foreground: 0 0% 98%;
+
+    /* 🔹 Ajuste principal: bordas e inputs com cinza intermediário */
+    --border: 240 4% 25%;             /* Antes era muito claro (#94949E); agora, mais suave */
+    --input: 240 5% 18%;              /* Mantém consistência com fundo */
+    --ring: 162 20% 40%;              /* Sutil, com toque verde esmaecido */
+  }
+}
+
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  darkMode: ["class"],
+  content: [
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+
+        // === ADICIONADO PARA O PAINEL ADMIN ===
+        panel: {
+          bg: "hsl(var(--panel-bg))",
+          card: "hsl(var(--panel-card))",
+          foreground: "hsl(var(--panel-card-foreground))",
+          active: "hsl(var(--panel-active))",
+          "active-foreground": "hsl(var(--panel-active-foreground))",
+        },
+        // ======================================
+      },
+      borderRadius: {
+        lg: "0.5rem",
+        md: "calc(0.5rem - 2px)",
+        sm: "calc(0.5rem - 4px)",
+      },
+    },
+  },
+  plugins: [],
+};
+
+
+quero que me diga antes de qualquer  codigo, qual o passo a passo e quais arquivos precisamos gerar e criar

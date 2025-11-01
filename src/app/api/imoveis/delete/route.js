@@ -1,14 +1,47 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createServiceClient } from "@/lib/supabase/server";
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-
+/**
+ * 🔥 Rota DELETE para imóveis (painel admin)
+ * - Usa Service Role → ignora RLS
+ * - Suporta soft delete (marca "inativo")
+ * - Suporta hard delete (remove registro real)
+ */
 export async function DELETE(req) {
-  const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id");
+  try {
+    const supabase = createServiceClient(); // 👈 bypass RLS total
+    const { id, soft } = await req.json();
 
-  const { error } = await supabase.from("imoveis").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (!id) {
+      return NextResponse.json(
+        { error: "ID do imóvel obrigatório." },
+        { status: 400 }
+      );
+    }
 
-  return NextResponse.json({ message: "Imóvel excluído com sucesso" });
+    // 🔹 Soft delete → apenas atualiza status
+    if (soft) {
+      const { data, error } = await supabase
+        .from("imoveis")
+        .update({
+          status: "inativo",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return NextResponse.json({ data });
+    }
+
+    // 🔹 Hard delete → remove de vez
+    const { error } = await supabase.from("imoveis").delete().eq("id", id);
+    if (error) throw error;
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("❌ Erro ao deletar imóvel:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }

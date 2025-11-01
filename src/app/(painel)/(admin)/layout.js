@@ -1,37 +1,50 @@
-"use client";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { createServerClient } from "@supabase/ssr";
+import AdminClientLayout from "./AdminClientLayout"; // 👈 importa o seu layout client
 
-import { useState } from "react";
-import clsx from "clsx";
-import { Sidebar } from "@/components/admin/layout/Sidebar";
-import { Header } from "@/components/admin/layout/Header";
-import { Footer } from "@/components/admin/layout/Footer";
-import { ToastProvider } from "@/components/ui/use-toast"; // 👈 importa o provider
+/**
+ * 🔒 Layout de segurança do painel admin
+ * - Verifica sessão e role via Supabase
+ * - Roda no servidor (SSR)
+ * - Encapsula o layout client-side com sidebar e header
+ */
+export const dynamic = "force-dynamic";
 
-export default function AdminLayout({ children }) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+export default async function AdminLayout({ children }) {
+  const cookieStore = await cookies();
 
-  return (
-    <ToastProvider>
-      <div className="flex min-h-screen w-full">
-        {/* Sidebar Fixa */}
-        <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
-
-        {/* Conteúdo Principal */}
-        <div
-          className={clsx(
-            "flex flex-1 flex-col transition-all duration-300 ease-in-out",
-            isCollapsed ? "pl-20" : "pl-64"
-          )}
-        >
-          <Header />
-
-          <main className="flex-1 overflow-y-auto bg-panel-bg p-6">
-            {children}
-          </main>
-
-          <Footer />
-        </div>
-      </div>
-    </ToastProvider>
+  // 🔹 Cria o client SSR (com cookies válidos)
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        get: (name) => cookieStore.get(name)?.value,
+      },
+    }
   );
+
+  // 🔹 Busca usuário autenticado
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  // 🔹 Verifica o papel (role)
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile || profile.role !== "admin") {
+    redirect("/"); // bloqueia acesso de não-admins
+  }
+
+  // 🔹 Retorna o layout client-side com o painel
+  return <AdminClientLayout>{children}</AdminClientLayout>;
 }

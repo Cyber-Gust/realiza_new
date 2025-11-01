@@ -4,7 +4,7 @@ import { Inter } from "next/font/google";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "Imobiliária - Plataforma Digital",
+  title: "Realiza Imóveis - Plataforma Digital",
   description: "Gestão de Imóveis, Vendas e Locação",
 };
 

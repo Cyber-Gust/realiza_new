@@ -1170,3 +1170,10 @@ USING (
 
 );
 
+create table precos_historico (
+  id uuid primary key default gen_random_uuid(),
+  imovel_id uuid references imoveis(id),
+  tipo text check (tipo in ('venda', 'locacao')),
+  valor decimal(12,2),
+  registrado_em timestamptz default now()
+);

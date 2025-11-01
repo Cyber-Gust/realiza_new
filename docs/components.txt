@@ -1,20 +1,61 @@
 /components
+  ThemeToggle.js
+  /admin
+    /ui
+      Card.jsx
+      Table.jsx
+      Modal.jsx
+      Badge.jsx
+      Toast.jsx
+    /forms
+      Input.jsx
+      Select.jsx
+      Switch.jsx
+      DatePicker.jsx
+    /layout
+      Header.js
+      Footer.js
+      Sidebar.js
+      PageHeader.jsx
+      KPIWidget.jsx
+  /imoveis
+    ChavesDialog.jsx
+    CompliancePanel.jsx
+    FinanceiroPanel.jsx
+    ImoveisFilters.jsx
+    ImoveisTable.jsx
+    ImovelForm.jsx
+    MidiaPanel.jsx
+    PrecoHistoricoChart.jsx
+    StatusBadge.jsx
+    VacanciaWidget.jsx
   /ui
-    Card.jsx
-    Table.jsx
-    Modal.jsx
-    Badge.jsx
-    Toast.jsx
-  /forms
-    Input.jsx
-    Select.jsx
-    Switch.jsx
-    DatePicker.jsx
-  /layout
-    PageHeader.jsx
-    KPIWidget.jsx
+    button.js
+    dialog.jsx
+    select.jsx
+    switch.jsx
+    tabs.jsx
+    use-toast.jsx
+    
 /hooks
   useFetchData.js
   useModal.js
   useStorageUpload.js
   useRole.js
+  useChaves.js
+  useCompliance.js
+  useImoveisQuery.js
+
+/lib
+  agenda.service.js
+  compliance.server.js
+  imoveis.repository.js
+  utils.js
+  /supabase
+    server.js
+    client.js
+
+/utils  
+  formatters.js
+  qrcode.js
+  validators.js

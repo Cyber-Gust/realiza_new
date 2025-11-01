@@ -73,8 +73,8 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
             width={843} 
             height={590}
             className={clsx(
-              "h-10 transition-all duration-300 ease-in-out", // Mantém altura e transição
-              isCollapsed ? "hidden" : "block w-[105px]" // <-- AQUI A MUDANÇA
+              "h-14 transition-all duration-300 ease-in-out", // Mantém altura e transição
+              isCollapsed ? "hidden" : "block w-auto" // <-- AQUI A MUDANÇA
             )}
             priority 
           />

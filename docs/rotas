@@ -1,0 +1,19 @@
+/auth
+    /callback
+    /login
+    /logout
+/dashboard
+    /recentes
+    /summary
+/imoveis
+    /create
+    /list
+    /delete
+    /update
+    /[id]
+        /chaves 
+        /compliance
+        /preco  
+        /financeiro
+    /storage  
+        /sign

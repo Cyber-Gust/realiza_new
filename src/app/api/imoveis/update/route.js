@@ -1,15 +1,40 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createServiceClient } from "@/lib/supabase/server";
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-
+/**
+ * 🔥 Atualiza imóvel (painel admin)
+ * - Usa Service Role → ignora RLS
+ * - Garante timestamp e retorno completo
+ */
 export async function PUT(req) {
   try {
-    const { id, ...updates } = await req.json();
-    const { error } = await supabase.from("imoveis").update(updates).eq("id", id);
+    const supabase = createServiceClient(); // 👈 usa o client com permissão total
+    const body = await req.json();
+
+    if (!body.id) {
+      return NextResponse.json(
+        { error: "ID do imóvel obrigatório." },
+        { status: 400 }
+      );
+    }
+
+    // 🔹 Atualiza imóvel
+    const { data, error } = await supabase
+      .from("imoveis")
+      .update({
+        ...body,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", body.id)
+      .select()
+      .single();
+
     if (error) throw error;
-    return NextResponse.json({ message: "Imóvel atualizado com sucesso" });
+
+    // 🔹 Retorno padronizado
+    return NextResponse.json({ data });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 400 });
+    console.error("❌ Erro ao atualizar imóvel:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

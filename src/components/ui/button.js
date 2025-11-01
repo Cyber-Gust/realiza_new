@@ -1,5 +1,3 @@
-//src/components/ui/button.js
-
 import * as React from "react";
 import clsx from "clsx";
 
@@ -16,7 +14,8 @@ const buttonVariants = ({ variant, size }) => {
   const variants = {
     default: "bg-accent text-accent-foreground shadow hover:bg-accent/90",
     ghost: "hover:bg-secondary hover:text-secondary-foreground",
-    secondary: "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
+    secondary:
+      "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
     link: "text-primary underline-offset-4 hover:underline",
   };
 
@@ -36,15 +35,15 @@ const buttonVariants = ({ variant, size }) => {
 };
 
 const Button = React.forwardRef(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    // Se 'asChild' for true, ele renderiza o componente filho
-    // em vez de um <button>. (Simplificado sem @radix-ui/react-slot)
+  ({ className, variant, size, asChild = false, onClick, ...props }, ref) => {
     const Comp = asChild ? "span" : "button";
 
     return (
       <Comp
-        className={clsx(buttonVariants({ variant, size }), className)}
         ref={ref}
+        // ✅ evita erro de "onClick = false"
+        onClick={typeof onClick === "function" ? onClick : undefined}
+        className={clsx(buttonVariants({ variant, size }), className)}
         {...props}
       />
     );
