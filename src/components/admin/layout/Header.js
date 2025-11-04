@@ -7,7 +7,6 @@ export function Header() {
       {/* Ocupa o espaço à esquerda. Pode ter Breadcrumbs ou Busca */}
       <div className="flex-1">
         {/* Ex: <Breadcrumbs /> */}
-        <h1 className="text-lg font-semibold text-foreground">Dashboard</h1>
       </div>
 
       {/* Botões à direita */}

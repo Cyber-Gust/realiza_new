@@ -1,0 +1,75 @@
+/* ==========================================================
+   Base mínima do react-day-picker para layout em grid
+   ========================================================== */
+
+.rdp {
+  --rdp-cell-size: 36px;
+  --rdp-accent-color: hsl(var(--accent));
+  --rdp-background-color: hsl(var(--panel-card));
+  --rdp-outline: 2px solid hsl(var(--accent));
+  --rdp-outline-selected: 2px solid hsl(var(--accent));
+}
+
+.rdp {
+  margin: 0;
+  padding: 0;
+  position: relative;
+  font-size: 0.875rem;
+}
+
+.rdp-months {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.rdp-month {
+  margin: 0 0.5rem;
+}
+
+.rdp-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.rdp-head {
+  text-align: center;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+}
+
+.rdp-head_row {
+  display: table-row;
+}
+
+.rdp-head_cell {
+  padding: 0.25rem;
+}
+
+.rdp-row {
+  display: table-row;
+}
+
+.rdp-cell {
+  display: table-cell;
+  width: var(--rdp-cell-size);
+  height: var(--rdp-cell-size);
+  text-align: center;
+  vertical-align: middle;
+  padding: 0.25rem;
+}
+
+.rdp-day {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--rdp-cell-size);
+  height: var(--rdp-cell-size);
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.rdp-day:hover {
+  background-color: hsl(var(--muted));
+}

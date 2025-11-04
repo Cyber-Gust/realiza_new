@@ -4,7 +4,15 @@ import * as React from "react";
 import { DayPicker } from "react-day-picker";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import "@/styles/daypicker.css";
 
+
+/**
+ * Calendar Realiza Imóveis
+ * - Paleta suave (panel-card)
+ * - Layout fixo, sem overflow
+ * - Bordas arredondadas e sombras elegantes
+ */
 export function Calendar({
   className,
   classNames,
@@ -15,41 +23,45 @@ export function Calendar({
     <DayPicker
       showOutsideDays={showOutsideDays}
       className={cn(
-        "p-3 text-sm rounded-xl border border-border bg-panel-card shadow-sm",
+        "p-3 text-sm rounded-xl border border-border bg-panel-card shadow-md",
+        "w-[280px] sm:w-[320px]",
         className
       )}
       classNames={{
-        months: "flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4",
-        month: "space-y-4 w-full",
-        caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium text-foreground",
-        nav: "space-x-1 flex items-center",
+        months:
+          "flex flex-col sm:flex-row gap-4 justify-center items-center text-foreground",
+        month: "w-full space-y-3",
+        caption:
+          "flex justify-between items-center font-medium text-sm text-foreground mb-1",
+        caption_label: "capitalize text-[0.9rem]",
+        nav: "flex items-center gap-2",
         nav_button: cn(
-          "flex items-center justify-center h-8 w-8 rounded-md transition hover:bg-muted text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          "flex items-center justify-center h-8 w-8 rounded-md border border-border text-muted-foreground transition-all",
+          "hover:bg-accent hover:text-accent-foreground focus:ring-2 focus:ring-ring focus:ring-offset-2"
         ),
-        nav_button_previous: "absolute left-1",
-        nav_button_next: "absolute right-1",
-        table: "w-full border-collapse space-y-1",
-        head_row: "flex",
+        nav_button_previous: "order-first",
+        nav_button_next: "order-last",
+        table: "w-full border-collapse",
+        head_row: "flex justify-between text-xs text-muted-foreground",
         head_cell:
-          "text-muted-foreground rounded-md w-8 font-normal text-[0.75rem]",
-        row: "flex w-full mt-2",
-        cell:
-          "h-8 w-8 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
+          "w-8 h-8 flex items-center justify-center font-normal text-[0.7rem]",
+        row: "flex justify-between mt-1",
+        cell: "h-8 w-8 text-center p-0 relative",
         day: cn(
-          "h-8 w-8 rounded-md flex items-center justify-center transition hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+          "h-8 w-8 flex items-center justify-center rounded-md cursor-pointer transition-all",
+          "hover:bg-accent hover:text-accent-foreground"
         ),
         day_selected:
-          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
-        day_today:
-          "text-primary font-semibold border border-primary/30",
-        day_outside: "text-muted-foreground/50 opacity-50",
-        day_disabled: "text-muted-foreground/50 opacity-40 cursor-not-allowed",
+          "bg-panel-active text-panel-active-foreground hover:brightness-110 font-semibold",
+        day_today: "border border-accent font-semibold text-accent",
+        day_outside: "opacity-40 text-muted-foreground",
+        day_disabled:
+          "opacity-30 text-muted-foreground line-through cursor-not-allowed",
         ...classNames,
       }}
       components={{
-        IconLeft: () => <ChevronLeft className="h-4 w-4 opacity-60" />,
-        IconRight: () => <ChevronRight className="h-4 w-4 opacity-60" />,
+        IconLeft: () => <ChevronLeft className="h-4 w-4 opacity-70" />,
+        IconRight: () => <ChevronRight className="h-4 w-4 opacity-70" />,
       }}
       {...props}
     />

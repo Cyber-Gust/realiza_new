@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import PageHeader from "@/components/admin/layout/PageHeader";
 import Card from "@/components/admin/ui/Card";
 import ImovelForm from "@/components/imoveis/ImovelForm";
@@ -7,11 +8,10 @@ import MidiaPanel from "@/components/imoveis/MidiaPanel";
 import CompliancePanel from "@/components/imoveis/CompliancePanel";
 import ChavesDialog from "@/components/imoveis/ChavesDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useEffect, useState } from "react";
-import useModal from "@/hooks/useModal";
 import { Button } from "@/components/ui/button";
 import { KeyRound, Save } from "lucide-react";
 import Toast from "@/components/admin/ui/Toast";
+import useModal from "@/hooks/useModal";
 import { formatCurrency } from "@/utils/formatters";
 
 export default function ImovelDetailPage({ params }) {
@@ -21,18 +21,24 @@ export default function ImovelDetailPage({ params }) {
   const [saving, setSaving] = useState(false);
   const modalChaves = useModal();
 
-  // ✅ Resolve params (Promise) corretamente
+  // ✅ Corrigido: params é síncrono, não precisa de async/await
   useEffect(() => {
-    async function resolveParams() {
-      const p = await params;
-      setImovelId(p.id);
-    }
-    resolveParams();
+    let mounted = true;
+
+    (async () => {
+      const p = await params; // ✅ Desembrulha a Promise corretamente
+      if (mounted && p?.id) setImovelId(p.id);
+    })();
+
+    return () => {
+      mounted = false;
+    };
   }, [params]);
 
+  // 🔹 Carrega dados do imóvel
   const loadImovel = async (id) => {
     try {
-      const res = await fetch(`/api/imoveis/list?id=${id}`);
+      const res = await fetch(`/api/imoveis/list?id=${id}`, { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao carregar imóvel");
       setImovel(data.data?.[0] || null);
@@ -43,6 +49,7 @@ export default function ImovelDetailPage({ params }) {
     }
   };
 
+  // 🔹 Salvar alterações gerais do imóvel
   const salvarAlteracoes = async () => {
     if (!imovel) return;
     setSaving(true);
@@ -74,6 +81,7 @@ export default function ImovelDetailPage({ params }) {
         Carregando imóvel...
       </p>
     );
+
   if (!imovel)
     return (
       <p className="text-center p-10 text-muted-foreground">
@@ -83,11 +91,12 @@ export default function ImovelDetailPage({ params }) {
 
   return (
     <div className="space-y-6">
+      {/* 🔹 Cabeçalho com botão de salvar e controle de chaves */}
       <PageHeader
         title={imovel.titulo || "Imóvel sem título"}
-        description={`${imovel.tipo?.toUpperCase()} • ${
-          imovel.endereco_cidade || "-"
-        }/${imovel.endereco_estado || ""}`}
+        description={`${imovel.tipo?.toUpperCase()} • ${imovel.endereco_cidade || "-"} / ${
+          imovel.endereco_estado || ""
+        }`}
         rightSection={
           <div className="flex gap-2">
             <Button
@@ -100,7 +109,13 @@ export default function ImovelDetailPage({ params }) {
             </Button>
 
             <Button
-              onClick={modalChaves.open}
+              onClick={() => {
+                if (!imovel?.id) {
+                  Toast.error("Imóvel ainda não carregado.");
+                  return;
+                }
+                modalChaves.openModal();
+              }}
               variant="secondary"
               className="flex items-center gap-2"
             >
@@ -110,6 +125,7 @@ export default function ImovelDetailPage({ params }) {
         }
       />
 
+      {/* 🔹 Abas do painel */}
       <Tabs defaultValue="cadastro" className="w-full">
         <TabsList className="bg-muted rounded-lg p-1 flex gap-2">
           <TabsTrigger value="cadastro">Cadastro</TabsTrigger>
@@ -125,7 +141,7 @@ export default function ImovelDetailPage({ params }) {
 
         {/* 💰 Aba Financeiro */}
         <TabsContent value="financeiro" className="mt-4">
-          <FinanceiroPanel imovel={imovel} />
+          <FinanceiroPanel imovel={imovel} onUpdateImovel={setImovel} />
         </TabsContent>
 
         {/* 🖼 Aba Mídia */}
@@ -139,6 +155,7 @@ export default function ImovelDetailPage({ params }) {
         </TabsContent>
       </Tabs>
 
+      {/* 🔹 Info rodapé (datas + valores) */}
       <Card className="p-4 text-sm text-muted-foreground">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           <p>
@@ -160,10 +177,11 @@ export default function ImovelDetailPage({ params }) {
         </div>
       </Card>
 
+      {/* 🔹 Modal de controle de chaves */}
       <ChavesDialog
         imovelId={imovel.id}
-        open={modalChaves.opened}
-        onClose={modalChaves.close}
+        open={modalChaves.open}
+        onClose={modalChaves.closeModal}
       />
     </div>
   );

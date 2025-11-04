@@ -19,13 +19,6 @@ CREATE TYPE user_role AS ENUM (
   'admin',        -- G2: ADM (Controle total)
 
   'corretor',     -- G1: Portal Corretor
-
-  'proprietario', -- C1: Proprietário (Anuncia imóvel)
-
-  'inquilino',    -- D, K: Cliente que aluga
-
-  'cliente'       -- G3, B1: Lead que se cadastrou
-
 );
 
 
@@ -1170,10 +1163,138 @@ USING (
 
 );
 
-create table precos_historico (
+CREATE TABLE imoveis_precos (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  imovel_id uuid REFERENCES imoveis(id),
+  tipo text CHECK (tipo IN ('venda','locacao')),
+  valor numeric(12,2),
+  created_at timestamptz DEFAULT now()
+);
+
+create table public.imoveis_chaves_historico (
   id uuid primary key default gen_random_uuid(),
-  imovel_id uuid references imoveis(id),
-  tipo text check (tipo in ('venda', 'locacao')),
-  valor decimal(12,2),
-  registrado_em timestamptz default now()
+  imovel_id uuid references public.imoveis(id) on delete cascade,
+  usuario_id uuid references public.profiles(id),
+  acao text check (acao in ('retirada', 'devolucao', 'transferencia', 'outro')),
+  localizacao text,
+  observacao text,
+  created_at timestamptz default now()
+);
+
+-- 1. Enum de tipos de pessoa (sem login)
+CREATE TYPE persona_tipo AS ENUM ('proprietario', 'inquilino', 'cliente');
+
+-- 2. Tabela de personas
+CREATE TABLE public.personas (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nome TEXT NOT NULL,
+  email TEXT,
+  telefone TEXT,
+  cpf_cnpj TEXT,
+  tipo persona_tipo NOT NULL,
+  endereco_json JSONB,
+  observacoes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 3. Index básico
+CREATE INDEX idx_personas_tipo ON public.personas(tipo);
+
+-- ============================================================
+-- 🏗️ MIGRAÇÃO: Ajustes na tabela de IMÓVEIS
+-- Objetivos:
+-- 1. Adicionar corretor_id (referência para profiles.id)
+-- 2. Adicionar disponibilidade ('venda', 'locacao', 'ambos')
+-- 3. Alterar proprietario_id para referenciar personas.id
+-- ============================================================
+
+-- 1️⃣ Criar o ENUM de disponibilidade
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'disponibilidade_tipo') THEN
+    CREATE TYPE disponibilidade_tipo AS ENUM ('venda', 'locacao', 'ambos');
+  END IF;
+END $$;
+
+-- 2️⃣ Adicionar campo corretor_id
+ALTER TABLE public.imoveis
+ADD COLUMN IF NOT EXISTS corretor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+-- 3️⃣ Adicionar campo disponibilidade
+ALTER TABLE public.imoveis
+ADD COLUMN IF NOT EXISTS disponibilidade disponibilidade_tipo DEFAULT 'venda';
+
+-- 4️⃣ Remover antiga constraint do proprietario_id (se existir)
+DO $$
+DECLARE
+  constraint_name text;
+BEGIN
+  SELECT conname INTO constraint_name
+  FROM pg_constraint
+  WHERE conrelid = 'public.imoveis'::regclass
+  AND conname LIKE '%proprietario_id%';
+  
+  IF constraint_name IS NOT NULL THEN
+    EXECUTE format('ALTER TABLE public.imoveis DROP CONSTRAINT %I;', constraint_name);
+  END IF;
+END $$;
+
+-- 5️⃣ Criar nova referência para personas
+ALTER TABLE public.imoveis
+ADD CONSTRAINT imoveis_proprietario_id_fkey FOREIGN KEY (proprietario_id)
+  REFERENCES public.personas(id) ON DELETE SET NULL;
+
+-- 6️⃣ Atualizar colunas de auditoria
+ALTER TABLE public.imoveis
+ALTER COLUMN updated_at SET DEFAULT now();
+
+-- ============================================================
+-- ✅ Fim da migração
+-- ============================================================
+
+-- ============================================================
+-- 🪪 BUCKET: perfil_fotos
+-- Políticas para upload e leitura de fotos de perfil
+-- ============================================================
+
+-- 1️⃣ Leitura pública (todos podem ver as fotos)
+CREATE POLICY "Public Read Access Perfil Fotos"
+ON storage.objects FOR SELECT
+USING (
+  bucket_id = 'perfil_fotos'
+);
+
+-- 2️⃣ Escrita (upload) permitida apenas para usuários logados
+CREATE POLICY "Authenticated Users Insert Perfil Fotos"
+ON storage.objects FOR INSERT
+WITH CHECK (
+  bucket_id = 'perfil_fotos'
+  AND auth.role() = 'authenticated'
+);
+
+-- 3️⃣ Atualização e deleção (permitida apenas ao próprio dono)
+-- ⚙️ Convenção: cada arquivo fica em uma pasta com o ID do usuário.
+-- Exemplo: perfil_fotos/<user_id>/foto.jpg
+
+CREATE POLICY "User Update Own Perfil Foto"
+ON storage.objects FOR UPDATE
+USING (
+  bucket_id = 'perfil_fotos'
+  AND auth.uid() = (storage.foldername(name))[1]::uuid
+);
+
+CREATE POLICY "User Delete Own Perfil Foto"
+ON storage.objects FOR DELETE
+USING (
+  bucket_id = 'perfil_fotos'
+  AND auth.uid() = (storage.foldername(name))[1]::uuid
+);
+
+-- 4️⃣ (Opcional) Acesso total para admins e corretores
+CREATE POLICY "AdminCorretor Full Access Perfil Fotos"
+ON storage.objects FOR ALL
+USING (
+  bucket_id = 'perfil_fotos'
+  AND (SELECT get_my_role()) IN ('admin', 'corretor')
 );

@@ -1,8 +1,10 @@
 {
   "enums": {
-    "user_role": ["admin", "corretor", "proprietario", "inquilino", "cliente"],
+    "user_role": ["admin", "corretor"],
+    "persona_tipo": ["proprietario", "inquilino", "cliente"],
     "imovel_status": ["disponivel", "reservado", "alugado", "vendido", "inativo"],
     "imovel_tipo": ["apartamento", "casa", "terreno", "comercial", "rural"],
+    "disponibilidade": ["venda", "locacao", "ambos"],
     "lead_status": ["novo", "qualificado", "visita_agendada", "proposta_feita", "documentacao", "concluido", "perdido"],
     "contrato_tipo": ["locacao", "venda", "administracao"],
     "transacao_tipo": [
@@ -27,11 +29,13 @@
       "role": "user_role",
       "creci": "text",
       "dados_bancarios_json": "jsonb",
-      "updated_at": "timestamptz"
+      "updated_at": "timestamptz",
+      "avatar_url": "text"
     },
-    "imoveis": {
+      "imoveis": {
       "id": "uuid (pk)",
-      "proprietario_id": "uuid (ref profiles.id)",
+      "proprietario_id": "uuid (ref personas.id)",
+      "corretor_id": "uuid (ref profiles.id)",
       "codigo_ref": "text",
       "titulo": "text",
       "descricao": "text",
@@ -43,6 +47,7 @@
       "endereco_estado": "char(2)",
       "tipo": "imovel_tipo",
       "status": "imovel_status",
+      "disponibilidade": "disponibilidade_tipo", 
       "preco_venda": "decimal(12,2)",
       "preco_locacao": "decimal(10,2)",
       "valor_condominio": "decimal(10,2)",
@@ -55,8 +60,27 @@
       "mobiliado": "bool",
       "documentos_compliance_json": "jsonb",
       "chaves_localizacao": "text",
-      "created_at": "timestamptz",
-      "updated_at": "timestamptz"
+      "created_at": "timestamptz DEFAULT now()",
+      "updated_at": "timestamptz DEFAULT now()"
+    },
+
+    "imoveis_chaves_historico": {
+      "id": "uuid (pk)",
+      "imovel_id": "uuid (ref imoveis.id)",
+      "usuario_id": "uuid (ref profiles.id)",
+      "acao": "text (check: ['retirada', 'devolucao', 'transferencia', 'outro'])",
+      "localizacao": "text",
+      "observacao": "text",
+      "created_at": "timestamptz"
+    },
+    "imoveis_precos": {
+      "id": "uuid (pk)",
+      "imovel_id": "uuid (ref imoveis.id)",
+      "usuario_id": "uuid (ref profiles.id)",
+      "tipo": "text (check: ['venda', 'locacao'])",
+      "valor": "decimal(12,2)",
+      "descricao": "text",
+      "created_at": "timestamptz"
     },
     "leads": {
       "id": "uuid (pk)",
@@ -70,6 +94,19 @@
       "created_at": "timestamptz",
       "updated_at": "timestamptz"
     },
+
+      "personas": {
+      "id": "uuid (pk)",
+      "nome": "text",
+      "email": "text",
+      "telefone": "text",
+      "cpf_cnpj": "text",
+      "tipo": "persona_tipo",
+      "endereco_json": "jsonb",
+      "observacoes": "text",
+      "created_at": "timestamptz",
+      "updated_at": "timestamptz"
+    },  
     "propostas": {
       "id": "uuid (pk)",
       "imovel_id": "uuid (ref imoveis.id)",

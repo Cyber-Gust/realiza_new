@@ -26,7 +26,7 @@ export default function PrecoHistoricoChart({ data = [] }) {
   return (
     <div className="w-full h-72">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={formatted} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+        <LineChart data={formatted} margin={{ top: 10, right: 16, left: 40, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="data" interval="preserveStartEnd" tickMargin={6} />
           <YAxis width={80} tickFormatter={(v) => formatCurrency(v)} />

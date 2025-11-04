@@ -1,3 +1,4 @@
+// src/app/api/imoveis/storage/sign/route.js
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 

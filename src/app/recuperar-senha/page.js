@@ -1,40 +1,38 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import Image from 'next/image'
-// Para esta página, usamos o cliente supabase, pois a API route
-// é apenas para o *callback*, não para iniciar o pedido.
-import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
 
 export default function RecuperarSenhaPage() {
   const [email, setEmail] = useState('')
+  const [success, setSuccess] = useState(null)
   const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
-  
-  const supabase = createClient()
 
-  const handleReset = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
-    setSuccess(false)
+    setSuccess(null)
     setLoading(true)
 
-    // Esta é a URL para onde o usuário será enviado DEPOIS
-    // de clicar no link e ser validado pela API 'api/auth/callback'.
-    const redirectTo = `${window.location.origin}/recuperar-senha/update`
+    try {
+      const res = await fetch('/api/auth/recover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: redirectTo,
-    })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
 
-    if (error) {
-      setError(error.message)
-    } else {
-      setSuccess(true)
+      setSuccess('E-mail de recuperação enviado! Verifique sua caixa de entrada.')
+      setEmail('')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
@@ -57,49 +55,45 @@ export default function RecuperarSenhaPage() {
           <Image src="/logo.png" alt="Logo Realiza Imóveis" width={180} height={40} />
         </div>
 
-        <h2 className="text-xl font-bold text-center text-primary-foreground">
+        <h2 className="text-xl font-semibold text-center text-primary-foreground">
           Recuperar Senha
         </h2>
+        <p className="text-sm text-center text-muted-foreground">
+          Informe o e-mail cadastrado e enviaremos um link para redefinir sua senha.
+        </p>
 
-        {success ? (
-          <div className="text-center">
-            <p className="text-lg text-primary-foreground">Link enviado!</p>
-            <p className="mt-2 text-muted">Verifique seu e-mail para continuar.</p>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label htmlFor="email" className="text-sm font-medium text-muted">
+              E-mail
+            </label>
+            <input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-2 mt-1 text-primary-foreground bg-secondary/50 border border-secondary rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
+            />
           </div>
-        ) : (
-          <form onSubmit={handleReset} className="space-y-6">
-            <div>
-              <label htmlFor="email" className="text-sm font-medium text-muted">
-                Seu Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full px-4 py-2 mt-1 text-primary-foreground bg-secondary/50 border border-secondary rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
-              />
-            </div>
 
-            {error && <p className="text-sm text-center text-red-400">{error}</p>}
+          {error && <p className="text-sm text-center text-red-400">{error}</p>}
+          {success && <p className="text-sm text-center text-green-400">{success}</p>}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 font-semibold text-accent-foreground bg-accent rounded-md hover:bg-opacity-90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Enviando..." : "Enviar Link"}
-            </button>
-          </form>
-        )}
-        
-        <div className="text-sm text-center">
-          <Link href="/login" className="font-medium text-accent hover:underline">
-            Lembrou a senha? Voltar ao Login
-          </Link>
-        </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 font-semibold text-accent-foreground bg-accent rounded-md hover:bg-opacity-90 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Enviando...' : 'Enviar link de recuperação'}
+          </button>
 
+          <div className="text-center">
+            <Link href="/login" className="text-sm text-accent hover:underline">
+              Voltar ao login
+            </Link>
+          </div>
+        </form>
       </div>
     </div>
   )

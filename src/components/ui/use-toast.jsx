@@ -1,14 +1,9 @@
-//src/components/ui/use-toast.jsx
-
 "use client";
 
 import * as React from "react";
 import { CheckCircle2, XCircle, Info, AlertTriangle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ----------------------------------------------------------
-// 🔹 CONTEXTO
-// ----------------------------------------------------------
 const ToastContext = React.createContext(null);
 
 export function ToastProvider({ children }) {
@@ -16,19 +11,29 @@ export function ToastProvider({ children }) {
 
   // 🔸 Adiciona toast via hook
   const addToast = React.useCallback((toast) => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, ...toast }]);
+    // 🔑 Gera ID único (sem chance de duplicar)
+    const id =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+    // 🔒 Evita duplicar mensagens idênticas em sequência
+    setToasts((prev) => {
+      if (prev.some((t) => t.message === toast.message && t.type === toast.type))
+        return prev;
+      return [...prev, { id, ...toast }];
+    });
+
+    // ⏱ Remove automaticamente após o tempo definido
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, toast.duration || 3000);
   }, []);
 
-  // 🔸 Remove toast manualmente
   const removeToast = React.useCallback((id) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // 🔸 Permite disparar toasts via eventos do navegador
   React.useEffect(() => {
     const handleEvent = (e) => addToast(e.detail);
     window.addEventListener("toast", handleEvent);
@@ -72,9 +77,7 @@ export function ToastProvider({ children }) {
   );
 }
 
-// ----------------------------------------------------------
-// 🔹 HOOK DE USO LOCAL
-// ----------------------------------------------------------
+// 🔹 Hook React
 export function useToast() {
   const ctx = React.useContext(ToastContext);
   if (!ctx)
@@ -84,9 +87,7 @@ export function useToast() {
   return ctx;
 }
 
-// ----------------------------------------------------------
-// 🔹 FUNÇÃO GLOBAL (para usar fora do React)
-// ----------------------------------------------------------
+// 🔹 Função global (para chamar fora do React)
 export function toast({ message, type = "info", duration = 3000 }) {
   if (typeof window === "undefined") return;
   const event = new CustomEvent("toast", { detail: { message, type, duration } });
