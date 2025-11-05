@@ -17,4 +17,10 @@
         /financeiro
     /storage  
         /sign
+/perfis
+    /list
+    /create
+    /delete
+    /update
+    /upload        
 /personas        

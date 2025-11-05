@@ -18,17 +18,6 @@
       Sidebar.js
       PageHeader.jsx
       KPIWidget.jsx
-  /imoveis
-    ChavesDialog.jsx
-    CompliancePanel.jsx
-    FinanceiroPanel.jsx
-    ImoveisFilters.jsx
-    ImoveisTable.jsx
-    ImovelForm.jsx
-    MidiaPanel.jsx
-    PrecoHistoricoChart.jsx
-    StatusBadge.jsx
-    VacanciaWidget.jsx
   /ui
     button.js
     dialog.jsx

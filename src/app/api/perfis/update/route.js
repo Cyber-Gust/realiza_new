@@ -18,18 +18,25 @@ export async function PUT(req) {
     // 👥 EQUIPE (admins + corretores)
     // ======================================================
     if (type === "equipe") {
+      // 🔒 Bloqueio preventivo — admin só altera em Configurações
+      if (role === "admin") {
+        return NextResponse.json(
+          { error: "Perfis de administrador só podem ser alterados nas Configurações" },
+          { status: 403 }
+        );
+      }
+
       const updatePayload = {
         ...rest,
         role,
         updated_at: new Date().toISOString(),
       };
 
-      // parse JSON se for string
-      if (typeof rest.dados_bancarios_json === "string") {
+      if (typeof rest.dados_bancarios_json === "string" && rest.dados_bancarios_json.trim() !== "") {
         try {
           updatePayload.dados_bancarios_json = JSON.parse(rest.dados_bancarios_json);
         } catch {
-          throw new Error("Formato inválido de dados bancários (use JSON válido)");
+          throw new Error("Formato inválido de Dados Bancários (use JSON válido)");
         }
       }
 
@@ -51,11 +58,11 @@ export async function PUT(req) {
         updated_at: new Date().toISOString(),
       };
 
-      if (typeof rest.endereco_json === "string") {
+      if (typeof rest.endereco_json === "string" && rest.endereco_json.trim() !== "") {
         try {
           updatePayload.endereco_json = JSON.parse(rest.endereco_json);
         } catch {
-          throw new Error("Formato inválido de endereço (use JSON válido)");
+          throw new Error("Formato inválido de Endereço (use JSON válido)");
         }
       }
 
@@ -76,11 +83,11 @@ export async function PUT(req) {
         updated_at: new Date().toISOString(),
       };
 
-      if (typeof rest.perfil_busca_json === "string") {
+      if (typeof rest.perfil_busca_json === "string" && rest.perfil_busca_json.trim() !== "") {
         try {
           updatePayload.perfil_busca_json = JSON.parse(rest.perfil_busca_json);
         } catch {
-          throw new Error("Formato inválido de preferências (use JSON válido)");
+          throw new Error("Formato inválido de Preferências (use JSON válido)");
         }
       }
 
@@ -96,7 +103,10 @@ export async function PUT(req) {
     // ❌ Tipo inválido
     // ======================================================
     else {
-      return NextResponse.json({ error: "Tipo de perfil inválido" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Tipo de perfil inválido" },
+        { status: 400 }
+      );
     }
 
     if (error) throw error;

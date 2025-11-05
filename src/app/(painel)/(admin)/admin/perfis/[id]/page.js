@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { use } from "react"; // ✅ adicione no topo
+import { use } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -9,11 +9,15 @@ import PageHeader from "@/components/admin/layout/PageHeader";
 import Card from "@/components/admin/ui/Card";
 import Toast from "@/components/admin/ui/Toast";
 import Modal from "@/components/admin/ui/Modal";
-import Input from "@/components/admin/forms/Input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Save, Upload, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, Upload, Trash2, Loader2 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
+
+// 🧩 Importa os formulários unificados
+import PerfilFormEquipe from "@/components/perfis/PerfilFormEquipe";
+import PerfilFormLeads from "@/components/perfis/PerfilFormLeads";
+import PerfilFormPersonas from "@/components/perfis/PerfilFormPersonas";
 
 // 🔹 Supabase client
 const supabase = createClient(
@@ -28,23 +32,9 @@ export default function PerfilDetailPage({ params }) {
   const [perfil, setPerfil] = useState(null);
   const [type, setType] = useState(searchParams.get("type") || "equipe");
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-
-  // Enums
-  const USER_ROLES = ["admin", "corretor"];
-  const LEAD_STATUS = [
-    "novo",
-    "qualificado",
-    "visita_agendada",
-    "proposta_feita",
-    "documentacao",
-    "concluido",
-    "perdido",
-  ];
-  const PERSONA_TIPOS = ["proprietario", "inquilino", "cliente"];
 
   // 🔹 Carrega perfil
   useEffect(() => {
@@ -63,7 +53,7 @@ export default function PerfilDetailPage({ params }) {
       const record = json.data;
       setPerfil(record);
 
-      // 🔹 Ajusta tipo automaticamente se não veio na URL
+      // Ajusta tipo automaticamente se não veio na URL
       if (!searchParams.get("type") && record) {
         if (record.role) setType("equipe");
         else if (record.status) setType("leads");
@@ -76,40 +66,7 @@ export default function PerfilDetailPage({ params }) {
     }
   };
 
-  // 🔹 Atualizar perfil
-  const updatePerfil = async (updates) => {
-    const payload = { id: perfilId, type, ...updates };
-
-    if (typeof updates.dados_bancarios_json === "object")
-      payload.dados_bancarios_json = JSON.stringify(updates.dados_bancarios_json);
-    if (typeof updates.endereco_json === "object")
-      payload.endereco_json = JSON.stringify(updates.endereco_json);
-    if (typeof updates.perfil_busca_json === "object")
-      payload.perfil_busca_json = JSON.stringify(updates.perfil_busca_json);
-
-    const res = await fetch("/api/perfis/update", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error);
-  };
-
-  const salvarAlteracoes = async () => {
-    try {
-      setSaving(true);
-      await updatePerfil(perfil);
-      Toast.success("Perfil atualizado com sucesso!");
-    } catch (err) {
-      Toast.error(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // 🔹 Upload de foto
+  // 🔹 Upload de foto (só para corretores)
   const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -174,8 +131,8 @@ export default function PerfilDetailPage({ params }) {
       </p>
     );
 
-  const canBeDeleted =
-    type !== "equipe" || (perfil.role && perfil.role !== "admin");
+  const isAdmin = perfil?.role === "admin";
+  const canBeDeleted = type !== "equipe" || (perfil.role && perfil.role !== "admin");
 
   return (
     <div className="space-y-6">
@@ -185,14 +142,6 @@ export default function PerfilDetailPage({ params }) {
         description={`Tipo: ${type}`}
         rightSection={
           <div className="flex gap-2">
-            <Button
-              onClick={salvarAlteracoes}
-              disabled={saving}
-              className="flex items-center gap-2"
-            >
-              <Save size={16} />
-              {saving ? "Salvando..." : "Salvar"}
-            </Button>
             {canBeDeleted && (
               <Button
                 onClick={() => setOpenDelete(true)}
@@ -220,9 +169,9 @@ export default function PerfilDetailPage({ params }) {
 
         {/* 🧩 Aba 1 */}
         <TabsContent value="dados" className="mt-4">
-          <Card className="p-6 space-y-4">
+          <Card className="p-6 space-y-6">
+            {/* Avatar */}
             <div className="flex flex-col sm:flex-row gap-6 items-center">
-              {/* Avatar */}
               <div className="relative">
                 <Image
                   src={perfil.avatar_url || "/placeholder-avatar.png"}
@@ -231,119 +180,48 @@ export default function PerfilDetailPage({ params }) {
                   height={140}
                   className="rounded-full border border-border object-cover"
                 />
-                <label className="absolute bottom-0 right-0 cursor-pointer bg-accent text-white p-2 rounded-full shadow hover:opacity-90">
-                  {uploading ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Upload size={16} />
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAvatarUpload}
-                    className="hidden"
-                  />
-                </label>
+
+                {/* Upload só para corretor */}
+                {perfil.role === "corretor" && (
+                  <label className="absolute bottom-0 right-0 cursor-pointer bg-accent text-white p-2 rounded-full shadow hover:opacity-90">
+                    {uploading ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Upload size={16} />
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
               </div>
 
-              {/* Campos principais */}
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
-                <Input
-                  label="Nome completo"
-                  value={perfil.nome_completo || perfil.nome || ""}
-                  onChange={(e) =>
-                    setPerfil((p) => ({
-                      ...p,
-                      nome_completo: e.target.value,
-                      nome: e.target.value,
-                    }))
-                  }
-                />
-                <Input
-                  label="E-mail"
-                  value={perfil.email || ""}
-                  onChange={(e) =>
-                    setPerfil((p) => ({ ...p, email: e.target.value }))
-                  }
-                />
-                <Input
-                  label="Telefone"
-                  value={perfil.telefone || ""}
-                  onChange={(e) =>
-                    setPerfil((p) => ({ ...p, telefone: e.target.value }))
-                  }
-                />
-                <Input
-                  label="CPF/CNPJ"
-                  value={perfil.cpf_cnpj || ""}
-                  onChange={(e) =>
-                    setPerfil((p) => ({ ...p, cpf_cnpj: e.target.value }))
-                  }
-                />
-
-                {/* Selects dinâmicos */}
+              {/* Formulários dinâmicos */}
+              <div className="flex-1">
                 {type === "equipe" && (
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Função
-                    </label>
-                    <select
-                      value={perfil.role || ""}
-                      onChange={(e) =>
-                        setPerfil((p) => ({ ...p, role: e.target.value }))
-                      }
-                      disabled={perfil.role === "admin"}
-                      className="w-full rounded-md border border-border bg-panel-card px-3 py-2 text-sm"
-                    >
-                      {USER_ROLES.map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <PerfilFormEquipe
+                    modo="edit"
+                    dadosIniciais={perfil}
+                    onSuccess={() => loadPerfil(perfilId)}
+                    readOnly={perfil.role === "admin"} // 👈 habilita modo só leitura para admin
+                  />
                 )}
-
                 {type === "leads" && (
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Status
-                    </label>
-                    <select
-                      value={perfil.status || ""}
-                      onChange={(e) =>
-                        setPerfil((p) => ({ ...p, status: e.target.value }))
-                      }
-                      className="w-full rounded-md border border-border bg-panel-card px-3 py-2 text-sm"
-                    >
-                      {LEAD_STATUS.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <PerfilFormLeads
+                    modo="edit"
+                    dadosIniciais={perfil}
+                    onSuccess={() => loadPerfil(perfilId)}
+                  />
                 )}
-
                 {type === "personas" && (
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Tipo
-                    </label>
-                    <select
-                      value={perfil.tipo || ""}
-                      onChange={(e) =>
-                        setPerfil((p) => ({ ...p, tipo: e.target.value }))
-                      }
-                      className="w-full rounded-md border border-border bg-panel-card px-3 py-2 text-sm"
-                    >
-                      {PERSONA_TIPOS.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <PerfilFormPersonas
+                    modo="edit"
+                    dadosIniciais={perfil}
+                    onSuccess={() => loadPerfil(perfilId)}
+                  />
                 )}
               </div>
             </div>
@@ -357,62 +235,12 @@ export default function PerfilDetailPage({ params }) {
               <textarea
                 placeholder="Observações"
                 value={perfil.observacoes || ""}
+                readOnly={isAdmin}
                 onChange={(e) =>
                   setPerfil((p) => ({ ...p, observacoes: e.target.value }))
                 }
                 className="w-full rounded-md border border-border bg-panel-card px-3 py-2 text-sm"
                 rows={3}
-              />
-            )}
-
-            {perfil.dados_bancarios_json !== undefined && (
-              <Input
-                label="Dados Bancários (JSON)"
-                value={
-                  typeof perfil.dados_bancarios_json === "object"
-                    ? JSON.stringify(perfil.dados_bancarios_json)
-                    : perfil.dados_bancarios_json || ""
-                }
-                onChange={(e) =>
-                  setPerfil((p) => ({
-                    ...p,
-                    dados_bancarios_json: e.target.value,
-                  }))
-                }
-              />
-            )}
-
-            {perfil.endereco_json !== undefined && (
-              <Input
-                label="Endereço (JSON)"
-                value={
-                  typeof perfil.endereco_json === "object"
-                    ? JSON.stringify(perfil.endereco_json)
-                    : perfil.endereco_json || ""
-                }
-                onChange={(e) =>
-                  setPerfil((p) => ({
-                    ...p,
-                    endereco_json: e.target.value,
-                  }))
-                }
-              />
-            )}
-
-            {perfil.perfil_busca_json !== undefined && (
-              <Input
-                label="Preferências (JSON)"
-                value={
-                  typeof perfil.perfil_busca_json === "object"
-                    ? JSON.stringify(perfil.perfil_busca_json)
-                    : perfil.perfil_busca_json || ""
-                }
-                onChange={(e) =>
-                  setPerfil((p) => ({
-                    ...p,
-                    perfil_busca_json: e.target.value,
-                  }))
-                }
               />
             )}
           </Card>
