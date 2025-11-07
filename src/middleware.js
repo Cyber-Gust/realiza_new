@@ -2,17 +2,21 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 
 /**
- * Middleware de autenticação e autorização para o Next.js App Router.
- * - Valida e atualiza a sessão Supabase em cada requisição.
- * - Redireciona usuários conforme o 'role' (admin, corretor, etc).
- * - Bloqueia acesso a rotas protegidas se o usuário não estiver autenticado.
+ * Middleware de autenticação e autorização.
+ * - Valida sessão Supabase SSR.
+ * - Redireciona conforme role (admin, corretor, etc).
+ * - Protege rotas privadas.
+ * - Permite rotas públicas sem ruído.
  */
 export async function middleware(request) {
+  const requestHeaders = new Headers(request.headers);
   const response = NextResponse.next({
-    request: { headers: request.headers },
+    request: { headers: requestHeaders },
   });
 
-  // 🔹 Cria cliente Supabase SSR com suporte a cookies do Next 15
+  // =====================================================
+  // 🧠 Cria cliente Supabase com sincronização de cookies
+  // =====================================================
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -20,107 +24,118 @@ export async function middleware(request) {
       cookies: {
         get: (name) => request.cookies.get(name)?.value,
         set: (name, value, options) => {
-          response.cookies.set({ name, value, ...options });
+          try {
+            response.cookies.set(name, value, options);
+            requestHeaders.set("cookie", `${name}=${value}`);
+          } catch {}
         },
         remove: (name, options) => {
-          response.cookies.set({ name, value: "", ...options });
+          try {
+            response.cookies.set(name, "", options);
+          } catch {}
         },
       },
     }
   );
 
-  // ===============================================
-  // 🔒 Validação segura da sessão
-  // ===============================================
-  let user = null;
-  try {
-    const { data, error } = await supabase.auth.getUser();
-    if (error) {
-      if (process.env.NODE_ENV === "development") {
-        console.warn("⚠️ Sessão não encontrada ou expirada:", error.message);
-      }
-    }
-    user = data?.user || null;
-  } catch (err) {
-    if (process.env.NODE_ENV === "development") {
-      console.warn("⚠️ Erro ao validar sessão:", err.message);
-    }
-  }
-
+  // =====================================================
+  // 🧩 Variáveis básicas de rota
+  // =====================================================
   const { pathname } = request.nextUrl;
-  const protectedRoutes = ["/admin", "/corretor"];
-  const authPages = ["/login", "/recuperar-senha", "/nova-senha"];
+  const isProtected =
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/corretor") ||
+    pathname.startsWith("/dashboard");
+  const isAuthPage = ["/login", "/recuperar-senha", "/nova-senha"].includes(pathname);
 
-  // ===============================================
-  // 🚫 Usuário NÃO autenticado
-  // ===============================================
+  // 🔓 Rotas públicas passam direto
+  if (!isProtected && !isAuthPage) return response;
+
+  // =====================================================
+  // 🔒 Busca sessão atual do Supabase
+  // =====================================================
+  const { data: { user } = {}, error } = await supabase.auth.getUser();
+
   if (!user) {
-    if (protectedRoutes.some((r) => pathname.startsWith(r))) {
+    // Se tentar acessar rota protegida sem login → redireciona pro login
+    if (isProtected) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
+      console.log("🚫 Usuário não autenticado. Redirecionando:", pathname, "→ /login");
       return NextResponse.redirect(url);
     }
-    return response; // rotas públicas passam direto
+    return response;
   }
 
-  // ===============================================
-  // ✅ Usuário autenticado — carrega o perfil
-  // ===============================================
-  let userRole = "cliente";
+  console.log("🧩 Middleware Path:", pathname);
+  console.log("🧠 User autenticado:", user.email);
+
+  // =====================================================
+  // 🔍 Busca role do usuário
+  // =====================================================
+  let role = "cliente";
   try {
-    const { data: profile, error } = await supabase
+    const { data: profile } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
-      .maybeSingle(); // 🔹 evita erro se o perfil não existir
+      .maybeSingle();
 
-    if (!error && profile?.role) userRole = profile.role;
+    console.log("👤 Role detectado:", profile?.role);
+
+    if (profile?.role) role = profile.role;
   } catch (err) {
-    if (process.env.NODE_ENV === "development") {
-      console.warn("⚠️ Erro ao carregar perfil:", err.message);
-    }
+    console.warn("⚠️ Erro ao carregar perfil:", err.message);
   }
 
-  // ===============================================
-  // 🔁 Redireciona usuário logado tentando acessar login
-  // ===============================================
-  if (authPages.includes(pathname)) {
+  // =====================================================
+  // 🔁 Se já logado e tentar abrir /login → redireciona pro painel
+  // =====================================================
+  if (isAuthPage) {
     const url = request.nextUrl.clone();
-    if (userRole === "admin") url.pathname = "/admin/dashboard";
-    else if (userRole === "corretor") url.pathname = "/corretor/dashboard";
-    else url.pathname = "/";
+
+    if (role === "admin") url.pathname = "/admin/dashboard";
+    else if (role === "corretor") url.pathname = "/corretor/dashboard";
+    else url.pathname = "/dashboard"; // 🔹 Fallback seguro
+
+    console.log("🚦 Redirecionando user logado:", user.email, "→", url.pathname);
     return NextResponse.redirect(url);
   }
 
-  // ===============================================
-  // 🔐 Regras de acesso por role
-  // ===============================================
-  if (pathname.startsWith("/admin") && userRole !== "admin") {
+  // =====================================================
+  // 🛡️ Controle de acesso por role
+  // =====================================================
+  if (pathname.startsWith("/admin") && role !== "admin") {
     const url = request.nextUrl.clone();
-    url.pathname = userRole === "corretor" ? "/corretor/dashboard" : "/";
+    url.pathname = role === "corretor" ? "/corretor/dashboard" : "/dashboard";
+    console.log("🚫 Acesso negado a rota /admin para role:", role);
     return NextResponse.redirect(url);
   }
 
-  if (
-    pathname.startsWith("/corretor") &&
-    !["admin", "corretor"].includes(userRole)
-  ) {
+  if (pathname.startsWith("/corretor") && !["admin", "corretor"].includes(role)) {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = "/dashboard";
+    console.log("🚫 Acesso negado a rota /corretor para role:", role);
     return NextResponse.redirect(url);
   }
 
-  // ===============================================
-  // ✅ Tudo certo — segue a requisição normalmente
-  // ===============================================
+  // =====================================================
+  // ✅ Sessão e acesso válidos → segue a requisição
+  // =====================================================
+  console.log("✅ Acesso permitido:", pathname, "| Role:", role);
   return response;
 }
 
-// ===============================================
-// ⚙️ Configuração do matcher
-// ===============================================
+// =====================================================
+// ⚙️ Matcher — intercepta apenas o necessário
+// =====================================================
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/auth).*)",
+    "/admin/:path*",
+    "/corretor/:path*",
+    "/dashboard/:path*",
+    "/login",
+    "/recuperar-senha",
+    "/nova-senha",
   ],
 };

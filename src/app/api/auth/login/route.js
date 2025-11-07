@@ -1,3 +1,4 @@
+//src/app/api/auth/login/route.js
 import { NextResponse } from 'next/server'
 // Importe seu cliente Supabase (lado do SERVIDOR)
 import { createClient } from '@/lib/supabase/server'

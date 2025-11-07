@@ -1,5 +1,6 @@
 "use client";
-import PageHeader from "@/components/admin/layout/PageHeader";
+
+import { useState } from "react";
 import Card from "@/components/admin/ui/Card";
 import { Button } from "@/components/ui/button";
 import { CalendarPlus } from "lucide-react";
@@ -8,10 +9,9 @@ import Input from "@/components/admin/forms/Input";
 import DatePicker from "@/components/admin/forms/DatePicker";
 import { useAgenda } from "@/hooks/useAgenda";
 import AgendaCalendar from "@/components/crm/AgendaCalendar";
-import { useState } from "react";
 
-export default function AgendaPage() {
-  const { eventos, loading, createEvento, deleteEvento, loadEventos } = useAgenda();
+export default function AgendaPanel() {
+  const { eventos, loading, createEvento, loadEventos } = useAgenda();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     titulo: "",
@@ -26,39 +26,52 @@ export default function AgendaPage() {
 
   const handleSave = async () => {
     await createEvento(form);
-    setForm({ titulo: "", tipo: "visita", data_inicio: "", data_fim: "", lead_id: "", imovel_id: "" });
+    setForm({
+      titulo: "",
+      tipo: "visita",
+      data_inicio: "",
+      data_fim: "",
+      lead_id: "",
+      imovel_id: "",
+    });
     setOpen(false);
+    loadEventos();
   };
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Agenda Comercial"
-        description="Gerencie visitas, reuniões e follow-ups agendados."
-        rightSection={
-          <Button onClick={() => setOpen(true)} className="flex items-center gap-2">
-            <CalendarPlus size={16} /> Novo Evento
-          </Button>
-        }
-      />
+    <section className="space-y-6 animate-fadeIn">
+      {/* Cabeçalho de ações */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-semibold text-foreground">Agenda</h2>
+        <Button
+          onClick={() => setOpen(true)}
+          className="flex items-center gap-2 font-medium transition-all hover:scale-[1.02]"
+        >
+          <CalendarPlus size={16} /> Novo Evento
+        </Button>
+      </div>
 
-      <Card>
+      {/* Listagem */}
+      <Card className="overflow-hidden border border-border rounded-xl shadow-sm">
         {loading ? (
-          <p className="p-4 text-center text-muted-foreground">Carregando eventos...</p>
+          <p className="p-6 text-center text-muted-foreground animate-pulse">Carregando eventos...</p>
         ) : (
-          <AgendaCalendar data={eventos} onReload={loadEventos} />
+          <AgendaCalendar data={eventos} />
         )}
       </Card>
 
+      {/* Modal de Criação */}
       <Modal open={open} onOpenChange={setOpen} title="Novo Evento">
-        <div className="space-y-3">
+        <div className="space-y-4">
           <Input
             label="Título"
+            placeholder="Ex: Visita ao apartamento do Centro"
             value={form.titulo}
             onChange={(e) => handleChange("titulo", e.target.value)}
           />
           <Input
-            label="Tipo (visita, reunião, follow-up...)"
+            label="Tipo"
+            placeholder="Ex: visita, reunião, follow-up..."
             value={form.tipo}
             onChange={(e) => handleChange("tipo", e.target.value)}
           />
@@ -72,11 +85,13 @@ export default function AgendaPage() {
             value={form.data_fim}
             onChange={(date) => handleChange("data_fim", date)}
           />
-          <div className="flex justify-end pt-2">
-            <Button onClick={handleSave}>Salvar Evento</Button>
+          <div className="flex justify-end pt-4">
+            <Button onClick={handleSave} className="min-w-[120px]">
+              Salvar Evento
+            </Button>
           </div>
         </div>
       </Modal>
-    </div>
+    </section>
   );
 }
