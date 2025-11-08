@@ -6,16 +6,19 @@ import Card from "@/components/admin/ui/Card";
 import Badge from "@/components/admin/ui/Badge";
 import Modal from "@/components/admin/ui/Modal";
 import LeadForm from "./LeadForm";
-import { useLeads } from "@/hooks/useLeads";
 import { Trash2, PencilLine, Filter } from "lucide-react";
 import { motion } from "framer-motion";
 
-export default function LeadTable() {
-  const { leads, loading, createLead, deleteLead } = useLeads();
+/**
+ * Tabela de Leads — versão integrada com o painel principal
+ * Recebe os dados e handlers via props (fonte única de verdade)
+ */
+export default function LeadTable({ data = [], loading, onReload, onCreate, onDelete }) {
   const [open, setOpen] = useState(false);
 
   return (
     <Card title="Gestão de Leads" className="space-y-4">
+      {/* 🔹 Cabeçalho */}
       <div className="flex items-center justify-between px-1">
         <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
           <Filter size={16} className="text-accent" /> Leads
@@ -30,11 +33,12 @@ export default function LeadTable() {
         </Button>
       </div>
 
+      {/* 🔹 Corpo */}
       {loading ? (
         <p className="text-center text-muted-foreground py-6 animate-pulse">
           Carregando...
         </p>
-      ) : leads.length === 0 ? (
+      ) : data.length === 0 ? (
         <p className="text-center text-muted-foreground py-6">
           Nenhum lead encontrado.
         </p>
@@ -52,15 +56,13 @@ export default function LeadTable() {
               </tr>
             </thead>
             <tbody>
-              {leads.map((lead, i) => (
+              {data.map((lead, i) => (
                 <motion.tr
                   key={lead.id}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.02 }}
-                  className="
-                    border-t border-border hover:bg-muted/10 transition-all duration-150
-                  "
+                  className="border-t border-border hover:bg-muted/10 transition-all duration-150"
                 >
                   <td className="px-4 py-3">{lead.nome}</td>
                   <td className="px-4 py-3">{lead.telefone}</td>
@@ -80,11 +82,16 @@ export default function LeadTable() {
                     </Badge>
                   </td>
                   <td className="px-4 py-3">{lead.origem || "-"}</td>
+
+                  {/* 🔹 Botão de excluir */}
                   <td className="px-4 py-3 text-right">
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => deleteLead(lead.id)}
+                      onClick={async () => {
+                        await onDelete(lead.id);
+                        await onReload(); 
+                      }}
                       className="text-red-500 hover:text-red-600"
                     >
                       <Trash2 size={16} />
@@ -97,8 +104,16 @@ export default function LeadTable() {
         </motion.div>
       )}
 
+      {/* 🔹 Modal Novo Lead */}
       <Modal open={open} onOpenChange={setOpen} title="Novo Lead">
-        <LeadForm onSave={createLead} onClose={() => setOpen(false)} />
+        <LeadForm
+          onSave={async (lead) => {
+            await onCreate(lead);
+            setOpen(false);
+            await onReload();
+          }}
+          onClose={() => setOpen(false)}
+        />
       </Modal>
     </Card>
   );

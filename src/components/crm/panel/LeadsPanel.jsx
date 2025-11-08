@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Users, CheckCircle2, TrendingUp, XCircle } from "lucide-react";
-import isEqual from "lodash.isequal";
+import { Users, CheckCircle2, TrendingUp, XCircle } from "lucide-react";
 import Card from "@/components/admin/ui/Card";
 import KPIWidget from "@/components/admin/layout/KPIWidget";
 import { Button } from "@/components/ui/button";
@@ -13,7 +12,7 @@ import { useLeads } from "@/hooks/useLeads";
 import { motion } from "framer-motion";
 
 export default function LeadsPanel() {
-  const { leads, loading, createLead, loadLeads } = useLeads();
+  const { leads, loading, createLead, deleteLead, loadLeads } = useLeads();
   const [open, setOpen] = useState(false);
   const [stats, setStats] = useState({
     novo: 0,
@@ -25,18 +24,33 @@ export default function LeadsPanel() {
     perdido: 0,
   });
 
-  useEffect(() => loadLeads(), [loadLeads]);
+  // 🔹 Carrega os leads na montagem
+  useEffect(() => {
+    loadLeads();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  // 🔹 Atualiza os KPIs toda vez que a lista muda
   useEffect(() => {
     if (!Array.isArray(leads)) return;
+
     const summary = leads.reduce(
       (acc, lead) => {
         acc[lead.status] = (acc[lead.status] || 0) + 1;
         return acc;
       },
-      { ...stats }
+      {
+        novo: 0,
+        qualificado: 0,
+        visita_agendada: 0,
+        proposta_feita: 0,
+        documentacao: 0,
+        concluido: 0,
+        perdido: 0,
+      }
     );
-    setStats((prev) => (isEqual(prev, summary) ? prev : summary));
+
+    setStats(summary);
   }, [leads]);
 
   return (
@@ -57,12 +71,20 @@ export default function LeadsPanel() {
         <KPIWidget label="Perdidos" value={stats.perdido} icon={XCircle} color="text-red-500" />
       </motion.div>
 
-      {/* 📋 Tabela */}
+      {/* 📋 Tabela de leads */}
       <Card className="p-0 overflow-hidden border border-border rounded-xl shadow-sm hover:shadow-md transition-all duration-300">
         {loading ? (
-          <p className="p-8 text-center text-muted-foreground animate-pulse">Carregando leads...</p>
+          <p className="p-8 text-center text-muted-foreground animate-pulse">
+            Carregando leads...
+          </p>
         ) : (
-          <LeadTable data={leads} onReload={loadLeads} />
+          <LeadTable
+            data={leads}
+            loading={loading}
+            onReload={loadLeads}
+            onCreate={createLead}
+            onDelete={deleteLead}
+          />
         )}
       </Card>
 
@@ -72,23 +94,14 @@ export default function LeadsPanel() {
           onSave={async (lead) => {
             await createLead(lead);
             setOpen(false);
+            await loadLeads();
           }}
           onClose={() => setOpen(false)}
         />
       </Modal>
 
-      {/* Botão flutuante */}
-      <div className="flex justify-end">
-        <Button
-          onClick={() => setOpen(true)}
-          className="
-            flex items-center gap-2 font-medium shadow-sm
-            hover:scale-[1.03] transition-all duration-300
-          "
-        >
-          <Plus size={16} /> Novo Lead
-        </Button>
-      </div>
+      {/* Botão flutuante (reserva futura) */}
+      <div className="flex justify-end"></div>
     </section>
   );
 }

@@ -10,11 +10,16 @@ export async function GET(req) {
   const origem = searchParams.get("origem");
 
   try {
-    let query = supabase.from("leads").select(`
+    let query = supabase
+    .from("leads")
+    .select(
+      `
       id, nome, email, telefone, status, origem, 
       corretor:corretor_id ( id, nome_completo ),
       created_at, updated_at
-    `);
+      `,
+      { distinct: "id" } // 🔥 evita duplicação
+    );
 
     if (status) query = query.eq("status", status);
     if (corretor_id) query = query.eq("corretor_id", corretor_id);

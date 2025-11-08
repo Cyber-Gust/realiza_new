@@ -1,3 +1,5 @@
+//src/app/api/leads/[id]
+
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -40,13 +42,20 @@ export async function PUT(req, { params }) {
   }
 }
 
-export async function DELETE(req, { params }) {
+export async function DELETE(req, context) {
   const supabase = createServiceClient();
   try {
-    const { error } = await supabase.from("leads").delete().eq("id", params.id);
+    const { id } = await context.params; // 👈 AQUI ESTÁ A MÁGICA
+    const { error } = await supabase.from("leads").delete().eq("id", id);
+
     if (error) throw error;
+
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    console.error("Erro ao excluir lead:", err);
+    return NextResponse.json(
+      { success: false, error: err.message },
+      { status: 500 }
+    );
   }
 }

@@ -1,29 +1,47 @@
 "use client";
 import { cn } from "@/lib/utils";
 
-export default function Badge({ status }) {
+/**
+ * Badge estilizado com variantes e mapeamento de status global
+ */
+export default function Badge({ status, children, variant = "soft", className }) {
+  const value = status?.toLowerCase() || children?.toLowerCase();
+
   const colorMap = {
-    admin: "bg-emerald-600 text-white",
-    corretor: "bg-purple-600 text-white",
-    ativo: "bg-emerald-600 text-white",
-    disponivel: "bg-emerald-600 text-white",
-    pendente: "bg-yellow-500 text-white",
-    reservado: "bg-yellow-500 text-white",
-    vendido: "bg-blue-600 text-white",
-    pago: "bg-emerald-600 text-white",
-    atrasado: "bg-red-600 text-white",
-    alugado: "bg-purple-600 text-white",
-    inativo: "bg-gray-400 text-white",
+    admin: "emerald",
+    corretor: "purple",
+    ativo: "emerald",
+    disponivel: "emerald",
+    pendente: "amber",
+    reservado: "amber",
+    vendido: "blue",
+    pago: "emerald",
+    atrasado: "red",
+    alugado: "purple",
+    inativo: "gray",
+    novo: "sky",
+    qualificado: "indigo",
+    visita_agendada: "amber",
+    proposta_feita: "emerald",
+    documentacao: "purple",
+    concluido: "emerald",
+    perdido: "red",
+  };
+
+  const color = colorMap[value] || "gray";
+
+  const base =
+    "inline-flex items-center justify-center rounded-full text-xs font-semibold px-3 py-1 select-none whitespace-nowrap transition";
+
+  const variants = {
+    soft: `bg-${color}-500/15 text-${color}-700 border border-${color}-400/30`,
+    solid: `bg-${color}-600 text-white`,
+    outline: `border border-${color}-500 text-${color}-700 bg-transparent`,
   };
 
   return (
-    <span
-      className={cn(
-        "inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold shadow-sm",
-        colorMap[status?.toLowerCase()] || "bg-gray-400 text-white"
-      )}
-    >
-      {status}
+    <span className={cn(base, variants[variant], className)}>
+      {status || children}
     </span>
   );
 }

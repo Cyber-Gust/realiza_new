@@ -24,7 +24,10 @@ export default function RelatoriosPanel() {
   });
 
   useEffect(() => {
-    loadRelatorios();
+    async function fetchRelatorios() {
+      await loadRelatorios();
+    }
+    fetchRelatorios();
   }, [loadRelatorios]);
 
   useEffect(() => {
