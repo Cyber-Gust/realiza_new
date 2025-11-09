@@ -121,8 +121,8 @@
     "contratos": {
       "id": "uuid (pk)",
       "imovel_id": "uuid (ref imoveis.id)",
-      "proprietario_id": "uuid (ref profiles.id)",
-      "inquilino_id": "uuid (ref profiles.id)",
+      "proprietario_id": "uuid (ref personas.id)",
+      "inquilino_id": "uuid (ref personas.id)",
       "tipo": "contrato_tipo",
       "data_inicio": "date",
       "data_fim": "date",

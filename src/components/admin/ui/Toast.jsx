@@ -1,4 +1,3 @@
-"use client";
 import { toast as globalToast } from "@/components/ui/use-toast";
 
 /**

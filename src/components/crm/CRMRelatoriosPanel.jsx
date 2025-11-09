@@ -1,35 +1,83 @@
 "use client";
-import { useEffect, useState } from "react";
-import { Loader2, BarChart3, Users, FileText, MapPin, TrendingUp } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import {
+  Loader2,
+  BarChart3,
+  Users,
+  FileText,
+  MapPin,
+  TrendingUp,
+  Filter,
+  RefreshCcw,
+} from "lucide-react";
 import CRMKPIWidget from "./CRMKPIWidget";
 import Card from "@/components/admin/ui/Card";
+import { Button } from "@/components/ui/button";
+import Toast from "@/components/admin/ui/Toast";
 
-/**
- * Painel completo de KPIs e gráficos do CRM
- * - Integra com /api/crm/relatorios
- * - Exibe KPIs, funil de leads e origens de leads
- */
 export default function CRMRelatoriosPanel() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [filtros, setFiltros] = useState({
+    inicio: "",
+    fim: "",
+    corretor_id: "",
+    origem: "",
+  });
+  const [corretores, setCorretores] = useState([]);
+  const [origens, setOrigens] = useState([]);
+
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams();
+    Object.entries(filtros).forEach(([k, v]) => {
+      if (v) params.set(k, v);
+    });
+    return params.toString();
+  }, [filtros]);
+
+  const loadListas = async () => {
+    try {
+      const [corrRes, origRes] = await Promise.all([
+        fetch("/api/perfis/list?type=equipe", { cache: "no-store" }),
+        fetch("/api/crm/origens/list", { cache: "no-store" }),
+      ]);
+      const [corrJson, origJson] = await Promise.all([
+        corrRes.json(),
+        origRes.json(),
+      ]);
+      setCorretores(corrJson.data || []);
+      setOrigens(origJson.data || []);
+    } catch {
+      /* silencioso */
+    }
+  };
 
   const loadKpis = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/crm/relatorios", { cache: "no-store" });
+      const res = await fetch(`/api/crm/relatorios?${queryString}`, {
+        cache: "no-store",
+      });
       const json = await res.json();
-      if (!json?.data) throw new Error("Sem dados");
+      if (!res.ok) throw new Error(json.error || "Erro ao carregar relatórios");
       setData(json.data);
     } catch (err) {
-      console.error("❌ Erro ao carregar relatórios:", err);
+      Toast.error(err.message);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadKpis();
+    loadListas();
   }, []);
+
+  useEffect(() => {
+    loadKpis();
+  }, [queryString]);
+
+  const resetFiltros = () =>
+    setFiltros({ inicio: "", fim: "", corretor_id: "", origem: "" });
 
   if (loading)
     return (
@@ -41,13 +89,77 @@ export default function CRMRelatoriosPanel() {
   if (!data)
     return (
       <div className="text-center py-10 text-muted-foreground">
-        Nenhum dado disponível no momento.
+        Nenhum dado disponível.
       </div>
     );
 
   return (
     <div className="space-y-8">
-      {/* ===================== KPIs PRINCIPAIS ===================== */}
+      {/* ===================== FILTROS ===================== */}
+      <Card className="p-4 border border-border bg-panel-card">
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-lg font-semibold flex items-center gap-2 text-foreground">
+            <Filter size={16} /> Filtros
+          </h3>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+            onClick={resetFiltros}
+          >
+            <RefreshCcw size={14} /> Limpar
+          </Button>
+        </div>
+
+        <div className="grid md:grid-cols-4 gap-3">
+          <input
+            type="date"
+            value={filtros.inicio}
+            onChange={(e) =>
+              setFiltros((f) => ({ ...f, inicio: e.target.value }))
+            }
+            className="p-2 rounded-md border border-border bg-panel-card text-sm"
+          />
+          <input
+            type="date"
+            value={filtros.fim}
+            onChange={(e) =>
+              setFiltros((f) => ({ ...f, fim: e.target.value }))
+            }
+            className="p-2 rounded-md border border-border bg-panel-card text-sm"
+          />
+          <select
+            value={filtros.corretor_id}
+            onChange={(e) =>
+              setFiltros((f) => ({ ...f, corretor_id: e.target.value }))
+            }
+            className="p-2 rounded-md border border-border bg-panel-card text-sm"
+          >
+            <option value="">Todos os Corretores</option>
+            {corretores.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nome_completo}
+              </option>
+            ))}
+          </select>
+          <select
+            value={filtros.origem}
+            onChange={(e) =>
+              setFiltros((f) => ({ ...f, origem: e.target.value }))
+            }
+            className="p-2 rounded-md border border-border bg-panel-card text-sm"
+          >
+            <option value="">Todas as Origens</option>
+            {origens.map((o) => (
+              <option key={o.id || o.nome} value={o.nome}>
+                {o.nome}
+              </option>
+            ))}
+          </select>
+        </div>
+      </Card>
+
+      {/* ===================== KPIs ===================== */}
       <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4">
         <CRMKPIWidget label="Total de Leads" value={data.totalLeads} icon={Users} />
         <CRMKPIWidget label="Propostas Enviadas" value={data.totalPropostas} icon={FileText} />

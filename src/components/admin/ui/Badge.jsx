@@ -49,6 +49,7 @@ export default function Badge({ status, children, variant = "soft", className })
     despesa_manutencao: "orange",
     pagamento_iptu: "amber",
     pagamento_condominio: "teal",
+    pago: "esmerald",
 
     // 📅 Agenda — Tipos de Evento
     visita_presencial: "emerald",

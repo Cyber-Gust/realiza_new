@@ -17,6 +17,7 @@ import Card from "@/components/admin/ui/Card";
 import Modal from "@/components/admin/ui/Modal";
 import Toast from "@/components/admin/ui/Toast";
 import CRMAgendaForm from "./CRMAgendaForm";
+import CRMCalendario from "./CRMCalendario";
 
 /** 🔹 Badge interna sólida com texto branco */
 function BadgeInline({ status }) {
@@ -112,7 +113,8 @@ export default function CRMAgendaPanel() {
           <Plus size={16} /> Novo Evento
         </Button>
       </div>
-
+      {/* CALENDÁRIO */}
+      <CRMCalendario />    
       {/* LISTA */}
       {loading ? (
         <div className="flex justify-center items-center py-10 text-muted-foreground">
