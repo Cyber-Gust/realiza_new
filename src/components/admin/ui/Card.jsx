@@ -1,14 +1,11 @@
 "use client";
+import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
-export default function Card({
-  title,
-  icon: Icon,
-  children,
-  className,
-  variant = "solid",
-  noPadding = false, // 👈 novo prop
-}) {
+const Card = forwardRef(function Card(
+  { title, icon: Icon, children, className, variant = "solid", noPadding = false, ...props },
+  ref
+) {
   const variants = {
     solid: "bg-panel-card border border-border shadow-sm",
     muted: "bg-muted/40 border border-border/60 shadow-sm",
@@ -17,6 +14,8 @@ export default function Card({
 
   return (
     <div
+      ref={ref}
+      {...props}
       className={cn(
         "rounded-2xl text-panel-foreground transition-all duration-300 hover:shadow-lg hover:-translate-y-[1px]",
         variants[variant],
@@ -30,8 +29,9 @@ export default function Card({
         </div>
       )}
 
-      {/* 🔹 Padding controlado */}
       <div className={noPadding ? "p-0" : "p-5"}>{children}</div>
     </div>
   );
-}
+});
+
+export default Card;

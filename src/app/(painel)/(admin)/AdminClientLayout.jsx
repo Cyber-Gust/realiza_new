@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { Sidebar } from "@/components/admin/layout/Sidebar";
+import { Sidebar} from "@/components/admin/layout/Sidebar";
 import { Header } from "@/components/admin/layout/Header";
 import { Footer } from "@/components/admin/layout/Footer";
 import { ToastProvider } from "@/components/ui/use-toast";

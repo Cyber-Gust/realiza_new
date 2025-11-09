@@ -2,23 +2,38 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Badge estilizado com variantes e mapeamento de status global
+ * 🔹 Badge Global
+ * Cobre: CRM, Leads, Imóveis, Financeiro, Agenda e Papéis
+ * Segue o padrão de estilo do painel de perfis (leads, imóveis etc.)
  */
 export default function Badge({ status, children, variant = "soft", className }) {
-  const value = status?.toLowerCase() || children?.toLowerCase();
+  const value = (status || children || "")
+  .toString()
+  .trim()
+  .normalize("NFD") // remove acentos tipo "Reunião" -> "reuniao"
+  .replace(/[\u0300-\u036f]/g, "")
+  .toLowerCase()
+  .replaceAll(" ", "_");
 
-  const colorMap = {
+
+  // === ENUMS / MAPAS DE CORES GLOBAIS ===
+  const COLORS = {
+    // 👤 Perfis / Roles
     admin: "emerald",
     corretor: "purple",
+
+    // 💼 Status Gerais
     ativo: "emerald",
-    disponivel: "emerald",
+    inativo: "gray",
     pendente: "amber",
-    reservado: "amber",
-    vendido: "blue",
     pago: "emerald",
     atrasado: "red",
+    reservado: "amber",
+    vendido: "blue",
     alugado: "purple",
-    inativo: "gray",
+    disponivel: "emerald",
+
+    // 💬 Leads (CRM)
     novo: "sky",
     qualificado: "indigo",
     visita_agendada: "amber",
@@ -26,10 +41,38 @@ export default function Badge({ status, children, variant = "soft", className })
     documentacao: "purple",
     concluido: "emerald",
     perdido: "red",
+
+    // 🧾 Financeiro / Transações
+    taxa_adm_imobiliaria: "blue",
+    repasse_proprietario: "emerald",
+    comissao_corretor: "indigo",
+    despesa_manutencao: "orange",
+    pagamento_iptu: "amber",
+    pagamento_condominio: "teal",
+
+    // 📅 Agenda — Tipos de Evento
+    visita_presencial: "emerald",
+    visita_virtual: "sky",
+    reuniao: "blue",
+    follow_up: "amber",
+    tecnico: "orange",
+    administrativo: "gray",
+    outro: "purple",
+
+    // 📆 Agenda — Status Operacionais
+    agendado: "sky",
+    em_andamento: "blue",
+    concluido_evento: "emerald",
+    cancelado: "red",
+    adiado: "amber",
+    hoje: "indigo",
+    futuro: "sky",
+    encerrado: "gray",
   };
 
-  const color = colorMap[value] || "gray";
+  const color = COLORS[value] || "gray";
 
+  // === VARIANTES ===
   const base =
     "inline-flex items-center justify-center rounded-full text-xs font-semibold px-3 py-1 select-none whitespace-nowrap transition";
 

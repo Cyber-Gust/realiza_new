@@ -24,3 +24,9 @@
     /update
     /upload        
 /personas        
+
+/src/app/api/crm/leads/route.js
+/src/app/api/crm/leads/[id]/route.js
+/src/app/api/crm/pipeline/route.js
+/src/app/api/crm/agenda/route.js
+/src/app/api/crm/propostas/route.js

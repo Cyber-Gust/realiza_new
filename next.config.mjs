@@ -14,17 +14,25 @@ if (supabaseURL) {
     console.error(`URL do Supabase inválida: ${supabaseURL}`);
   }
 } else {
-    console.warn("⚠️ NEXT_PUBLIC_SUPABASE_URL não definida — imagens do Supabase não funcionarão.");
+  console.warn(
+    "⚠️ NEXT_PUBLIC_SUPABASE_URL não definida — imagens do Supabase não funcionarão."
+  );
 }
 
 const nextConfig = {
   reactStrictMode: true,
   images: {
     remotePatterns: [
+      // Seu padrão existente do Supabase
       {
         protocol: "https",
         hostname: supabaseHostname,
         pathname: "/storage/v1/object/public/**",
+      },
+      // 👇 Adicione este objeto para o loremflickr
+      {
+        protocol: "https",
+        hostname: "loremflickr.com",
       },
     ],
   },

@@ -25,20 +25,8 @@
     switch.jsx
     tabs.jsx
     use-toast.jsx
-    
-/hooks
-  useFetchData.js
-  useModal.js
-  useStorageUpload.js
-  useRole.js
-  useChaves.js
-  useCompliance.js
-  useImoveisQuery.js
 
 /lib
-  agenda.service.js
-  compliance.server.js
-  imoveis.repository.js
   utils.js
   /supabase
     server.js
@@ -47,4 +35,19 @@
 /utils  
   formatters.js
   qrcode.js
-  validators.js
+  validators.js´
+
+
+  /components
+  /crm
+    CRMLeadsPanel.jsx
+    CRMPipeline.jsx
+    CRMAgendaPanel.jsx
+    CRMPropostasPanel.jsx
+    CRMRelatoriosPanel.jsx
+    CRMLeadDetailDrawer.jsx
+    CRMLeadForm.jsx
+    CRMAgendaForm.jsx
+    CRMPropostaForm.jsx
+    CRMKanbanCard.jsx
+    CRMKPIWidget.jsx

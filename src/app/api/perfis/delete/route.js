@@ -1,3 +1,4 @@
+//src/app/api/perfis/delete
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
