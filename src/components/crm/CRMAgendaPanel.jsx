@@ -12,6 +12,7 @@ import {
   Home,
   FileText,
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import Card from "@/components/admin/ui/Card";
 import Modal from "@/components/admin/ui/Modal";
@@ -19,9 +20,9 @@ import Toast from "@/components/admin/ui/Toast";
 import CRMAgendaForm from "./CRMAgendaForm";
 import CRMCalendario from "./CRMCalendario";
 
-/** 🔹 Badge interna sólida com texto branco */
+/** 🔹 Badge sólida interna */
 function BadgeInline({ status }) {
-  const value = (status || "")
+  const normalized = (status || "")
     .toString()
     .trim()
     .normalize("NFD")
@@ -39,11 +40,9 @@ function BadgeInline({ status }) {
     outro: "bg-purple-600 text-white",
   };
 
-  const colorClass = colorMap[value] || "bg-gray-600 text-white";
-
   return (
     <span
-      className={`inline-flex items-center mb-2 justify-center rounded-full text-xs font-semibold px-3 py-[3px] capitalize w-fit ${colorClass}`}
+      className={`inline-flex items-center justify-center rounded-full text-xs font-semibold px-3 py-[3px] capitalize ${colorMap[normalized] || "bg-gray-600 text-white"}`}
     >
       {status}
     </span>
@@ -53,17 +52,24 @@ function BadgeInline({ status }) {
 export default function CRMAgendaPanel() {
   const [eventos, setEventos] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState(null);
+
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  // ============================================================
+  // 🔥 LOAD EVENTOS – ROTA NOVA (100% compatível)
+  // ============================================================
   const loadEventos = async () => {
     try {
       setLoading(true);
       const res = await fetch("/api/crm/agenda", { cache: "no-store" });
+
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
+
       setEventos(json.data || []);
     } catch (err) {
       Toast.error("Erro ao carregar eventos: " + err.message);
@@ -76,15 +82,22 @@ export default function CRMAgendaPanel() {
     loadEventos();
   }, []);
 
+  // ============================================================
+  // 🔥 DELETE — rota nova correta:
+  // DELETE /api/crm/agenda?id=ID
+  // ============================================================
   const handleDelete = async () => {
     if (!deleteTarget?.id) return Toast.error("ID inválido!");
+
     setDeleting(true);
     try {
-      const res = await fetch(`/api/crm/agenda/delete?id=${deleteTarget.id}`, {
+      const res = await fetch(`/api/crm/agenda?id=${deleteTarget.id}`, {
         method: "DELETE",
       });
+
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
+
       Toast.success("Evento removido com sucesso!");
       setDeleteTarget(null);
       loadEventos();
@@ -95,12 +108,16 @@ export default function CRMAgendaPanel() {
     }
   };
 
+  // ============================================================
+  // 🔥 UI
+  // ============================================================
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-200">
+
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-        <h3 className="text-lg font-semibold flex items-center gap-2 text-foreground">
-          <CalendarDays size={18} /> Agenda de Compromissos
+        <h3 className="text-xl font-semibold flex items-center gap-2 text-foreground">
+          <CalendarDays size={20} /> Agenda de Compromissos
         </h3>
 
         <Button
@@ -113,9 +130,11 @@ export default function CRMAgendaPanel() {
           <Plus size={16} /> Novo Evento
         </Button>
       </div>
+
       {/* CALENDÁRIO */}
-      <CRMCalendario />    
-      {/* LISTA */}
+      <CRMCalendario />
+
+      {/* LISTAGEM */}
       {loading ? (
         <div className="flex justify-center items-center py-10 text-muted-foreground">
           <Loader2 className="animate-spin mr-2" /> Carregando...
@@ -125,16 +144,18 @@ export default function CRMAgendaPanel() {
           Nenhum evento agendado.
         </p>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {eventos.map((ev) => (
             <Card
               key={ev.id}
-              className="p-4 space-y-2 relative hover:shadow-lg transition cursor-pointer border border-border bg-panel-card"
+              className="p-5 space-y-2 hover:shadow-lg transition border border-border bg-panel-card relative"
             >
+              {/* TOPO */}
               <div className="flex justify-between items-start">
-                <h4 className="font-semibold text-foreground leading-tight">
+                <h4 className="font-semibold text-foreground leading-tight text-base">
                   {ev.titulo}
                 </h4>
+
                 <div className="flex gap-1">
                   <Button
                     size="icon"
@@ -146,6 +167,7 @@ export default function CRMAgendaPanel() {
                   >
                     <Edit size={16} />
                   </Button>
+
                   <Button
                     size="icon"
                     variant="ghost"
@@ -159,11 +181,13 @@ export default function CRMAgendaPanel() {
               {/* BADGE */}
               <BadgeInline status={ev.tipo?.replaceAll("_", " ") || "sem tipo"} />
 
+              {/* DATA */}
               <p className="text-xs text-muted-foreground italic">
                 {new Date(ev.data_inicio).toLocaleString("pt-BR")} →{" "}
                 {new Date(ev.data_fim).toLocaleString("pt-BR")}
               </p>
 
+              {/* PARTICIPANTE */}
               {ev.participante && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                   <User size={14} className="text-foreground/70" />
@@ -171,13 +195,15 @@ export default function CRMAgendaPanel() {
                 </div>
               )}
 
+              {/* IMÓVEL */}
               {ev.imoveis?.titulo && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Home size={14} className="text-foreground/70" />
                   <span>
-                    {ev.imoveis.titulo}{" "}
+                    {ev.imoveis.titulo}
                     {ev.imoveis.endereco_bairro && (
                       <span className="text-xs text-muted-foreground/70">
+                        {" "}
                         — {ev.imoveis.endereco_bairro}
                       </span>
                     )}
@@ -185,6 +211,7 @@ export default function CRMAgendaPanel() {
                 </div>
               )}
 
+              {/* LOCAL */}
               {ev.local && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <MapPin size={14} className="text-foreground/70" />
@@ -192,10 +219,11 @@ export default function CRMAgendaPanel() {
                 </div>
               )}
 
+              {/* OBSERVAÇÕES */}
               {ev.observacoes && (
                 <div className="flex items-start gap-2 text-sm text-muted-foreground mt-1">
                   <FileText size={14} className="text-foreground/70 mt-[2px]" />
-                  <p className="whitespace-pre-wrap text-sm leading-snug">
+                  <p className="whitespace-pre-wrap leading-snug">
                     {ev.observacoes}
                   </p>
                 </div>
@@ -205,40 +233,42 @@ export default function CRMAgendaPanel() {
         </div>
       )}
 
-      {/* FORM */}
+      {/* FORM MODAL */}
       <Modal
         open={openForm}
-        onOpenChange={(val) => {
-          setOpenForm(val);
-          if (!val) setEditing(null);
+        onOpenChange={(v) => {
+          setOpenForm(v);
+          if (!v) setEditing(null);
         }}
         title={editing ? "Editar Evento" : "Novo Evento"}
       >
         <CRMAgendaForm
           evento={editing}
+          onSaved={loadEventos}
           onClose={() => {
             setOpenForm(false);
             setEditing(null);
           }}
-          onSaved={loadEventos}
         />
       </Modal>
 
-      {/* DELETE */}
+      {/* DELETE MODAL */}
       <Modal
         open={!!deleteTarget}
-        onOpenChange={(val) => !val && setDeleteTarget(null)}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
         title="Remover Evento"
       >
         {deleteTarget && (
           <div className="space-y-4">
             <div className="flex items-start gap-3 text-foreground">
               <AlertTriangle className="text-red-500 mt-1" />
+
               <div>
                 <p>
-                  Tem certeza que deseja remover o evento{" "}
+                  Tem certeza que deseja remover{" "}
                   <strong>{deleteTarget.titulo}</strong>?
                 </p>
+
                 <p className="text-sm text-muted-foreground mt-1">
                   {new Date(deleteTarget.data_inicio).toLocaleString("pt-BR")}
                 </p>
@@ -247,12 +277,13 @@ export default function CRMAgendaPanel() {
 
             <div className="flex gap-2">
               <Button
-                className="w-1/2"
                 variant="secondary"
+                className="w-1/2"
                 onClick={() => setDeleteTarget(null)}
               >
                 Cancelar
               </Button>
+
               <Button
                 className="w-1/2 bg-red-600 hover:bg-red-700"
                 onClick={handleDelete}

@@ -1,71 +1,4 @@
-preciso de ajuda para construir a parte de imoveis do meu portal para imobiliaria estou utilizando Nesxt, arquivos em JS, e banco de dados Supabase. eu preciso que atenda aos seguitne requisitos
-
-siga as minhas tabelas no supabase, e essas funcionalidades do modulo 
-
-C. Módulo de Gestão de Imóveis (Cadastro & Operações)
-
-Módulo
-
-Componentes e Funcionalidades
-
-C1. Cadastro Rico
-
-Endereços, Matrículas, Proprietários, Características, Mobiliário. Controle de Chaves (Retirada/Devolução com QR).
-
-C2. Gestão Financeira Imóvel
-
-Preço Atual, Histórico de Preço, Vacância, Despesas (Cond./IPTU/Manutenção).
-
-C3. Mídia & Publicação
-
-Fotos, Plantas. Publicação Automática no site.
-
-C4. Compliance & Legal
-
-Laudos, ART, AVCB, Habite-se (Anexados e com Validade/Alertas).
-
-quero o estilo identico ao da Meta e Google, clean, minimalista, incones lucide react, ja tenho esses components 
-
-/components
-  /ui
-    Card.jsx
-    Table.jsx
-    Modal.jsx
-    Badge.jsx
-    Toast.jsx
-  /forms
-    Input.jsx
-    Select.jsx
-    Switch.jsx
-    DatePicker.jsx
-  /layout
-    PageHeader.jsx
-    KPIWidget.jsx
-    Footer.js
-    Header.js
-    Sidebar.js
-/hooks
-  useFetchData.js
-  useModal.js
-  useStorageUpload.js
-  useRole.js
-/ui
-  button.jsx
-  dialog.jsx
-  select.jsx
-  switch.jsx
-  use-toast.jsx
-  
-
-minha pasta lib
-
-lib/
-  utils.ks
-  supabase/
-    server.js
-    client.js
-
-e meus estilos
+ola, tenho um projeto de uma imobiliaria e estou seguindo um documento para cosntruir todas as funcionalidades do paienl, e ja fiz crm, fiannceiro, contratos, perfis, imovies, preciso de ajuda para fazer o modulo de manutencao, estoufazendo da seguinteforma, utilizando meus componentes ja criados, e fazendo um unico arquivo de rota para concentrar todas as requisicoes, e criando rotas, components e as paginas de cada modulo, vou te mandar exemplos de codigos e arquivos para voce mefalar como podemos construir esse modulo, sem mandar nenhum codigo ainda
 
 @tailwind base;
 @tailwind components;
@@ -128,62 +61,844 @@ e meus estilos
   }
 }
 
-/** @type {import('tailwindcss').Config} */
-module.exports = {
-  darkMode: ["class"],
-  content: [
-    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
-  ],
-  theme: {
-    extend: {
-      colors: {
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
-        },
-        secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
-        },
-        muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
-        },
-        accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
-        },
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
-        },
+import { NextResponse } from "next/server";
+import { createServiceClient } from "@/lib/supabase/server";
 
-        // === ADICIONADO PARA O PAINEL ADMIN ===
-        panel: {
-          bg: "hsl(var(--panel-bg))",
-          card: "hsl(var(--panel-card))",
-          foreground: "hsl(var(--panel-card-foreground))",
-          active: "hsl(var(--panel-active))",
-          "active-foreground": "hsl(var(--panel-active-foreground))",
-        },
-        // ======================================
+/**
+ * 💰 API Financeiro — CRUD completo
+ *
+ * Funcionalidades:
+ *  - GET: Listagem + filtros
+ *  - POST: Criação de lançamento financeiro
+ *  - PUT: Atualização de status/dados
+ *  - DELETE: Exclusão de transação
+ *
+ * Query params suportados no GET:
+ *   ?type=receber|pagar|repasse|inadimplencia|comissoes|fluxo
+ *   ?status=pago|pendente|atrasado|cancelado
+ *   ?contrato_id=<uuid>
+ *   ?profile_id=<uuid>
+ *   ?imovel_id=<uuid>
+ *   ?start_date=YYYY-MM-DD
+ *   ?end_date=YYYY-MM-DD
+ */
+
+export async function GET(req) {
+  const supabase = createServiceClient();
+  const { searchParams } = new URL(req.url);
+
+  const type = searchParams.get("type") || "fluxo";
+  const status = searchParams.get("status");
+  const contrato_id = searchParams.get("contrato_id");
+  const profile_id = searchParams.get("profile_id");
+  const imovel_id = searchParams.get("imovel_id");
+  const start_date = searchParams.get("start_date");
+  const end_date = searchParams.get("end_date");
+
+  try {
+    let query = supabase
+      .from("transacoes")
+      .select(
+        `
+        id,
+        contrato_id,
+        imovel_id,
+        profile_id,
+        tipo,
+        status,
+        descricao,
+        valor,
+        data_vencimento,
+        data_pagamento,
+        dados_cobranca_json,
+        created_at
+      `,
+        { count: "exact" }
+      );
+
+    // ========================
+    // 🔹 Filtros dinâmicos
+    // ========================
+    if (status && status !== "all") query = query.eq("status", status);
+    if (contrato_id) query = query.eq("contrato_id", contrato_id);
+    if (profile_id) query = query.eq("profile_id", profile_id);
+    if (imovel_id) query = query.eq("imovel_id", imovel_id);
+    if (start_date) query = query.gte("data_vencimento", start_date);
+    if (end_date) query = query.lte("data_vencimento", end_date);
+
+    // ========================
+    // 🔸 Tipos lógicos
+    // ========================
+    switch (type) {
+      case "receber":
+        query = query.in("tipo", ["receita_aluguel", "taxa_adm_imobiliaria"]);
+        break;
+      case "pagar":
+        query = query.in("tipo", [
+          "repasse_proprietario",
+          "comissao_corretor",
+          "despesa_manutencao",
+          "pagamento_iptu",
+          "pagamento_condominio",
+        ]);
+        break;
+      case "repasse":
+        query = query.eq("tipo", "repasse_proprietario");
+        break;
+      case "inadimplencia":
+        query = query.in("status", ["pendente", "atrasado"]);
+        break;
+      case "comissoes":
+        query = query.eq("tipo", "comissao_corretor");
+        break;
+      case "fluxo":
+      default:
+        break;
+    }
+
+    query = query.order("data_vencimento", { ascending: false });
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    // ========================
+    // 🔹 Enriquecimento básico
+    // ========================
+    const contratosIds = [...new Set(data.map((d) => d.contrato_id).filter(Boolean))];
+    const imoveisIds = [...new Set(data.map((d) => d.imovel_id).filter(Boolean))];
+    const perfisIds = [...new Set(data.map((d) => d.profile_id).filter(Boolean))];
+
+    const [contratosRes, imoveisRes, perfisRes] = await Promise.all([
+      contratosIds.length
+        ? supabase
+            .from("contratos")
+            .select("id, tipo, data_inicio, data_fim, valor_acordado, proprietario_id, inquilino_id")
+            .in("id", contratosIds)
+        : { data: [] },
+      imoveisIds.length
+        ? supabase
+            .from("imoveis")
+            .select("id, titulo, endereco_cidade, endereco_estado")
+            .in("id", imoveisIds)
+        : { data: [] },
+      perfisIds.length
+        ? supabase.from("profiles").select("id, nome_completo, role").in("id", perfisIds)
+        : { data: [] },
+    ]);
+
+    const contratosMap = Object.fromEntries((contratosRes.data || []).map((c) => [c.id, c]));
+    const imoveisMap = Object.fromEntries((imoveisRes.data || []).map((i) => [i.id, i]));
+    const perfisMap = Object.fromEntries((perfisRes.data || []).map((p) => [p.id, p]));
+
+    const enriched = data.map((t) => ({
+      ...t,
+      contrato: contratosMap[t.contrato_id] || null,
+      imovel: imoveisMap[t.imovel_id] || null,
+      profile: perfisMap[t.profile_id] || null,
+    }));
+
+    // ========================
+    // 💵 Agregados financeiros
+    // ========================
+    const total_pago = enriched
+      .filter((t) => t.status === "pago")
+      .reduce((acc, t) => acc + Number(t.valor || 0), 0);
+    const total_pendente = enriched
+      .filter((t) => ["pendente", "atrasado"].includes(t.status))
+      .reduce((acc, t) => acc + Number(t.valor || 0), 0);
+
+    return NextResponse.json({
+      data: enriched,
+      meta: {
+        total_registros: count || enriched.length,
+        total_pago,
+        total_pendente,
+        filtro: type,
       },
-      borderRadius: {
-        lg: "0.5rem",
-        md: "calc(0.5rem - 2px)",
-        sm: "calc(0.5rem - 4px)",
+    });
+  } catch (err) {
+    console.error("❌ Erro em /api/financeiro [GET]:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+/**
+ * 🔹 Criação de nova transação financeira
+ */
+export async function POST(req) {
+  const supabase = createServiceClient();
+  try {
+    const body = await req.json();
+    const {
+      contrato_id,
+      imovel_id,
+      profile_id,
+      tipo,
+      status = "pendente",
+      descricao,
+      valor,
+      data_vencimento,
+      data_pagamento,
+      dados_cobranca_json = {},
+    } = body;
+
+    if (!tipo || !valor) {
+      return NextResponse.json({ error: "Campos obrigatórios ausentes." }, { status: 400 });
+    }
+
+    const { data, error } = await supabase.from("transacoes").insert([
+      {
+        contrato_id,
+        imovel_id,
+        profile_id,
+        tipo,
+        status,
+        descricao,
+        valor,
+        data_vencimento,
+        data_pagamento,
+        dados_cobranca_json,
       },
-    },
-  },
-  plugins: [],
+    ]);
+
+    if (error) throw error;
+    return NextResponse.json({ message: "Transação criada com sucesso.", data });
+  } catch (err) {
+    console.error("❌ Erro em /api/financeiro [POST]:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+/**
+ * 🔹 Atualização de transação
+ * Suporta update de status, valor, datas, descrição etc.
+ */
+export async function PUT(req) {
+  const supabase = createServiceClient();
+  try {
+    const body = await req.json();
+    const { id, ...updates } = body;
+    if (!id) return NextResponse.json({ error: "ID obrigatório." }, { status: 400 });
+
+    updates.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase.from("transacoes").update(updates).eq("id", id).select();
+    if (error) throw error;
+
+    return NextResponse.json({ message: "Transação atualizada com sucesso.", data });
+  } catch (err) {
+    console.error("❌ Erro em /api/financeiro [PUT]:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+/**
+ * 🔹 Exclusão de transação
+ */
+export async function DELETE(req) {
+  const supabase = createServiceClient();
+  try {
+    const body = await req.json();
+    const { id } = body;
+    if (!id) return NextResponse.json({ error: "ID obrigatório para exclusão." }, { status: 400 });
+
+    const { error } = await supabase.from("transacoes").delete().eq("id", id);
+    if (error) throw error;
+
+    return NextResponse.json({ message: "Transação removida com sucesso." });
+  } catch (err) {
+    console.error("❌ Erro em /api/financeiro [DELETE]:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+"use client";
+import { useState, useEffect } from "react";
+import Card from "@/components/admin/ui/Card";
+import Modal from "@/components/admin/ui/Modal";
+import Toast from "@/components/admin/ui/Toast";
+import { Button } from "@/components/ui/button";
+import { Loader2, Plus, FileText, Edit, Trash2, Eye, AlertTriangle } from "lucide-react";
+import CRMContratoForm from "./ContratoForm";
+import CRMContratoDetailDrawer from "./ContratoDetailDrawer";
+
+
+export default function CRMContratosPanel() {
+  const [contratos, setContratos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [openForm, setOpenForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [filter, setFilter] = useState({ tipo: "todos", status: "todos" });
+  const [selectedContrato, setSelectedContrato] = useState(null);
+
+  const loadContratos = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/contratos", { cache: "no-store" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setContratos(json.data || []);
+    } catch (err) {
+      Toast.error("Erro ao carregar contratos: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadContratos();
+  }, []);
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget?.id) return Toast.error("ID inválido!");
+
+    try {
+      const res = await fetch(`/api/contratos?id=${deleteTarget.id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      Toast.success("Contrato removido!");
+      setDeleteTarget(null);
+      loadContratos();
+    } catch (err) {
+      Toast.error(err.message);
+    }
+  };
+
+  const filtered = contratos.filter((c) => {
+    if (filter.tipo !== "todos" && c.tipo !== filter.tipo) return false;
+    if (filter.status !== "todos" && c.status !== filter.status) return false;
+    return true;
+  });
+
+  const statusColor = (status) => {
+    const map = {
+      ativo: "bg-emerald-600",
+      encerrado: "bg-gray-500",
+      pendente_assinatura: "bg-yellow-600",
+      inadimplente: "bg-red-600",
+    };
+    return map[status] || "bg-muted";
+  };
+
+  return (
+    <div className="space-y-4">
+        {/* HEADER */}
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+        <h3 className="text-lg font-semibold flex items-center gap-2 text-foreground">
+            <FileText size={18} /> Contratos
+        </h3>
+
+        <div className="flex flex-wrap gap-2 items-center">
+            <select
+            className="border border-border rounded-md p-2 bg-panel-card text-sm"
+            value={filter.tipo}
+            onChange={(e) => setFilter({ ...filter, tipo: e.target.value })}
+            >
+            <option value="todos">Todos os tipos</option>
+            <option value="locacao">Locação</option>
+            <option value="venda">Venda</option>
+            <option value="administracao">Administração</option>
+            </select>
+
+            <select
+            className="border border-border rounded-md p-2 bg-panel-card text-sm"
+            value={filter.status}
+            onChange={(e) => setFilter({ ...filter, status: e.target.value })}
+            >
+            <option value="todos">Todos os status</option>
+            <option value="ativo">Ativo</option>
+            <option value="pendente_assinatura">Pendente de Assinatura</option>
+            <option value="encerrado">Encerrado</option>
+            </select>
+
+            <Button onClick={() => setOpenForm(true)} className="flex items-center gap-2">
+            <Plus size={16} /> Novo Contrato
+            </Button>
+        </div>
+        </div>
+
+        {/* LISTA */}
+        {loading ? (
+        <div className="flex justify-center items-center py-10 text-muted-foreground">
+            <Loader2 className="animate-spin mr-2" /> Carregando...
+        </div>
+        ) : filtered.length === 0 ? (
+        <p className="p-4 text-center text-muted-foreground">Nenhum contrato encontrado.</p>
+        ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {filtered.map((contrato) => (
+            <Card
+                key={contrato.id}
+                className="p-4 space-y-2 hover:shadow-lg transition cursor-pointer"
+                onClick={() => setSelectedContrato(contrato.id)}
+            >
+                <div className="flex justify-between items-start">
+                <div>
+                    <h4 className="font-semibold text-foreground">
+                    {contrato.imoveis?.titulo || "Imóvel sem título"}
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                    Tipo: {contrato.tipo} | Valor: R$ {Number(contrato.valor_acordado).toFixed(2)}
+                    </p>
+                </div>
+
+                <div className="flex gap-1">
+                    <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setEditing(contrato);
+                        setOpenForm(true);
+                    }}
+                    >
+                    <Edit size={16} />
+                    </Button>
+                    <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(contrato);
+                    }}
+                    >
+                    <Trash2 size={16} className="text-red-500" />
+                    </Button>
+                </div>
+                </div>
+
+                <div className="text-xs text-muted-foreground flex justify-between">
+                <span>
+                    {contrato.data_inicio} → {contrato.data_fim}
+                </span>
+                <span
+                    className={`px-2 py-0.5 rounded-full text-white ${statusColor(contrato.status)}`}
+                >
+                    {contrato.status || "sem status"}
+                </span>
+                </div>
+            </Card>
+            ))}
+        </div>
+        )}
+
+        {/* MODAL FORM */}
+        <Modal
+        open={openForm}
+        onOpenChange={(val) => {
+            setOpenForm(val);
+            if (!val) setEditing(null);
+        }}
+        title={editing ? "Editar Contrato" : "Novo Contrato"}
+        >
+        <CRMContratoForm
+            contrato={editing}
+            onClose={() => {
+            setOpenForm(false);
+            setEditing(null);
+            }}
+            onSaved={loadContratos}
+        />
+        </Modal>
+
+        {/* MODAL EXCLUSÃO */}
+        <Modal
+        open={!!deleteTarget}
+        onOpenChange={(val) => !val && setDeleteTarget(null)}
+        title="Remover Contrato"
+        >
+        {deleteTarget && (
+            <div className="space-y-4">
+            <div className="flex items-start gap-3 text-foreground">
+                <AlertTriangle className="text-red-500 mt-1" />
+                <div>
+                <p>
+                    Tem certeza que deseja remover o contrato do imóvel{" "}
+                    <strong>{deleteTarget.imoveis?.titulo}</strong>?
+                </p>
+                </div>
+            </div>
+
+            <div className="flex gap-2">
+                <Button className="w-1/2" variant="secondary" onClick={() => setDeleteTarget(null)}>
+                Cancelar
+                </Button>
+                <Button className="w-1/2 bg-red-600 hover:bg-red-700" onClick={handleConfirmDelete}>
+                Confirmar
+                </Button>
+            </div>
+            </div>
+        )}
+        </Modal>
+
+        {/* DRAWER DETALHES */}
+        {selectedContrato && (
+        <CRMContratoDetailDrawer
+            contratoId={selectedContrato}
+            onClose={() => setSelectedContrato(null)}
+            onUpdated={loadContratos}
+        />
+        )}
+    </div>
+    );
+}
+
+"use client";
+import { useState } from "react";
+import Table from "@/components/admin/ui/Table";
+import Modal from "@/components/admin/ui/Modal";
+import Toast from "@/components/admin/ui/Toast";
+import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/utils/formatters";
+import {
+  CheckCircle2,
+  Clock,
+  XCircle,
+  AlertTriangle,
+  Edit,
+  Trash2,
+} from "lucide-react";
+
+/* ==========================================
+   🔹 BADGE DE STATUS
+========================================== */
+const StatusBadge = ({ status }) => {
+  const map = {
+    pago: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    pendente: "bg-amber-100 text-amber-800 border-amber-200",
+    atrasado: "bg-rose-100 text-rose-800 border-rose-200",
+    cancelado: "bg-gray-200 text-gray-800 border-gray-300",
+  };
+
+  return (
+    <span
+      className={`inline-block px-2 py-0.5 text-xs rounded border capitalize ${
+        map[status] || "bg-muted text-foreground border-border"
+      }`}
+    >
+      {status}
+    </span>
+  );
 };
 
+/* ==========================================
+   🔹 TABELA PRINCIPAL
+========================================== */
+export default function FinanceiroTable({ data = [], loading, onReload }) {
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
-quero que me diga antes de qualquer  codigo, qual o passo a passo e quais arquivos precisamos gerar e criar
+  const columns = [
+    { key: "descricao", label: "Descrição" },
+    { key: "tipo", label: "Tipo" },
+    { key: "status", label: "Status" },
+    { key: "valor", label: "Valor" },
+    { key: "data_vencimento", label: "Vencimento" },
+    { key: "data_pagamento", label: "Pagamento" },
+    { key: "acoes", label: "" },
+  ];
+
+  if (loading)
+    return (
+      <p className="text-muted-foreground text-center py-6 animate-pulse">
+        Carregando lançamentos...
+      </p>
+    );
+
+  if (data.length === 0)
+    return (
+      <p className="text-muted-foreground text-center py-6">
+        Nenhum lançamento encontrado.
+      </p>
+    );
+
+  const handleDelete = async () => {
+    if (!deleteTarget?.id) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/financeiro?id=${deleteTarget.id}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      Toast.success("Lançamento removido com sucesso!");
+      setDeleteTarget(null);
+      onReload?.();
+    } catch (err) {
+      Toast.error("Erro ao excluir: " + err.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // 🔹 Ajusta visualmente os dados
+  const tableData = data.map((t) => ({
+    ...t,
+    status: <StatusBadge status={t.status} />,
+    valor: formatCurrency(t.valor),
+    acoes: (
+      <div className="flex items-center gap-1 justify-end">
+        <Button
+          size="icon"
+          variant="ghost"
+          className="hover:bg-muted/50"
+          onClick={() => Toast.info("Em breve: edição de lançamento")}
+        >
+          <Edit size={16} className="text-blue-600" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="hover:bg-muted/50"
+          onClick={() => setDeleteTarget(t)}
+        >
+          <Trash2 size={16} className="text-red-600" />
+        </Button>
+      </div>
+    ),
+  }));
+
+  return (
+    <>
+      <div className="overflow-hidden rounded-xl border border-border shadow-sm">
+        <Table columns={columns} data={tableData} />
+      </div>
+
+      {/* =======================================
+          🔹 MODAL DE CONFIRMAÇÃO DE EXCLUSÃO
+      ======================================= */}
+      <Modal
+        open={!!deleteTarget}
+        onOpenChange={(val) => {
+          if (!val) setDeleteTarget(null);
+        }}
+        title="Remover Lançamento"
+      >
+        {deleteTarget && (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Tem certeza que deseja excluir o lançamento{" "}
+              <strong>{deleteTarget.descricao}</strong> no valor de{" "}
+              <strong>{formatCurrency(deleteTarget.valor)}</strong>?
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                className="w-1/2"
+                onClick={() => setDeleteTarget(null)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                className="w-1/2 bg-red-600 hover:bg-red-700"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? "Removendo..." : "Confirmar Exclusão"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+    </>
+  );
+}
+
+"use client";
+
+import { useState } from "react";
+import PageHeader from "@/components/admin/layout/PageHeader";
+import Card from "@/components/admin/ui/Card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UsersRound, ShieldCheck, Sparkles } from "lucide-react";
+import PerfisEquipePanel from "@/components/perfis/PerfisEquipePanel";
+import PerfisPersonasPanel from "@/components/perfis/PerfisPersonasPanel";
+import PerfisLeadsPanel from "@/components/perfis/PerfisLeadsPanel";
+
+export default function PerfisPage() {
+  const [tab, setTab] = useState("equipe");
+
+  return (
+    <div className="space-y-6">
+      {/* 🔹 Cabeçalho */}
+      <PageHeader
+        title="Perfis do Sistema"
+        description="Gerencie usuários da equipe, proprietários, inquilinos e leads."
+      />
+
+      {/* 🔹 Abas com estilo idêntico ao módulo de imóveis */}
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
+        <TabsList className="bg-muted rounded-lg p-1 flex flex-wrap md:flex-nowrap gap-2">
+          <TabsTrigger
+            value="equipe"
+            className="flex items-center gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-md px-4 py-2 text-sm font-medium transition-all"
+          >
+            <ShieldCheck size={16} /> Equipe
+          </TabsTrigger>
+
+          <TabsTrigger
+            value="personas"
+            className="flex items-center gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-md px-4 py-2 text-sm font-medium transition-all"
+          >
+            <UsersRound size={16} /> Proprietários & Inquilinos
+          </TabsTrigger>
+
+          <TabsTrigger
+            value="leads"
+            className="flex items-center gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-md px-4 py-2 text-sm font-medium transition-all"
+          >
+            <Sparkles size={16} /> Leads & Clientes
+          </TabsTrigger>
+        </TabsList>
+
+        {/* 🔹 Conteúdo de cada aba dentro de Cards */}
+        <div className="mt-6 space-y-4">
+          <TabsContent value="equipe">
+            <Card className="p-6 space-y-4">
+              <PerfisEquipePanel />
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="personas">
+            <Card className="p-6 space-y-4">
+              <PerfisPersonasPanel />
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="leads">
+            <Card className="p-6 space-y-4">
+              <PerfisLeadsPanel />
+            </Card>
+          </TabsContent>
+        </div>
+      </Tabs>
+    </div>
+  );
+}
+
+"use client";
+
+import { useState } from "react";
+import PageHeader from "@/components/admin/layout/PageHeader";
+import Card from "@/components/admin/ui/Card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  TrendingUp,
+  TrendingDown,
+  Banknote,
+  Wallet,
+  Users,
+  BarChart3,
+} from "lucide-react";
+
+import ReceberPanel from "@/components/financeiro/ReceberPanel";
+import PagarPanel from "@/components/financeiro/PagarPanel";
+import RepassePanel from "@/components/financeiro/RepassePanel";
+import InadimplenciaPanel from "@/components/financeiro/InadimplenciaPanel";
+import ComissoesPanel from "@/components/financeiro/ComissoesPanel";
+import FluxoCaixaPanel from "@/components/financeiro/FluxoCaixaPanel";
+
+/**
+ * 💰 Página principal do módulo Financeiro
+ * Controla as abas, renderiza os painéis e integra com a rota /api/financeiro
+ */
+export default function FinanceiroPage() {
+  const [tab, setTab] = useState("receber");
+
+  return (
+    <div className="space-y-6">
+      {/* 🔹 Cabeçalho da página */}
+      <PageHeader
+        title="Módulo Financeiro"
+        description="Controle total das receitas, despesas, repasses, inadimplências e fluxo de caixa da imobiliária."
+      />
+
+      {/* 🔹 Abas principais */}
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
+        <TabsList className="bg-muted rounded-lg p-1 flex flex-wrap md:flex-nowrap gap-2">
+          <TabsTrigger
+            value="receber"
+            className="flex items-center gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background px-4 py-2 rounded-md text-sm font-medium transition-all"
+          >
+            <TrendingUp size={16} /> Receber
+          </TabsTrigger>
+
+          <TabsTrigger
+            value="pagar"
+            className="flex items-center gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background px-4 py-2 rounded-md text-sm font-medium transition-all"
+          >
+            <TrendingDown size={16} /> Pagar
+          </TabsTrigger>
+
+          <TabsTrigger
+            value="repasse"
+            className="flex items-center gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background px-4 py-2 rounded-md text-sm font-medium transition-all"
+          >
+            <Banknote size={16} /> Repasses
+          </TabsTrigger>
+
+          <TabsTrigger
+            value="inadimplencia"
+            className="flex items-center gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background px-4 py-2 rounded-md text-sm font-medium transition-all"
+          >
+            <Wallet size={16} /> Inadimplência
+          </TabsTrigger>
+
+          <TabsTrigger
+            value="comissoes"
+            className="flex items-center gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background px-4 py-2 rounded-md text-sm font-medium transition-all"
+          >
+            <Users size={16} /> Comissões
+          </TabsTrigger>
+
+          <TabsTrigger
+            value="fluxo"
+            className="flex items-center gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background px-4 py-2 rounded-md text-sm font-medium transition-all"
+          >
+            <BarChart3 size={16} /> Fluxo de Caixa
+          </TabsTrigger>
+        </TabsList>
+
+        {/* 🔹 Conteúdo de cada aba dentro de Cards */}
+        <div className="mt-6 space-y-4">
+          <TabsContent value="receber">
+            <Card className="p-6 space-y-4">
+              <ReceberPanel />
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="pagar">
+            <Card className="p-6 space-y-4">
+              <PagarPanel />
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="repasse">
+            <Card className="p-6 space-y-4">
+              <RepassePanel />
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="inadimplencia">
+            <Card className="p-6 space-y-4">
+              <InadimplenciaPanel />
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="comissoes">
+            <Card className="p-6 space-y-4">
+              <ComissoesPanel />
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="fluxo">
+            <Card className="p-6 space-y-4">
+              <FluxoCaixaPanel />
+            </Card>
+          </TabsContent>
+        </div>
+      </Tabs>
+    </div>
+  );
+}
+

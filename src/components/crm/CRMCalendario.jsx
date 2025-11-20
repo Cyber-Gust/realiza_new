@@ -6,31 +6,52 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import ptBrLocale from "@fullcalendar/core/locales/pt-br";
 import { CalendarDays, Loader2, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+
 import Card from "@/components/admin/ui/Card";
+import { Button } from "@/components/ui/button";
 import Modal from "@/components/admin/ui/Modal";
 import Toast from "@/components/admin/ui/Toast";
 import CRMAgendaForm from "./CRMAgendaForm";
 
+/* ======================================
+   🔹 Mapa de cores Big-Tech
+   ====================================== */
+const EVENT_COLORS = {
+  visita_presencial: "#059669",
+  visita_virtual: "#0284c7",
+  reuniao: "#2563eb",
+  follow_up: "#d97706",
+  tecnico: "#ea580c",
+  administrativo: "#4b5563",
+  outro: "#9333ea",
+};
+
 export default function CRMCalendario() {
   const [eventos, setEventos] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [openForm, setOpenForm] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
 
+  /* ======================================
+     🔹 Carrega eventos
+     ====================================== */
   const loadEventos = async () => {
     try {
       setLoading(true);
+
       const res = await fetch("/api/crm/agenda", { cache: "no-store" });
       const json = await res.json();
+
       if (!res.ok) throw new Error(json.error);
 
+      // Formatação FullCalendar
       const formatted = (json.data || []).map((ev) => ({
         id: ev.id,
         title: ev.titulo,
         start: ev.data_inicio,
         end: ev.data_fim,
-        backgroundColor: getColor(ev.tipo),
+        backgroundColor: EVENT_COLORS[ev.tipo] || "#6b7280",
         borderColor: "transparent",
         textColor: "#fff",
         extendedProps: ev,
@@ -48,47 +69,53 @@ export default function CRMCalendario() {
     loadEventos();
   }, []);
 
-  const getColor = (tipo) => {
-    const map = {
-      visita_presencial: "#059669",
-      visita_virtual: "#0284c7",
-      reuniao: "#2563eb",
-      follow_up: "#d97706",
-      tecnico: "#ea580c",
-      administrativo: "#4b5563",
-      outro: "#9333ea",
-    };
-    return map[tipo?.toLowerCase()] || "#6b7280";
-  };
-
+  /* ======================================
+     🔹 Render
+     ====================================== */
   return (
-    <Card className="p-4 border border-border bg-panel-card shadow-sm">
-      {/* Header */}
+    <Card className="p-0 border border-border bg-panel-card shadow-sm overflow-hidden">
 
-      {/* Corpo */}
+      {/* HEADER PREMIUM */}
+      <div className="flex items-center justify-between p-4 border-b border-border bg-panel-card/70">
+        <h3 className="text-lg font-semibold flex items-center gap-2 text-foreground">
+          <CalendarDays size={18} /> Calendário de Eventos
+        </h3>
+
+        <Button
+          className="flex items-center gap-2"
+          onClick={() => {
+            setSelectedDate(null);
+            setOpenForm(true);
+          }}
+        >
+          <Plus size={16} /> Novo Evento
+        </Button>
+      </div>
+
+      {/* CORPO */}
       {loading ? (
         <div className="flex justify-center items-center py-16 text-muted-foreground">
           <Loader2 className="animate-spin mr-2" /> Carregando calendário...
         </div>
       ) : (
-        <div className="rounded-md overflow-hidden border border-border">
+        <div className="rounded-none">
           <FullCalendar
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
             initialView="dayGridMonth"
             locale={ptBrLocale}
             height="auto"
-            headerToolbar={{
-              left: "prev,next today",
-              center: "title",
-              right: "dayGridMonth,timeGridWeek,timeGridDay",
-            }}
+            events={eventos}
             buttonText={{
               today: "Hoje",
               month: "Mês",
               week: "Semana",
               day: "Dia",
             }}
-            events={eventos}
+            headerToolbar={{
+              left: "prev,next today",
+              center: "title",
+              right: "dayGridMonth,timeGridWeek,timeGridDay",
+            }}
             dateClick={(info) => {
               setSelectedDate(info.dateStr);
               setOpenForm(true);
@@ -96,7 +123,7 @@ export default function CRMCalendario() {
             eventClick={(info) => {
               const ev = info.event.extendedProps;
               Toast.info(
-                `${info.event.title}\n📍 ${ev.local || "Sem local"}\n🕓 ${new Date(
+                `${ev.titulo}\n📍 ${ev.local || "Sem local"}\n🕓 ${new Date(
                   ev.data_inicio
                 ).toLocaleString("pt-BR")}`
               );
@@ -110,27 +137,32 @@ export default function CRMCalendario() {
                   overflow: "hidden",
                   whiteSpace: "nowrap",
                   textOverflow: "ellipsis",
+                  borderRadius: "4px",
+                  padding: "2px 4px",
                 }}
               >
                 {arg.event.title}
               </div>
             )}
-            dayMaxEventRows={2}
+            dayMaxEventRows={3}
             themeSystem="standard"
           />
         </div>
       )}
 
-      {/* Modal de criação/edição */}
+      {/* MODAL FORM */}
       <Modal
         open={openForm}
         onOpenChange={setOpenForm}
-        title="Novo Evento"
+        title={selectedDate ? "Novo Evento" : "Criar Evento"}
       >
         <CRMAgendaForm
           evento={selectedDate ? { data_inicio: selectedDate } : null}
           onClose={() => setOpenForm(false)}
-          onSaved={loadEventos}
+          onSaved={() => {
+            setOpenForm(false);
+            loadEventos();
+          }}
         />
       </Modal>
     </Card>

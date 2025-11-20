@@ -3,7 +3,14 @@
 import { useState } from "react";
 import PageHeader from "@/components/admin/layout/PageHeader";
 import Card from "@/components/admin/ui/Card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+
 import {
   UsersRound,
   Workflow,
@@ -12,7 +19,7 @@ import {
   BarChart3,
 } from "lucide-react";
 
-// Painéis principais
+// Painéis principais (versões atualizadas que construímos)
 import CRMLeadsPanel from "@/components/crm/CRMLeadsPanel";
 import CRMPipeline from "@/components/crm/CRMPipeline";
 import CRMAgendaPanel from "@/components/crm/CRMAgendaPanel";
@@ -23,80 +30,130 @@ export default function CRMPage() {
   const [tab, setTab] = useState("leads");
 
   return (
-    <div className="space-y-6">
-      {/* 🔹 Cabeçalho */}
+    <div className="space-y-8">
+      {/* ============================================================
+         🔹 Header Institucional
+      ============================================================ */}
       <PageHeader
         title="CRM Imobiliário"
-        description="Gerencie leads, pipeline, agenda, propostas e relatórios de performance comercial."
+        description="Gestão completa de leads, pipeline, agenda, propostas e relatórios comerciais."
       />
 
-      {/* 🔹 Abas do módulo CRM */}
-      <Tabs value={tab} onValueChange={setTab} className="w-full">
-        <TabsList className="bg-muted rounded-lg p-1 flex flex-wrap md:flex-nowrap gap-2">
+      {/* ============================================================
+         🔹 Navegação entre módulos (Tabs)
+      ============================================================ */}
+      <Tabs
+        value={tab}
+        onValueChange={setTab}
+        className="w-full"
+      >
+        <TabsList
+          className="
+            bg-muted/40 backdrop-blur-sm border border-border 
+            rounded-xl p-1 flex flex-wrap md:flex-nowrap gap-2
+          "
+        >
           <TabsTrigger
             value="leads"
-            className="flex items-center gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-md px-4 py-2 text-sm font-medium transition-all"
+            className="
+              flex items-center gap-2 
+              px-4 py-2 rounded-md
+              data-[state=active]:bg-foreground 
+              data-[state=active]:text-background
+              transition-all text-sm font-medium
+            "
           >
             <UsersRound size={16} /> Leads
           </TabsTrigger>
 
           <TabsTrigger
             value="pipeline"
-            className="flex items-center gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-md px-4 py-2 text-sm font-medium transition-all"
+            className="
+              flex items-center gap-2 
+              px-4 py-2 rounded-md
+              data-[state=active]:bg-foreground 
+              data-[state=active]:text-background
+              transition-all text-sm font-medium
+            "
           >
             <Workflow size={16} /> Pipeline
           </TabsTrigger>
 
           <TabsTrigger
             value="agenda"
-            className="flex items-center gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-md px-4 py-2 text-sm font-medium transition-all"
+            className="
+              flex items-center gap-2 
+              px-4 py-2 rounded-md
+              data-[state=active]:bg-foreground 
+              data-[state=active]:text-background
+              transition-all text-sm font-medium
+            "
           >
             <CalendarDays size={16} /> Agenda
           </TabsTrigger>
 
           <TabsTrigger
             value="propostas"
-            className="flex items-center gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-md px-4 py-2 text-sm font-medium transition-all"
+            className="
+              flex items-center gap-2 
+              px-4 py-2 rounded-md
+              data-[state=active]:bg-foreground 
+              data-[state=active]:text-background
+              transition-all text-sm font-medium
+            "
           >
             <FileText size={16} /> Propostas
           </TabsTrigger>
 
           <TabsTrigger
             value="relatorios"
-            className="flex items-center gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-md px-4 py-2 text-sm font-medium transition-all"
+            className="
+              flex items-center gap-2 
+              px-4 py-2 rounded-md
+              data-[state=active]:bg-foreground 
+              data-[state=active]:text-background
+              transition-all text-sm font-medium
+            "
           >
             <BarChart3 size={16} /> Relatórios
           </TabsTrigger>
         </TabsList>
 
-        {/* 🔹 Conteúdo de cada aba */}
-        <div className="mt-6 space-y-4">
+        {/* ============================================================
+           🔹 Conteúdo das Abas
+        ============================================================ */}
+        <div className="mt-6">
+          {/* Leads */}
           <TabsContent value="leads">
-            <Card className="p-6 space-y-4">
+            <Card className="p-6">
               <CRMLeadsPanel />
             </Card>
           </TabsContent>
 
+          {/* Pipeline */}
           <TabsContent value="pipeline">
-            <Card className="p-6 space-y-4">
+            <Card className="p-6">
               <CRMPipeline />
             </Card>
           </TabsContent>
 
+          {/* Agenda */}
           <TabsContent value="agenda">
-            <Card className="p-6 space-y-4">
+            <Card className="p-6">
               <CRMAgendaPanel />
             </Card>
           </TabsContent>
 
+          {/* Propostas */}
           <TabsContent value="propostas">
-            <Card className="p-6 space-y-4">
+            <Card className="p-6">
               <CRMPropostasPanel />
             </Card>
           </TabsContent>
 
+          {/* Relatórios */}
           <TabsContent value="relatorios">
-            <Card className="p-6 space-y-4">
+            <Card className="p-6">
               <CRMRelatoriosPanel />
             </Card>
           </TabsContent>

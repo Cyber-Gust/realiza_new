@@ -2,11 +2,11 @@
 import { BarChart3 } from "lucide-react";
 
 /**
- * Widget genérico de KPI (reutilizável)
- * label: título do indicador
- * value: valor numérico ou percentual
- * icon: ícone opcional (padrão: gráfico)
- * color: classe Tailwind (padrão: text-primary)
+ * Widget de KPI — versão enterprise
+ * label: descrição
+ * value: número/string exibido
+ * icon: ícone (Lucide)
+ * color: cor do valor/ícone
  */
 export default function CRMKPIWidget({
   label,
@@ -15,12 +15,43 @@ export default function CRMKPIWidget({
   color = "text-primary",
 }) {
   return (
-    <div className="rounded-xl border border-border bg-panel-card p-5 shadow-sm flex flex-col justify-between hover:shadow-md transition-all duration-200">
+    <div
+      className="
+        rounded-2xl border border-border bg-panel-card
+        p-5 shadow-sm
+        hover:shadow-lg hover:-translate-y-[2px]
+        transition-all duration-200
+        flex flex-col gap-3
+      "
+    >
+      {/* HEADER */}
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium text-muted-foreground">{label}</h4>
-        <Icon size={18} className={color} />
+        <p className="text-[13px] font-medium text-muted-foreground tracking-tight">
+          {label}
+        </p>
+
+        {/* Ícone em cápsula suave */}
+        <div
+          className={`
+            flex items-center justify-center
+            h-8 w-8 rounded-lg
+            bg-muted/40 border border-border/70
+            ${color}
+          `}
+        >
+          <Icon size={16} />
+        </div>
       </div>
-      <p className={`text-3xl font-bold mt-2 ${color}`}>{value}</p>
+
+      {/* VALOR */}
+      <p
+        className={`
+          text-4xl font-semibold leading-none tracking-tight 
+          ${color}
+        `}
+      >
+        {value}
+      </p>
     </div>
   );
 }

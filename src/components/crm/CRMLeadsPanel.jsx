@@ -1,55 +1,65 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import Card from "@/components/admin/ui/Card";
 import Modal from "@/components/admin/ui/Modal";
 import Toast from "@/components/admin/ui/Toast";
-import { Loader2, Plus, User2, Trash2, Edit, AlertTriangle } from "lucide-react";
+
+import {
+  Loader2,
+  Plus,
+  User2,
+  Trash2,
+  Edit,
+  AlertTriangle,
+  Search,
+  Filter,
+  RefreshCcw,
+} from "lucide-react";
+
 import CRMLeadForm from "./CRMLeadForm";
 
 export default function CRMLeadsPanel() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState(null);
+
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [filter, setFilter] = useState({ status: "todos", origem: "", corretor_id: "todos" });
   const [deleting, setDeleting] = useState(false);
-  const [selectedLead, setSelectedLead] = useState(null);
-  const [corretoresMap, setCorretoresMap] = useState({});
+
   const [corretores, setCorretores] = useState([]);
 
-  // ======================================
-  // 🔹 Carregar leads + corretores
-  // ======================================
-  const loadLeads = async () => {
+  const [filters, setFilters] = useState({
+    search: "",
+    status: "",
+    origem: "",
+    corretor_id: "",
+  });
+
+  // ========================================================
+  // 🔥 LOAD CORRETORES E LEADS (NOVAS ROTAS)
+  // ========================================================
+  const loadAll = async () => {
     try {
       setLoading(true);
 
-      // 1️⃣ Busca os leads
-      const res = await fetch("/api/perfis/list?type=leads", { cache: "no-store" });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
+      const [leadsRes, corretoresRes] = await Promise.all([
+        fetch("/api/crm/leads", { cache: "no-store" }),
+        fetch("/api/perfis/list?type=equipe", { cache: "no-store" }),
+      ]);
 
-      // 2️⃣ Busca corretores para mapear nome
-      const resCorretores = await fetch("/api/perfis/list?type=equipe", { cache: "no-store" });
-      const jsonCorretores = await resCorretores.json();
-      if (!resCorretores.ok) throw new Error(jsonCorretores.error);
+      const [leadsJson, corrJson] = await Promise.all([
+        leadsRes.json(),
+        corretoresRes.json(),
+      ]);
 
-      const map = {};
-      (jsonCorretores.data || []).forEach((c) => {
-        map[c.id] = c.nome_completo;
-      });
+      if (!leadsRes.ok) throw new Error(leadsJson.error);
+      if (!corretoresRes.ok) throw new Error(corrJson.error);
 
-      // 3️⃣ Junta leads com nome do corretor
-      const leadsComCorretor = (json.data || []).map((l) => ({
-        ...l,
-        corretor_nome: map[l.corretor_id] || null,
-      }));
-
-      setLeads(leadsComCorretor);
-      setCorretoresMap(map);
-      setCorretores(jsonCorretores.data || []);
+      setLeads(leadsJson.data || []);
+      setCorretores(corrJson.data || []);
     } catch (err) {
       Toast.error("Erro ao carregar leads: " + err.message);
     } finally {
@@ -58,21 +68,43 @@ export default function CRMLeadsPanel() {
   };
 
   useEffect(() => {
-    loadLeads();
+    loadAll();
   }, []);
 
-  // ======================================
-  // 🔹 Deletar lead
-  // ======================================
+  // ========================================================
+  // 🔥 FILTRAGEM LOCAL
+  // ========================================================
+  const filteredLeads = useMemo(() => {
+    return leads.filter((lead) => {
+      if (filters.status && lead.status !== filters.status) return false;
+      if (filters.origem && !lead.origem?.toLowerCase().includes(filters.origem.toLowerCase()))
+        return false;
+      if (filters.corretor_id && lead.corretor_id !== filters.corretor_id)
+        return false;
+      if (
+        filters.search &&
+        !(
+          lead.nome?.toLowerCase().includes(filters.search.toLowerCase()) ||
+          lead.email?.toLowerCase().includes(filters.search.toLowerCase()) ||
+          lead.telefone?.toLowerCase().includes(filters.search.toLowerCase())
+        )
+      )
+        return false;
+
+      return true;
+    });
+  }, [leads, filters]);
+
+  // ========================================================
+  // 🔥 DELETE (NOVO ENDPOINT)
+  // ========================================================
   const handleConfirmDelete = async () => {
-    if (!deleteTarget?.id) return Toast.error("ID do lead inválido!");
+    if (!deleteTarget) return;
 
     setDeleting(true);
     try {
-      const res = await fetch("/api/perfis/delete", {
+      const res = await fetch(`/api/crm/leads?id=${deleteTarget.id}`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: deleteTarget.id, type: "leads" }),
       });
 
       const json = await res.json();
@@ -80,7 +112,7 @@ export default function CRMLeadsPanel() {
 
       Toast.success(`Lead "${deleteTarget.nome}" removido com sucesso!`);
       setDeleteTarget(null);
-      loadLeads();
+      loadAll();
     } catch (err) {
       Toast.error(err.message);
     } finally {
@@ -88,17 +120,9 @@ export default function CRMLeadsPanel() {
     }
   };
 
-  // ======================================
-  // 🔹 Filtro de leads
-  // ======================================
-  const filteredLeads = leads.filter((lead) => {
-    if (filter.status !== "todos" && lead.status !== filter.status) return false;
-    if (filter.origem && !lead.origem?.toLowerCase().includes(filter.origem.toLowerCase()))
-      return false;
-    if (filter.corretor_id !== "todos" && lead.corretor_id !== filter.corretor_id) return false;
-    return true;
-  });
-
+  // ========================================================
+  // 🔥 STATUS COLORS
+  // ========================================================
   const getStatusColor = (status) => {
     const map = {
       novo: "bg-blue-500",
@@ -112,22 +136,48 @@ export default function CRMLeadsPanel() {
     return map[status] || "bg-muted";
   };
 
+  const resetFilters = () =>
+    setFilters({ search: "", status: "", origem: "", corretor_id: "" });
+
+  // ========================================================
+  // 🔥 UI
+  // ========================================================
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-200">
+
       {/* HEADER */}
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-        <h3 className="text-lg font-semibold flex items-center gap-2 text-foreground">
-          <User2 size={18} /> Leads Cadastrados
+      <div className="flex flex-col md:flex-row justify-between gap-3 md:items-center">
+        <h3 className="text-xl font-semibold flex items-center gap-2 text-foreground">
+          <User2 size={20} /> Leads Cadastrados
         </h3>
 
-        <div className="flex flex-wrap gap-2 items-center">
-          {/* 🔽 FILTRO: STATUS */}
+        <Button onClick={() => setOpenForm(true)} className="flex items-center gap-2">
+          <Plus size={16} /> Novo Lead
+        </Button>
+      </div>
+
+      {/* FILTROS */}
+      <Card className="p-4 shadow-sm bg-panel-card border-border">
+        <div className="grid md:grid-cols-5 gap-3">
+
+          {/* SEARCH */}
+          <div className="flex items-center gap-2 border border-border rounded-md p-2 bg-panel-card">
+            <Search size={14} className="text-muted-foreground" />
+            <input
+              placeholder="Buscar por nome, telefone ou email"
+              value={filters.search}
+              onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+              className="bg-transparent outline-none text-sm w-full"
+            />
+          </div>
+
+          {/* STATUS */}
           <select
             className="border border-border rounded-md p-2 bg-panel-card text-sm"
-            value={filter.status}
-            onChange={(e) => setFilter({ ...filter, status: e.target.value })}
+            value={filters.status}
+            onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
           >
-            <option value="todos">Todos os status</option>
+            <option value="">Todos os status</option>
             {[
               "novo",
               "qualificado",
@@ -143,13 +193,13 @@ export default function CRMLeadsPanel() {
             ))}
           </select>
 
-          {/* 🔽 FILTRO: CORRETOR */}
+          {/* CORRETOR */}
           <select
             className="border border-border rounded-md p-2 bg-panel-card text-sm"
-            value={filter.corretor_id}
-            onChange={(e) => setFilter({ ...filter, corretor_id: e.target.value })}
+            value={filters.corretor_id}
+            onChange={(e) => setFilters((f) => ({ ...f, corretor_id: e.target.value }))}
           >
-            <option value="todos">Todos os corretores</option>
+            <option value="">Todos os corretores</option>
             {corretores.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.nome_completo}
@@ -157,19 +207,23 @@ export default function CRMLeadsPanel() {
             ))}
           </select>
 
-          {/* 🔍 FILTRO: ORIGEM */}
+          {/* ORIGEM */}
           <input
             placeholder="Filtrar por origem"
-            value={filter.origem}
-            onChange={(e) => setFilter({ ...filter, origem: e.target.value })}
+            value={filters.origem}
+            onChange={(e) => setFilters((f) => ({ ...f, origem: e.target.value }))}
             className="border border-border rounded-md p-2 bg-panel-card text-sm"
           />
 
-          <Button onClick={() => setOpenForm(true)} className="flex items-center gap-2">
-            <Plus size={16} /> Novo Lead
+          <Button
+            variant="outline"
+            className="flex items-center gap-2"
+            onClick={resetFilters}
+          >
+            <RefreshCcw size={14} /> Reset
           </Button>
         </div>
-      </div>
+      </Card>
 
       {/* LISTAGEM */}
       {loading ? (
@@ -177,20 +231,21 @@ export default function CRMLeadsPanel() {
           <Loader2 className="animate-spin mr-2" /> Carregando...
         </div>
       ) : filteredLeads.length === 0 ? (
-        <p className="p-4 text-center text-muted-foreground">
+        <p className="text-center text-muted-foreground py-10">
           Nenhum lead encontrado com os filtros aplicados.
         </p>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredLeads.map((lead) => (
             <Card
               key={lead.id}
-              className="p-4 space-y-2 relative hover:shadow-lg transition cursor-pointer"
-              onClick={() => setSelectedLead(lead.id)}
+              className="p-4 space-y-2 shadow-md hover:shadow-lg transition border-border cursor-pointer"
             >
               <div className="flex justify-between items-start">
-                <h4 className="font-semibold text-foreground">{lead.nome}</h4>
+                <h4 className="text-lg font-bold text-foreground">{lead.nome}</h4>
+
                 <div className="flex gap-1">
+                  {/* EDITAR */}
                   <Button
                     size="icon"
                     variant="ghost"
@@ -202,6 +257,8 @@ export default function CRMLeadsPanel() {
                   >
                     <Edit size={16} />
                   </Button>
+
+                  {/* EXCLUIR */}
                   <Button
                     size="icon"
                     variant="ghost"
@@ -219,13 +276,12 @@ export default function CRMLeadsPanel() {
               <p className="text-sm text-muted-foreground">{lead.telefone || "-"}</p>
 
               <p className="text-xs text-muted-foreground italic">
-                {lead.corretor_nome
-                  ? `Corretor: ${lead.corretor_nome}`
-                  : "Sem corretor vinculado"}
+                {lead.profiles?.nome_completo || "Sem corretor atribuído"}
               </p>
 
               <div className="flex justify-between items-center text-xs text-muted-foreground italic">
                 <span>Origem: {lead.origem || "Manual"}</span>
+
                 <span
                   className={`px-2 py-0.5 rounded-full text-white ${getStatusColor(
                     lead.status
@@ -239,56 +295,56 @@ export default function CRMLeadsPanel() {
         </div>
       )}
 
-      {/* MODAIS (form + exclusão) mantidos iguais */}
+      {/* MODAL — FORM */}
       <Modal
         open={openForm}
-        onOpenChange={(val) => {
-          setOpenForm(val);
-          if (!val) setEditing(null);
+        onOpenChange={(v) => {
+          setOpenForm(v);
+          if (!v) setEditing(null);
         }}
         title={editing ? "Editar Lead" : "Novo Lead"}
       >
         <CRMLeadForm
           lead={editing}
+          onSaved={loadAll}
           onClose={() => {
             setOpenForm(false);
             setEditing(null);
           }}
-          onSaved={loadLeads}
         />
       </Modal>
 
+      {/* MODAL — CONFIRM DELETE */}
       <Modal
         open={!!deleteTarget}
-        onOpenChange={(val) => {
-          if (!val) setDeleteTarget(null);
-        }}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
         title="Remover Lead"
       >
         {deleteTarget && (
           <div className="space-y-4">
-            <div className="flex items-start gap-3 text-foreground">
+            <div className="flex items-start gap-3">
               <AlertTriangle className="text-red-500 mt-1" />
               <div>
                 <p>
                   Tem certeza que deseja remover o lead{" "}
                   <strong>{deleteTarget.nome}</strong>?
                 </p>
+
                 <p className="text-sm text-muted-foreground mt-1">
-                  Origem: {deleteTarget.origem || "Manual"} | Status:{" "}
-                  {deleteTarget.status || "novo"}
+                  Origem: {deleteTarget.origem || "Manual"}
                 </p>
               </div>
             </div>
 
             <div className="flex gap-2">
               <Button
-                className="w-1/2"
                 variant="secondary"
+                className="w-1/2"
                 onClick={() => setDeleteTarget(null)}
               >
                 Cancelar
               </Button>
+
               <Button
                 className="w-1/2 bg-red-600 hover:bg-red-700"
                 onClick={handleConfirmDelete}

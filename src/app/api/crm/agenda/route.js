@@ -1,24 +1,29 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 
-/**
- * 🔹 GET → Lista eventos do corretor autenticado
- * 🔹 POST → Cria novo evento do corretor autenticado
- */
+/* ============================================================
+   📌 GET /api/crm/agenda
+   Lista eventos do corretor autenticado (com enriquecimento)
+   ============================================================ */
 export async function GET() {
   const supabase = await createClient();
 
   try {
+    // 🔐 Autenticação
     const {
       data: { user },
       error: authError,
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: "Usuário não autenticado." }, { status: 401 });
+      return NextResponse.json(
+        { error: "Usuário não autenticado." },
+        { status: 401 }
+      );
     }
 
-    const { data, error } = await supabase
+    // 🔎 Busca eventos do corretor
+    const { data: eventos, error } = await supabase
       .from("agenda_eventos")
       .select(`
         id,
@@ -26,80 +31,115 @@ export async function GET() {
         tipo,
         tipo_participante,
         participante_id,
+        profile_id,
         local,
         observacoes,
         data_inicio,
         data_fim,
         imovel_id,
         created_at,
-        imoveis (titulo, endereco_bairro)
+        imoveis ( id, titulo, endereco_bairro )
       `)
       .eq("profile_id", user.id)
       .order("data_inicio", { ascending: true });
 
     if (error) throw error;
 
-    // 🔹 Enriquecimento opcional: resolve nome do participante (lead, persona, equipe)
-    const eventosEnriquecidos = [];
-    for (const ev of data) {
+    // ============================================================
+    // 🔹 Enriquecimento do participante
+    // ============================================================
+    const service = createServiceClient();
+
+    const enriched = [];
+    for (const ev of eventos) {
       let participante = null;
 
-      if (ev.tipo_participante === "lead" && ev.participante_id) {
-        const { data: lead } = await supabase
+      if (ev.tipo_participante === "lead") {
+        const { data: lead } = await service
           .from("leads")
           .select("nome, telefone")
           .eq("id", ev.participante_id)
           .maybeSingle();
-        participante = lead ? `${lead.nome} (${lead.telefone})` : null;
+
+        participante = lead
+          ? `${lead.nome} (${lead.telefone})`
+          : "Lead não encontrado";
+
       } else if (
         ["proprietario", "inquilino", "cliente"].includes(ev.tipo_participante)
       ) {
-        const { data: persona } = await supabase
+        const { data: persona } = await service
           .from("personas")
           .select("nome, telefone")
           .eq("id", ev.participante_id)
           .maybeSingle();
-        participante = persona ? `${persona.nome} (${persona.telefone})` : null;
+
+        participante = persona
+          ? `${persona.nome} (${persona.telefone})`
+          : "Pessoa não encontrada";
+
       } else if (ev.tipo_participante === "interno") {
-        const { data: userData } = await supabase
+        const { data: perfil } = await service
           .from("profiles")
           .select("nome_completo, telefone")
           .eq("id", ev.participante_id)
           .maybeSingle();
-        participante = userData
-          ? `${userData.nome_completo} (${userData.telefone})`
-          : null;
-      } else {
-        participante = ev.participante_id || null;
+
+        participante = perfil
+          ? `${perfil.nome_completo} (${perfil.telefone || "-"})`
+          : "Usuário não encontrado";
       }
 
-      eventosEnriquecidos.push({ ...ev, participante });
+      enriched.push({
+        ...ev,
+        participante,
+      });
     }
 
-    return NextResponse.json({ data: eventosEnriquecidos });
+    return NextResponse.json({ data: enriched });
   } catch (err) {
     console.error("❌ GET /crm/agenda:", err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
+/* ============================================================
+   📌 POST /api/crm/agenda
+   Cria novo evento + validação de conflito + atualização do lead
+   ============================================================ */
 export async function POST(req) {
   const supabase = await createClient();
+  const service = createServiceClient();
 
   try {
     const body = await req.json();
 
+    // 🔐 Autenticação
     const {
       data: { user },
       error: authError,
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: "Usuário não autenticado." }, { status: 401 });
+      return NextResponse.json(
+        { error: "Usuário não autenticado." },
+        { status: 401 }
+      );
     }
 
-    // 🔹 Verifica conflito de horário
-    const { data: conflito } = await supabase
+    // ============================================================
+    // 🔥 Validação mínima
+    // ============================================================
+    if (!body.data_inicio || !body.data_fim)
+      return NextResponse.json(
+        { error: "data_inicio e data_fim são obrigatórios." },
+        { status: 400 }
+      );
+
+    // ============================================================
+    // 🔎 Verificar conflito de horário
+    // ============================================================
+    const { data: conflito } = await service
       .from("agenda_eventos")
       .select("id")
       .eq("profile_id", user.id)
@@ -109,13 +149,16 @@ export async function POST(req) {
 
     if (conflito)
       return NextResponse.json(
-        { error: "Você já possui um evento neste horário." },
+        { error: "Você já possui um evento nesse horário." },
         { status: 409 }
       );
 
+    // ============================================================
+    // 🧱 Criar evento
+    // ============================================================
     const payload = {
       profile_id: user.id,
-      titulo: body.titulo?.trim() || "Evento sem título",
+      titulo: body.titulo?.trim() || "Evento",
       tipo: body.tipo || "visita_presencial",
       tipo_participante: body.tipo_participante || "lead",
       participante_id: body.participante_id || null,
@@ -127,23 +170,32 @@ export async function POST(req) {
       created_at: new Date().toISOString(),
     };
 
-    const { data, error } = await supabase
+    const { data, error } = await service
       .from("agenda_eventos")
       .insert(payload)
-      .select("id, tipo, participante_id, tipo_participante")
+      .select()
       .single();
 
     if (error) throw error;
 
-    // 🔹 Atualiza lead se for visita
-    if (data.tipo.includes("visita") && data.tipo_participante === "lead" && data.participante_id) {
-      await supabase
+    // ============================================================
+    // 🔁 Atualizar lead automaticamente se for visita
+    // ============================================================
+    if (
+      payload.tipo.includes("visita") &&
+      payload.tipo_participante === "lead" &&
+      payload.participante_id
+    ) {
+      await service
         .from("leads")
         .update({ status: "visita_agendada" })
-        .eq("id", data.participante_id);
+        .eq("id", payload.participante_id);
     }
 
-    return NextResponse.json({ message: "Evento criado com sucesso!", data });
+    return NextResponse.json({
+      message: "Evento criado com sucesso!",
+      data,
+    });
   } catch (err) {
     console.error("❌ POST /crm/agenda:", err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });

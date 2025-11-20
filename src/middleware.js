@@ -67,8 +67,6 @@ export async function middleware(request) {
     return response;
   }
 
-  console.log("🧩 Middleware Path:", pathname);
-  console.log("🧠 User autenticado:", user.email);
 
   // =====================================================
   // 🔍 Busca role do usuário
@@ -80,8 +78,6 @@ export async function middleware(request) {
       .select("role")
       .eq("id", user.id)
       .maybeSingle();
-
-    console.log("👤 Role detectado:", profile?.role);
 
     if (profile?.role) role = profile.role;
   } catch (err) {
@@ -97,8 +93,6 @@ export async function middleware(request) {
     if (role === "admin") url.pathname = "/admin/dashboard";
     else if (role === "corretor") url.pathname = "/corretor/dashboard";
     else url.pathname = "/dashboard"; // 🔹 Fallback seguro
-
-    console.log("🚦 Redirecionando user logado:", user.email, "→", url.pathname);
     return NextResponse.redirect(url);
   }
 
@@ -122,7 +116,6 @@ export async function middleware(request) {
   // =====================================================
   // ✅ Sessão e acesso válidos → segue a requisição
   // =====================================================
-  console.log("✅ Acesso permitido:", pathname, "| Role:", role);
   return response;
 }
 
