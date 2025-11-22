@@ -15,15 +15,6 @@ import {
   TabsContent,
 } from "@/components/admin/ui/Tabs";
 
-import {
-  Bell,
-  Wallet,
-  AlertTriangle,
-  RefreshCcw,
-  DoorOpen,
-  Clock,
-} from "lucide-react";
-
 import AlertasPanel from "@/components/alugueis/AlertasPanel";
 import CarteiraPanel from "@/components/alugueis/CarteiraPanel";
 import InadimplenciaPanel from "@/components/alugueis/InadimplenciaPanel";
@@ -38,61 +29,28 @@ export default function AlugueisPage() {
     <div className="space-y-8 animate-in fade-in duration-150">
 
       {/* HEADER */}
-      <Card className="p-6">
-        <CardHeader className="p-0 mb-2">
-          <CardTitle className="text-2xl text-center font-bold tracking-tight">
-            Aluguéis
-          </CardTitle>
-        </CardHeader>
-      </Card>
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">
+          Aluguéis
+        </h1>
+
+        <p className="text-muted-foreground text-sm max-w-2xl">
+          Gestão completa dos contratos de locação: alertas, carteira, inadimplência, renovações,
+          rescisões e linha do tempo operacional.
+        </p>
+      </div>  
 
       {/* TABS */}
-      <Tabs className="w-full">
-        <TabsList className="bg-muted rounded-lg p-1 flex flex-wrap md:flex-nowrap gap-2">
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
+          <TabsList className="bg-muted p-1 flex gap-2">
+            <TabsTrigger value="alertas">Alertas</TabsTrigger>
+            <TabsTrigger value="carteira">Carteira</TabsTrigger>
+            <TabsTrigger value="iandimplencia">Inadimplencia</TabsTrigger>
+            <TabsTrigger value="renovacao">Renovacao</TabsTrigger>
+            <TabsTrigger value="rescisao">Rescisao</TabsTrigger>
+            <TabsTrigger value="timeline">Timeline</TabsTrigger>
 
-          <TabsTrigger
-            className="flex items-center gap-2 px-4 py-2"
-            onClick={() => setTab("alertas")}
-          >
-            <Bell size={16} /> Alertas
-          </TabsTrigger>
-
-          <TabsTrigger
-            className="flex items-center gap-2 px-4 py-2"
-            onClick={() => setTab("carteira")}
-          >
-            <Wallet size={16} /> Carteira
-          </TabsTrigger>
-
-          <TabsTrigger
-            className="flex items-center gap-2 px-4 py-2"
-            onClick={() => setTab("inadimplencia")}
-          >
-            <AlertTriangle size={16} /> Inadimplência
-          </TabsTrigger>
-
-          <TabsTrigger
-            className="flex items-center gap-2 px-4 py-2"
-            onClick={() => setTab("renovacao")}
-          >
-            <RefreshCcw size={16} /> Renovação
-          </TabsTrigger>
-
-          <TabsTrigger
-            className="flex items-center gap-2 px-4 py-2"
-            onClick={() => setTab("rescisao")}
-          >
-            <DoorOpen size={16} /> Rescisão
-          </TabsTrigger>
-
-          <TabsTrigger
-            className="flex items-center gap-2 px-4 py-2"
-            onClick={() => setTab("timeline")}
-          >
-            <Clock size={16} /> Timeline
-          </TabsTrigger>
-
-        </TabsList>
+         </TabsList>
 
         {/* CONTEÚDO */}
         <div className="mt-6 space-y-6">

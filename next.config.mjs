@@ -27,7 +27,6 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: supabaseHostname,
-        pathname: "/storage/v1/object/public/**",
       },
       // 👇 Adicione este objeto para o loremflickr
       {

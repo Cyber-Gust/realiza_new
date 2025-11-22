@@ -1,27 +1,51 @@
-import { CircleUser } from "lucide-react";
-import { ThemeToggle } from "@/components/ThemeToggle";
+// src/components/Header.jsx
+"use client";
 
-export function Header() {
+import Image from "next/image";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { Loader2, User as UserIcon } from "lucide-react";
+
+export function Header({ user, profile }) {
+  const avatarUrl = profile?.avatar_url || "/placeholder-avatar.png";
+  const userName =
+    profile?.nome_completo ||
+    profile?.nome ||
+    user?.user_metadata?.nome_completo ||
+    user?.user_metadata?.nome ||
+    user?.email?.split("@")[0] ||
+    "Usuário";
+  const role = profile?.role || user?.user_metadata?.role || "Online";
+
   return (
-    <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-border bg-panel-card px-6">
-      {/* Ocupa o espaço à esquerda. Pode ter Breadcrumbs ou Busca */}
-      <div className="flex-1">
-        {/* Ex: <Breadcrumbs /> */}
+    <header className="sticky top-0 z-40 w-full border-b border-border bg-panel-card/80 backdrop-blur-md px-6 h-16 flex items-center transition-all">
+      {/* LEFT */}
+      <div className="flex-1 flex items-center gap-4">
+        <h2 className="text-sm font-medium text-muted-foreground hidden md:block">
+          Painel Administrativo
+        </h2>
       </div>
 
-      {/* Botões à direita */}
-      <div className="flex items-center gap-2">
+      {/* RIGHT */}
+      <div className="flex items-center gap-3">
         <ThemeToggle />
-        
-        {/* BOTÃO DE USUÁRIO (AJUSTADO):
-          - Removido 'border' e 'bg-panel-bg'
-          - Adicionado 'bg-transparent' e 'hover:bg-muted' para um efeito "ghost"
-          - Adicionado 'focus-visible:ring-ring' para acessibilidade
-        */}
-        <button className="flex h-9 w-9 items-center justify-center rounded-full bg-transparent transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <CircleUser className="h-5 w-5 text-muted-foreground" />
-          <span className="sr-only">Menu do Usuário</span>
-        </button>
+        <div className="h-6 w-px bg-border mx-1" />
+
+        <div className="group relative flex items-center gap-3">
+          <button className="relative h-9 w-9 overflow-hidden rounded-full border border-border transition-all hover:ring-2 hover:ring-ring focus:outline-none focus:ring-2 focus:ring-ring">
+            <Image
+              src={avatarUrl}
+              alt={userName}
+              fill
+              className="object-cover"
+              sizes="36px"
+            />
+          </button>
+
+          <div className="hidden lg:block text-right">
+            <p className="text-sm font-medium leading-none">{userName}</p>
+            <p className="text-xs text-muted-foreground mt-1 capitalize">{role}</p>
+          </div>
+        </div>
       </div>
     </header>
   );

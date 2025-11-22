@@ -2,15 +2,9 @@
 
 import { useState } from "react";
 
-// Layout
-import PageHeader from "@/components/admin/layout/PageHeader";
-
-// UI (corrigidos)
+// UI
 import { Card } from "@/components/admin/ui/Card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/admin/ui/Tabs";
-
-// Ícones
-import { UsersRound, ShieldCheck, Sparkles } from "lucide-react";
 
 // Painéis
 import PerfisEquipePanel from "@/components/perfis/PerfisEquipePanel";
@@ -22,40 +16,44 @@ export default function PerfisPage() {
 
   return (
     <div className="space-y-6">
-      {/* 🔹 Cabeçalho */}
-      <PageHeader
-        title="Perfis do Sistema"
-        description="Gerencie usuários da equipe, proprietários, inquilinos e leads."
-      />
+
+      {/* ⭐ HEADER NATIVO (sem PageHeader) */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Perfis do Sistema
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Gerencie usuários da equipe, proprietários, inquilinos e leads.
+          </p>
+        </div>
+      </div>
 
       {/* 🔹 Abas */}
       <Tabs value={tab} onValueChange={setTab} className="w-full">
-        <TabsList className="bg-muted rounded-lg p-1 flex flex-wrap md:flex-nowrap gap-2">
-          
+        <TabsList className="bg-muted p-1 flex gap-2">
+
           <TabsTrigger
             value="equipe"
-            className="flex items-center gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-md px-4 py-2 text-sm font-medium transition-all"
           >
-            <ShieldCheck size={16} /> Equipe
+          Equipe
           </TabsTrigger>
 
           <TabsTrigger
             value="personas"
-            className="flex items-center gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-md px-4 py-2 text-sm font-medium transition-all"
           >
-            <UsersRound size={16} /> Proprietários & Inquilinos
+          Proprietários & Inquilinos
           </TabsTrigger>
 
           <TabsTrigger
             value="leads"
-            className="flex items-center gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-md px-4 py-2 text-sm font-medium transition-all"
           >
-            <Sparkles size={16} /> Leads & Clientes
+          Leads & Clientes
           </TabsTrigger>
 
         </TabsList>
 
-        {/* 🔹 Conteúdo em Cards */}
+        {/* 🔹 Conteúdo */}
         <div className="mt-6 space-y-4">
 
           <TabsContent value="equipe">

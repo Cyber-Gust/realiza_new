@@ -41,10 +41,6 @@ function validate(res, label) {
   return res;
 }
 
-function safeCount(res) {
-  return res.count ?? 0;
-}
-
 async function fetchCount(supabase, table, column, value) {
   const res = await supabase
     .from(table)
@@ -52,7 +48,6 @@ async function fetchCount(supabase, table, column, value) {
     .eq(column, value);
 
   validate(res, `${table}.${column}=${value}`);
-
   return res.count ?? 0;
 }
 
@@ -121,7 +116,10 @@ export async function GET(request) {
 
     const statusCounts = await Promise.all(
       leadStatuses.map((st) =>
-        supabase.from("leads").select("*", { count: "exact", head: true }).eq("status", st)
+        supabase
+          .from("leads")
+          .select("*", { count: "exact", head: true })
+          .eq("status", st)
       )
     );
 
@@ -160,6 +158,7 @@ export async function GET(request) {
     --------------------------------------------------------- */
     const [propostasTotal, propostasAprovadas] = await Promise.all([
       supabase.from("propostas").select("*", { count: "exact", head: true }),
+
       supabase
         .from("propostas")
         .select("*", { count: "exact", head: true })
@@ -265,24 +264,72 @@ export async function GET(request) {
     }));
 
     /* ---------------------------------------------------------
-       9) DESTAQUES
+     9) DESTAQUES (SEM RPC, SEM RELACIONAMENTO AUTOMÁTICO)
     --------------------------------------------------------- */
-    const [destaqueImovel, destaqueCorretor] = await Promise.all([
-      supabase
+
+    //
+    // IMÓVEL DESTAQUE
+    //
+    const destaqueImovel = validate(
+      await supabase
         .from("imoveis")
         .select("*")
         .eq("status", "disponivel")
         .order("created_at", { ascending: false })
         .limit(1),
+      "imóvel destaque"
+    );
 
-      supabase.rpc("corretor_destaque_periodo", {
-        data_inicio: start.toISOString(),
-        data_fim: end.toISOString(),
-      }),
-    ]);
+    //
+    // PROPOSTAS DO PERÍODO (SEM EMBED DE profiles)
+    //
+    const propostasPeriodo = validate(
+      await supabase
+        .from("propostas")
+        .select("corretor_id, created_at")
+        .gte("created_at", start.toISOString())
+        .lte("created_at", end.toISOString()),
+      "propostas período destaque corretor"
+    );
 
-    validate(destaqueImovel, "imóvel destaque");
-    validate(destaqueCorretor, "corretor destaque");
+    // Agrupar propostas por corretor
+    const rankingCorretores = {};
+
+    propostasPeriodo.data?.forEach((p) => {
+      if (!p.corretor_id) return;
+
+      if (!rankingCorretores[p.corretor_id]) {
+        rankingCorretores[p.corretor_id] = {
+          corretor_id: p.corretor_id,
+          total: 0,
+        };
+      }
+
+      rankingCorretores[p.corretor_id].total += 1;
+    });
+
+    // Se não houver dados, devolve null
+    if (Object.keys(rankingCorretores).length === 0) {
+      var destaqueCorretor = null;
+    } else {
+      // Pegar o top-1
+      const arrayRank = Object.values(rankingCorretores);
+      arrayRank.sort((a, b) => b.total - a.total);
+
+      const top = arrayRank[0];
+
+      // Buscar nome do corretor (apenas 1 query)
+      const info = await supabase
+        .from("profiles")
+        .select("nome_completo")
+        .eq("id", top.corretor_id)
+        .single();
+
+      destaqueCorretor = {
+        ...top,
+        nome: info.data?.nome_completo || "Corretor",
+      };
+    }
 
     /* ---------------------------------------------------------
        RESPONSE FINAL
@@ -306,7 +353,7 @@ export async function GET(request) {
 
       contratos: {
         ativos: contratosAtivos.count ?? 0,
-        emAtraso: contratosAtraso.count ?? 0, // aqui mantém sua lógica original
+        emAtraso: contratosAtraso.count ?? 0,
       },
 
       financeiro: {
@@ -335,7 +382,7 @@ export async function GET(request) {
 
       destaques: {
         imovel: destaqueImovel.data?.[0] || null,
-        corretor: destaqueCorretor.data?.[0] || null,
+        corretor: destaqueCorretor,
       },
     });
   } catch (error) {

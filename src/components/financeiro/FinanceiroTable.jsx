@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Badge } from "@/components/admin/ui/Badge";
+import Badge from "@/components/admin/ui/Badge";
 import { Table, TableHeader, TableRow, TableHead, TableCell } from "@/components/admin/ui/Table";
 import Modal from "@/components/admin/ui/Modal";
 import { Button } from "@/components/admin/ui/Button";

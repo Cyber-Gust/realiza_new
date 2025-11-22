@@ -1,38 +1,80 @@
 import { cn } from "@/lib/utils";
 
-// Mapeamento baseado nos ENUMs do seu SQL
 const statusConfig = {
-  // Status Imóvel
-  disponivel: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 border-emerald-200/50",
-  reservado: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400 border-amber-200/50",
-  alugado: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400 border-blue-200/50",
-  vendido: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-400 border-indigo-200/50",
-  inativo: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200/50",
-  
-  // Status Lead
-  novo: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400 border-sky-200/50",
-  qualificado: "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-400 border-purple-200/50",
-  perdido: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400 border-red-200/50",
-  
-  // Default
-  default: "bg-secondary text-secondary-foreground border-border",
+  // --- STATUS IMÓVEL ---
+  disponivel: "bg-emerald-200 text-emerald-800 border-emerald-300 dark:bg-emerald-700 dark:text-emerald-100 dark:border-emerald-500",
+  reservado: "bg-amber-200 text-amber-800 border-amber-300 dark:bg-amber-700 dark:text-amber-100 dark:border-amber-500",
+  alugado: "bg-indigo-200 text-indigo-800 border-indigo-300 dark:bg-indigo-700 dark:text-indigo-100 dark:border-indigo-500",
+  vendido: "bg-violet-200 text-violet-800 border-violet-300 dark:bg-violet-700 dark:text-violet-100 dark:border-violet-500",
+  inativo: "bg-red-200 text-red-800 border-red-300 dark:bg-red-700 dark:text-red-100 dark:border-red-500",
+
+  // --- STATUS LEAD (FUNIL) ---
+  novo: "bg-sky-200 text-sky-800 border-sky-300 dark:bg-sky-700 dark:text-sky-100 dark:border-sky-500",
+  qualificado: "bg-fuchsia-200 text-fuchsia-800 border-fuchsia-300 dark:bg-fuchsia-700 dark:text-fuchsia-100 dark:border-fuchsia-500",
+  visita_agendada: "bg-teal-200 text-teal-800 border-teal-300 dark:bg-teal-700 dark:text-teal-100 dark:border-teal-500",
+  proposta_feita: "bg-pink-200 text-pink-800 border-pink-300 dark:bg-pink-700 dark:text-pink-100 dark:border-pink-500",
+  documentacao: "bg-cyan-200 text-cyan-800 border-cyan-300 dark:bg-cyan-700 dark:text-cyan-100 dark:border-cyan-500",
+  concluido: "bg-green-200 text-green-800 border-green-300 dark:bg-green-700 dark:text-green-100 dark:border-green-500",
+  perdido: "bg-rose-200 text-rose-800 border-rose-300 dark:bg-rose-700 dark:text-rose-100 dark:border-rose-500",
+
+  // --- CONTRATOS ---
+locacao: "bg-teal-300 text-teal-900 border-teal-400 dark:bg-teal-700 dark:text-teal-100 dark:border-teal-500",
+venda: "bg-purple-300 text-purple-900 border-purple-400 dark:bg-purple-700 dark:text-purple-100 dark:border-purple-500",
+administracao: "bg-orange-300 text-orange-900 border-orange-400 dark:bg-orange-700 dark:text-orange-100 dark:border-orange-500",
+renovado: "bg-lime-300 text-lime-900 border-lime-400 dark:bg-lime-700 dark:text-lime-100 dark:border-lime-500",
+encerrado: "bg-rose-300 text-rose-900 border-rose-400 dark:bg-rose-700 dark:text-rose-100 dark:border-rose-500",
+
+  // --- TRANSAÇÃO / FINANCEIRO ---
+  pendente: "bg-yellow-200 text-yellow-800 border-yellow-300 dark:bg-yellow-700 dark:text-yellow-900 dark:border-yellow-500",
+  pago: "bg-emerald-300 text-emerald-900 border-emerald-400 dark:bg-emerald-700 dark:text-emerald-100 dark:border-emerald-500",
+  atrasado: "bg-red-200 text-red-900 border-red-300 dark:bg-red-800 dark:text-red-100 dark:border-red-500",
+  cancelado: "bg-pink-200 text-pink-900 border-pink-300 dark:bg-pink-700 dark:text-pink-100 dark:border-pink-500",
+
+  // Tipos de Transação
+  receita_aluguel: "bg-lime-200 text-lime-900 border-lime-300 dark:bg-lime-700 dark:text-lime-100 dark:border-lime-500",
+  taxa_adm_imobiliaria: "bg-orange-200 text-orange-900 border-orange-300 dark:bg-orange-700 dark:text-orange-100 dark:border-orange-500",
+  repasse_proprietario: "bg-indigo-200 text-indigo-900 border-indigo-300 dark:bg-indigo-700 dark:text-indigo-100 dark:border-indigo-500",
+  comissao_corretor: "bg-purple-200 text-purple-900 border-purple-300 dark:bg-purple-700 dark:text-purple-100 dark:border-purple-500",
+  despesa_manutencao: "bg-rose-200 text-rose-900 border-rose-300 dark:bg-rose-700 dark:text-rose-100 dark:border-rose-500",
+  pagamento_iptu: "bg-yellow-300 text-yellow-900 border-yellow-400 dark:bg-yellow-700 dark:text-yellow-100 dark:border-yellow-500",
+  pagamento_condominio: "bg-cyan-300 text-cyan-900 border-cyan-400 dark:bg-cyan-700 dark:text-cyan-100 dark:border-cyan-500",
+
+  // --- STATUS OS (MANUTENÇÃO) ---
+  aberta: "bg-blue-200 text-blue-900 border-blue-300 dark:bg-blue-700 dark:text-blue-100 dark:border-blue-500",
+  orcamento: "bg-purple-200 text-purple-900 border-purple-300 dark:bg-purple-700 dark:text-purple-100 dark:border-purple-500",
+  aprovada_pelo_inquilino: "bg-teal-300 text-teal-900 border-teal-400 dark:bg-teal-700 dark:text-teal-100 dark:border-teal-500",
+  aprovada_pelo_proprietario: "bg-indigo-300 text-indigo-900 border-indigo-400 dark:bg-indigo-700 dark:text-indigo-100 dark:border-indigo-500",
+  em_execucao: "bg-amber-200 text-amber-900 border-amber-300 dark:bg-amber-700 dark:text-amber-100 dark:border-amber-500 animate-pulse",
+  concluida: "bg-green-300 text-green-900 border-green-400 dark:bg-green-700 dark:text-green-100 dark:border-green-500",
+  cancelada: "bg-red-200 text-red-900 border-red-300 dark:bg-red-700 dark:text-red-100 dark:border-red-500",
+
+  // --- LABELS GENÉRICOS ---
+  admin: "bg-purple-300 text-purple-900 border-purple-400 dark:bg-purple-700 dark:text-purple-100 dark:border-purple-500",
+  corretor: "bg-cyan-300 text-cyan-900 border-cyan-400 dark:bg-cyan-700 dark:text-cyan-100 dark:border-cyan-500",
+  proprietario: "bg-emerald-300 text-emerald-900 border-emerald-400 dark:bg-emerald-700 dark:text-emerald-100 dark:border-emerald-500",
+  inquilino: "bg-amber-300 text-amber-900 border-amber-400 dark:bg-amber-700 dark:text-amber-100 dark:border-amber-500",
+  cliente: "bg-pink-300 text-pink-900 border-pink-400 dark:bg-pink-700 dark:text-pink-100 dark:border-pink-500",
+
+  // Fallback
+  default: "bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-700 dark:text-blue-100 dark:border-blue-500",
 };
 
 export default function Badge({ status, children, className }) {
-  // Normaliza a string para garantir o match (ex: "Visita Agendada" -> "visita_agendada")
   const statusKey = status?.toString().toLowerCase().replace(/ /g, "_") || "default";
   const styleClass = statusConfig[statusKey] || statusConfig.default;
 
   return (
     <span
       className={cn(
-        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors",
-        "shadow-[0_1px_2px_rgb(0,0,0,0.05)]", // Sombra sutil estilo Apple
+        "inline-flex items-center justify-center",
+        "rounded-full px-2.5 py-0.5",
+        "text-xs font-semibold whitespace-nowrap capitalize",
+        "border shadow-sm transition-all duration-200",
         styleClass,
         className
       )}
     >
-      {children || status}
+      {children || status?.toString().replace(/_/g, " ")}
     </span>
   );
 }

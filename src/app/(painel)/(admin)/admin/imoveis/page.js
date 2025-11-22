@@ -1,6 +1,5 @@
 "use client";
 
-import PageHeader from "@/components/admin/layout/PageHeader";
 import KPI from "@/components/admin/ui/KPIWidget";
 import ImoveisFilters from "@/components/imoveis/ImoveisFilters";
 import ImoveisTable from "@/components/imoveis/ImoveisTable";
@@ -18,7 +17,6 @@ export default function ImoveisPage() {
   const router = useRouter();
   const { imoveis, applyFilters, loading } = useImoveisQuery();
 
-  // 🔥 Deriva os stats sem setState e sem effect
   const stats = useMemo(() => {
     if (!Array.isArray(imoveis)) {
       return {
@@ -39,19 +37,31 @@ export default function ImoveisPage() {
   }, [imoveis]);
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Gestão de Imóveis"
-        description="Gerencie o portfólio de imóveis, status e publicações."
-        rightSection={
-          <Button
-            onClick={() => router.push("/admin/imoveis/new")}
-            className="flex items-center gap-2"
-          >
-            <Plus size={16} /> Novo Imóvel
-          </Button>
-        }
-      />
+    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+      {/* ============================================================
+         🔥 PAGE HEADER ENTERPRISE  
+      ============================================================ */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            Gestão de Imóveis
+          </h1>
+
+          <p className="text-muted-foreground text-sm mt-1 max-w-xl">
+            Gerencie seu portfólio de imóveis: status, reservas, locações e disponibilidade.
+            Um cockpit completo de administração imobiliária.
+          </p>
+        </div>
+
+        <Button
+          onClick={() => router.push("/admin/imoveis/new")}
+          className="flex items-center gap-2"
+        >
+          <Plus size={16} /> Novo Imóvel
+        </Button>
+      </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

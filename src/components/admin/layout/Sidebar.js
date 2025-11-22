@@ -85,26 +85,34 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
               key={item.name}
               href={item.href}
               className={cn(
-                "group flex items-center rounded-md px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                // Estados Ativos vs Inativos
-                isActive
-                  ? "bg-panel-active text-panel-active-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                isCollapsed && "justify-center px-2"
+                "group flex items-center px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                isCollapsed ? "justify-center px-2" : "rounded-xl",
+
+                // Ativo (moderno, arredondado, elegante)
+                isActive &&
+                  "bg-panel-active text-panel-active-foreground shadow-sm rounded-xl ring-1 ring-border/40",
+
+                // Inativo / Hover
+                !isActive &&
+                  "text-muted-foreground hover:bg-muted hover:text-foreground rounded-x1"
               )}
               title={isCollapsed ? item.name : undefined}
             >
               <item.icon
                 className={cn(
                   "h-5 w-5 shrink-0 transition-colors",
-                  isActive ? "text-panel-active-foreground" : "text-muted-foreground group-hover:text-foreground"
+                  isActive
+                    ? "text-panel-active-foreground"
+                    : "text-muted-foreground group-hover:text-foreground"
                 )}
               />
-              
+
               <span
                 className={cn(
                   "ml-3 truncate transition-all duration-300",
-                  isCollapsed ? "w-0 opacity-0 translate-x-[-10px]" : "w-auto opacity-100 translate-x-0"
+                  isCollapsed
+                    ? "w-0 opacity-0 translate-x-[-12px]"
+                    : "w-auto opacity-100 translate-x-0"
                 )}
               >
                 {item.name}
@@ -113,7 +121,6 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
           );
         })}
       </nav>
-
       {/* --- Footer da Sidebar --- */}
       <div className="border-t border-border p-3">
         <button

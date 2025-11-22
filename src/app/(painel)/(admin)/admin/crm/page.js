@@ -11,14 +11,6 @@ import {
   TabsTrigger,
 } from "@/components/admin/ui/Tabs";
 
-import {
-  UsersRound,
-  Workflow,
-  CalendarDays,
-  FileText,
-  BarChart3,
-} from "lucide-react";
-
 // Painéis
 import CRMLeadsPanel from "@/components/crm/CRMLeadsPanel";
 import CRMPipeline from "@/components/crm/CRMPipeline";
@@ -35,45 +27,34 @@ export default function CRMPage() {
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-      {/* HEADER */}
-      <Card className="p-6">
-        <CardHeader className="p-0 mb-2">
-          <CardTitle className="text-2xl text-center font-bold tracking-tight">
-            CRM
-          </CardTitle>
-        </CardHeader>
-      </Card>
+      {/* =======================================
+            🔥 PAGE HEADER ENTERPRISE 
+      ======================================= */}
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          CRM – Gestão Comercial
+        </h1>
+
+        <p className="text-muted-foreground max-w-1xl">
+          Controle absoluto do funil de vendas: Leads, Pipeline, Agenda, Propostas e Relatórios.
+          Tudo em um único cockpit estratégico.
+        </p>
+      </div>
 
       {/* TABS */}
       <Tabs value={tab} onValueChange={setTab} className="w-full">
 
         {/* TAB NAVIGATION */}
-        <TabsList
-          className="
-            bg-muted/40 border border-border backdrop-blur-sm
-            rounded-xl p-1 flex flex-wrap md:flex-nowrap gap-2
-            shadow-sm
-          "
-        >
+        <TabsList className="bg-muted p-1 flex gap-2 rounded-xl border border-border">
           {[
-            { id: "leads", icon: UsersRound, label: "Leads" },
-            { id: "pipeline", icon: Workflow, label: "Pipeline" },
-            { id: "agenda", icon: CalendarDays, label: "Agenda" },
-            { id: "propostas", icon: FileText, label: "Propostas" },
-            { id: "relatorios", icon: BarChart3, label: "Relatórios" },
-          ].map(({ id, icon: Icon, label }) => (
-            <TabsTrigger
-              key={id}
-              value={id}
-              className="
-                flex items-center gap-2 px-4 py-2 rounded-md
-                text-sm font-medium transition-all
-                data-[state=active]:bg-foreground 
-                data-[state=active]:text-background
-                hover:bg-foreground/10
-              "
-            >
-              <Icon size={15} /> {label}
+            { id: "leads", label: "Leads" },
+            { id: "pipeline", label: "Pipeline" },
+            { id: "agenda", label: "Agenda" },
+            { id: "propostas", label: "Propostas" },
+            { id: "relatorios", label: "Relatórios" },
+          ].map(({ id, label }) => (
+            <TabsTrigger key={id} value={id}>
+              {label}
             </TabsTrigger>
           ))}
         </TabsList>

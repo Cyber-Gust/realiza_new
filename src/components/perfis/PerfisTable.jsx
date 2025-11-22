@@ -7,7 +7,7 @@ import Link from "next/link";
 
 // DS oficiais
 import { Button } from "@/components/admin/ui/Button";
-import { Badge } from "@/components/admin/ui/Badge";
+import Badge from "@/components/admin/ui/Badge";
 import {
   Table,
   TableHeader,

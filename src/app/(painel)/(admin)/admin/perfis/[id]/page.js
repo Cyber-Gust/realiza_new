@@ -6,21 +6,17 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 
-// Layout
-import PageHeader from "@/components/admin/layout/PageHeader";
-
 // UI
 import { Card } from "@/components/admin/ui/Card";
 import Modal from "@/components/admin/ui/Modal";
 import { Button } from "@/components/admin/ui/Button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/admin/ui/Tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/admin/ui/Tabs";
 import { Label, Textarea } from "@/components/admin/ui/Form";
 import { useToast } from "@/contexts/ToastContext";
 
-// Ícones
 import { ArrowLeft, Upload, Trash2, Loader2 } from "lucide-react";
 
-// Formulários unificados
+// Perfis
 import PerfilFormEquipe from "@/components/perfis/PerfilFormEquipe";
 import PerfilFormLeads from "@/components/perfis/PerfilFormLeads";
 import PerfilFormPersonas from "@/components/perfis/PerfilFormPersonas";
@@ -41,13 +37,19 @@ export default function PerfilDetailPage({ params }) {
 
   const [perfil, setPerfil] = useState(null);
   const [type, setType] = useState(searchParams.get("type") || "equipe");
+
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
   const [openDelete, setOpenDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Carregar perfil
+  // ➤ Aba controlada (necessário para o Tabs do seu DS)
+  const [tab, setTab] = useState("dados");
+
+  // ───────────────────────────────
+  // LOAD PERFIL
+  // ───────────────────────────────
   useEffect(() => {
     if (perfilId) loadPerfil(perfilId);
   }, [perfilId]);
@@ -55,21 +57,24 @@ export default function PerfilDetailPage({ params }) {
   const loadPerfil = async (id) => {
     try {
       setLoading(true);
+
       const res = await fetch(`/api/perfis/list?id=${id}&type=${type}`, {
         cache: "no-store",
       });
-      const json = await res.json();
 
+      const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
       const record = json.data;
       setPerfil(record);
 
+      // Descobre tipo automaticamente se não veio via URL
       if (!searchParams.get("type") && record) {
         if (record.role) setType("equipe");
         else if (record.status) setType("leads");
         else if (record.tipo) setType("personas");
       }
+
     } catch (err) {
       error("Erro", err.message);
     } finally {
@@ -77,7 +82,9 @@ export default function PerfilDetailPage({ params }) {
     }
   };
 
-  // Upload avatar
+  // ───────────────────────────────
+  // UPLOAD AVATAR
+  // ───────────────────────────────
   const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -107,7 +114,9 @@ export default function PerfilDetailPage({ params }) {
     }
   };
 
-  // Apagar perfil
+  // ───────────────────────────────
+  // DELETE
+  // ───────────────────────────────
   const handleDelete = async () => {
     try {
       setDeleting(true);
@@ -123,6 +132,7 @@ export default function PerfilDetailPage({ params }) {
 
       success(json.message || "Perfil removido!");
       router.push("/admin/perfis");
+
     } catch (err) {
       error("Erro", err.message);
     } finally {
@@ -131,53 +141,69 @@ export default function PerfilDetailPage({ params }) {
     }
   };
 
-  if (loading)
+  // ───────────────────────────────
+  // LOADING STATES
+  // ───────────────────────────────
+  if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground gap-2">
         <Loader2 className="animate-spin" /> Carregando perfil...
       </div>
     );
+  }
 
-  if (!perfil)
+  if (!perfil) {
     return (
-      <p className="text-center p-10 text-muted-foreground">Perfil não encontrado.</p>
+      <p className="text-center p-10 text-muted-foreground">
+        Perfil não encontrado.
+      </p>
     );
+  }
 
   const isAdmin = perfil?.role === "admin";
   const canBeDeleted = type !== "equipe" || perfil.role !== "admin";
 
+  // ====================================================================
+  // PAGE
+  // ====================================================================
   return (
     <div className="space-y-8">
-      {/* Page Hero */}
-      <PageHeader
-        title={perfil.nome_completo || perfil.nome}
-        description="Visualização detalhada do perfil"
-        rightSection={
-          <div className="flex gap-2">
-            {canBeDeleted && (
-              <Button
-                variant="destructive"
-                onClick={() => setOpenDelete(true)}
-                className="flex items-center gap-2"
-              >
-                <Trash2 size={16} /> Remover
-              </Button>
-            )}
 
-            <Link href="/admin/perfis">
-              <Button variant="secondary" className="flex items-center gap-2">
-                <ArrowLeft size={16} /> Voltar
-              </Button>
-            </Link>
-          </div>
-        }
-      />
+      {/* HEADER */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">
+            {perfil.nome_completo || perfil.nome}
+          </h1>
+          <p className="text-muted-foreground">
+            Visualização detalhada do perfil
+          </p>
+        </div>
 
-      {/* Layout premium: avatar + conteúdo */}
+        <div className="flex gap-2">
+          {canBeDeleted && (
+            <Button
+              variant="secondary"
+              className="flex items-center gap-2"
+              onClick={() => setOpenDelete(true)}
+            >
+              <Trash2 size={16} /> Remover
+            </Button>
+          )}
+
+          <Link href="/admin/perfis">
+            <Button variant="ghost" className="flex items-center gap-2">
+              <ArrowLeft size={16} /> Voltar
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {/* GRID */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
-        {/* Avatar Card moderno */}
-        <Card className="p-6 flex flex-col items-center text-center gap-4 md:col-span-1 shadow-md">
+
+        {/* AVATAR */}
+        <Card className="p-6 flex flex-col items-center text-center gap-4 md:col-span-1">
           <div className="relative">
             <Image
               src={perfil.avatar_url || "/placeholder-avatar.png"}
@@ -205,10 +231,7 @@ export default function PerfilDetailPage({ params }) {
           </div>
 
           <div className="space-y-1">
-            <p className="text-lg font-semibold text-foreground">
-              {perfil.nome_completo || perfil.nome}
-            </p>
-
+            <p className="text-lg font-semibold">{perfil.nome_completo || perfil.nome}</p>
             <p className="text-sm text-muted-foreground capitalize">
               {type === "equipe" && `Função: ${perfil.role}`}
               {type === "leads" && `Status: ${perfil.status}`}
@@ -217,16 +240,17 @@ export default function PerfilDetailPage({ params }) {
           </div>
         </Card>
 
-        {/* Conteúdo principal */}
-        <Card className="p-6 md:col-span-2 shadow-lg">
-          <Tabs defaultValue="dados" className="w-full">
-            <TabsList className="bg-muted rounded-md p-1 flex gap-2">
+        {/* CONTEÚDO */}
+        <Card className="p-6 md:col-span-2">
+          <Tabs value={tab} onValueChange={setTab} className="w-full">
+
+            <TabsList className="bg-muted p-1 flex gap-2">
               <TabsTrigger value="dados">Dados Gerais</TabsTrigger>
               <TabsTrigger value="outros">Outros</TabsTrigger>
             </TabsList>
 
-            {/* Aba 1 */}
-            <TabsContent value="dados" className="mt-4">
+            {/* DADOS */}
+            <TabsContent value="dados" currentValue={tab}>
               {type === "equipe" && (
                 <PerfilFormEquipe
                   modo="edit"
@@ -253,8 +277,8 @@ export default function PerfilDetailPage({ params }) {
               )}
             </TabsContent>
 
-            {/* Aba 2 */}
-            <TabsContent value="outros" className="mt-4">
+            {/* OUTROS */}
+            <TabsContent value="outros" currentValue={tab}>
               <Label>Observações</Label>
               <Textarea
                 rows={4}
@@ -265,11 +289,12 @@ export default function PerfilDetailPage({ params }) {
                 }
               />
             </TabsContent>
+
           </Tabs>
         </Card>
       </div>
 
-      {/* Modal delete */}
+      {/* MODAL DELETE */}
       <Modal
         isOpen={openDelete}
         onClose={() => setOpenDelete(false)}
@@ -286,10 +311,9 @@ export default function PerfilDetailPage({ params }) {
             </Button>
 
             <Button
-              variant="destructive"
               onClick={handleDelete}
               disabled={deleting}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white"
             >
               {deleting ? (
                 <>
@@ -304,6 +328,7 @@ export default function PerfilDetailPage({ params }) {
           </div>
         </div>
       </Modal>
+
     </div>
   );
 }

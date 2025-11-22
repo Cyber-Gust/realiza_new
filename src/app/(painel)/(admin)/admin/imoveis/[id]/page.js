@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import PageHeader from "@/components/admin/layout/PageHeader";
-import Card from "@/components/admin/ui/Card";
+import { Card } from "@/components/admin/ui/Card";
 
 import ImovelForm from "@/components/imoveis/ImovelForm";
 import FinanceiroPanel from "@/components/imoveis/FinanceiroPanel";
@@ -29,7 +28,6 @@ export default function ImovelDetailPage({ params }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // state para tabs custom
   const [tab, setTab] = useState("cadastro");
 
   const modalChaves = useModal();
@@ -106,43 +104,50 @@ export default function ImovelDetailPage({ params }) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <PageHeader
-        title={imovel.titulo || "Imóvel sem título"}
-        description={`${imovel.tipo?.toUpperCase()} • ${imovel.endereco_cidade || "-"} / ${
-          imovel.endereco_estado || ""
-        }`}
-        rightSection={
-          <div className="flex gap-2">
-            <Button
-              onClick={salvarAlteracoes}
-              disabled={saving}
-              className="flex items-center gap-2"
-            >
-              <Save size={16} />
-              {saving ? "Salvando..." : "Salvar"}
-            </Button>
 
-            <Button
-              onClick={() => {
-                if (!imovel?.id) {
-                  toast.error("Imóvel ainda não carregado.");
-                  return;
-                }
-                modalChaves.openModal();
-              }}
-              variant="secondary"
-              className="flex items-center gap-2"
-            >
-              <KeyRound size={16} /> Chaves
-            </Button>
-          </div>
-        }
-      />
+      {/* ⭐ HEADER NATIVO (SEM PageHeader) */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            {imovel.titulo || "Imóvel sem título"}
+          </h1>
+
+          <p className="text-muted-foreground text-sm mt-1">
+            {`${imovel.tipo?.toUpperCase()} • ${imovel.endereco_cidade || "-"} / ${
+              imovel.endereco_estado || ""
+            }`}
+          </p>
+        </div>
+
+        <div className="flex gap-2">
+          <Button
+            onClick={salvarAlteracoes}
+            disabled={saving}
+            className="flex items-center gap-2"
+          >
+            <Save size={16} />
+            {saving ? "Salvando..." : "Salvar"}
+          </Button>
+
+          <Button
+            onClick={() => {
+              if (!imovel?.id) {
+                toast.error("Imóvel ainda não carregado.");
+                return;
+              }
+              modalChaves.openModal();
+            }}
+            variant="secondary"
+            className="flex items-center gap-2"
+          >
+            <KeyRound size={16} /> Chaves
+          </Button>
+        </div>
+      </div>
 
       {/* Tabs */}
       <Tabs value={tab} onValueChange={setTab} className="w-full">
-        <TabsList className="bg-muted rounded-lg p-1 flex gap-2">
+        <TabsList className="bg-muted p-1 flex gap-2">
           <TabsTrigger value="cadastro">Cadastro</TabsTrigger>
           <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
           <TabsTrigger value="midia">Mídia</TabsTrigger>
@@ -166,7 +171,7 @@ export default function ImovelDetailPage({ params }) {
         </TabsContent>
       </Tabs>
 
-      {/* Rodapé com datas e valores */}
+      {/* Rodapé */}
       <Card className="p-4 text-sm text-muted-foreground">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           <p>
@@ -191,7 +196,7 @@ export default function ImovelDetailPage({ params }) {
         </div>
       </Card>
 
-      {/* Modal de chaves */}
+      {/* Modal de Chaves */}
       <ChavesDialog
         imovelId={imovel.id}
         open={modalChaves.open}

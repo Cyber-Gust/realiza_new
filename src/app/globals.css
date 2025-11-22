@@ -59,17 +59,3 @@
     --ring: 162 20% 40%;              /* Sutil, com toque verde esmaecido */
   }
 }
-
-/* 🔹 Corrige Select e Popover do Radix dentro de Dialog */
-[data-radix-popper-content-wrapper] {
-  z-index: 9999 !important;
-  transform: none !important;
-}
-
-/* 🔹 Fundo sólido para evitar mistura visual */
-[data-radix-popper-content-wrapper] > div {
-  background-color: hsl(var(--background)) !important;
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 20px -2px rgb(0 0 0 / 0.25);
-}
