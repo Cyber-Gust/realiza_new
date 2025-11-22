@@ -1,7 +1,8 @@
 "use client";
-import Input from "@/components/admin/forms/Input";
-import { Button } from "@/components/ui/button";
+
 import { useState, useCallback, useMemo } from "react";
+import { Input, Label } from "@/components/admin/ui/Form";
+import { Button } from "@/components/admin/ui/Button";
 import { Search } from "lucide-react";
 
 export default function ImoveisFilters({ onFilter }) {
@@ -42,7 +43,6 @@ export default function ImoveisFilters({ onFilter }) {
   );
 
   const applyFilters = () => {
-    // 🔹 Converte filtros para o formato que o hook entende
     const payload = {
       tipo: filters.tipo,
       status: filters.status,
@@ -55,13 +55,15 @@ export default function ImoveisFilters({ onFilter }) {
   };
 
   const clearFilters = () => {
-    setFilters({
+    const reset = {
       tipo: "all",
       status: "all",
       cidade: "",
       preco_min: "",
       preco_max: "",
-    });
+    };
+
+    setFilters(reset);
     onFilter && onFilter({});
   };
 
@@ -69,9 +71,9 @@ export default function ImoveisFilters({ onFilter }) {
     <div className="flex flex-wrap items-end gap-3 p-4 bg-panel-card rounded-lg border border-border">
       {/* Tipo */}
       <div className="flex flex-col gap-1 w-full sm:w-auto min-w-[180px]">
-        <label className="text-sm font-medium text-muted-foreground">Tipo</label>
+        <Label>Tipo</Label>
         <select
-          className="flex h-10 w-full rounded-md border border-border bg-panel-card px-3 py-2 text-sm text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="flex h-10 w-full rounded-md border border-border bg-background px-3 text-sm focus:ring-2 focus:ring-ring"
           value={filters.tipo}
           onChange={(e) => handleChange("tipo", e.target.value)}
         >
@@ -85,9 +87,9 @@ export default function ImoveisFilters({ onFilter }) {
 
       {/* Status */}
       <div className="flex flex-col gap-1 w-full sm:w-auto min-w-[180px]">
-        <label className="text-sm font-medium text-muted-foreground">Status</label>
+        <Label>Status</Label>
         <select
-          className="flex h-10 w-full rounded-md border border-border bg-panel-card px-3 py-2 text-sm text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="flex h-10 w-full rounded-md border border-border bg-background px-3 text-sm focus:ring-2 focus:ring-ring"
           value={filters.status}
           onChange={(e) => handleChange("status", e.target.value)}
         >
@@ -99,30 +101,40 @@ export default function ImoveisFilters({ onFilter }) {
         </select>
       </div>
 
-      <Input
-        label="Cidade"
-        value={filters.cidade}
-        onChange={(e) => handleChange("cidade", e.target.value)}
-      />
+      {/* Cidade */}
+      <div className="flex flex-col gap-1 w-full sm:w-auto min-w-[180px]">
+        <Label>Cidade</Label>
+        <Input
+          value={filters.cidade}
+          onChange={(e) => handleChange("cidade", e.target.value)}
+        />
+      </div>
 
-      <Input
-        label="Preço Mín."
-        type="number"
-        value={filters.preco_min}
-        onChange={(e) => handleChange("preco_min", e.target.value)}
-      />
+      {/* Preço mínimo */}
+      <div className="flex flex-col gap-1 w-full sm:w-auto min-w-[150px]">
+        <Label>Preço Mín.</Label>
+        <Input
+          type="number"
+          value={filters.preco_min}
+          onChange={(e) => handleChange("preco_min", e.target.value)}
+        />
+      </div>
 
-      <Input
-        label="Preço Máx."
-        type="number"
-        value={filters.preco_max}
-        onChange={(e) => handleChange("preco_max", e.target.value)}
-      />
+      {/* Preço máximo */}
+      <div className="flex flex-col gap-1 w-full sm:w-auto min-w-[150px]">
+        <Label>Preço Máx.</Label>
+        <Input
+          type="number"
+          value={filters.preco_max}
+          onChange={(e) => handleChange("preco_max", e.target.value)}
+        />
+      </div>
 
+      {/* Botões */}
       <div className="flex gap-2 mt-2 sm:mt-0">
         <Button
           onClick={applyFilters}
-          className="bg-accent hover:bg-accent/90 text-white px-4 py-2 rounded-md flex items-center gap-2"
+          className="flex items-center gap-2 px-4"
         >
           <Search size={18} /> Filtrar
         </Button>
@@ -130,7 +142,7 @@ export default function ImoveisFilters({ onFilter }) {
         <Button
           variant="secondary"
           onClick={clearFilters}
-          className="px-4 py-2 rounded-md"
+          className="px-4"
         >
           Limpar
         </Button>

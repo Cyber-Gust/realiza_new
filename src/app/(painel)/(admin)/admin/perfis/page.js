@@ -1,10 +1,18 @@
 "use client";
 
 import { useState } from "react";
+
+// Layout
 import PageHeader from "@/components/admin/layout/PageHeader";
-import Card from "@/components/admin/ui/Card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+// UI (corrigidos)
+import { Card } from "@/components/admin/ui/Card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/admin/ui/Tabs";
+
+// Ícones
 import { UsersRound, ShieldCheck, Sparkles } from "lucide-react";
+
+// Painéis
 import PerfisEquipePanel from "@/components/perfis/PerfisEquipePanel";
 import PerfisPersonasPanel from "@/components/perfis/PerfisPersonasPanel";
 import PerfisLeadsPanel from "@/components/perfis/PerfisLeadsPanel";
@@ -20,9 +28,10 @@ export default function PerfisPage() {
         description="Gerencie usuários da equipe, proprietários, inquilinos e leads."
       />
 
-      {/* 🔹 Abas com estilo idêntico ao módulo de imóveis */}
+      {/* 🔹 Abas */}
       <Tabs value={tab} onValueChange={setTab} className="w-full">
         <TabsList className="bg-muted rounded-lg p-1 flex flex-wrap md:flex-nowrap gap-2">
+          
           <TabsTrigger
             value="equipe"
             className="flex items-center gap-2 data-[state=active]:bg-foreground data-[state=active]:text-background rounded-md px-4 py-2 text-sm font-medium transition-all"
@@ -43,10 +52,12 @@ export default function PerfisPage() {
           >
             <Sparkles size={16} /> Leads & Clientes
           </TabsTrigger>
+
         </TabsList>
 
-        {/* 🔹 Conteúdo de cada aba dentro de Cards */}
+        {/* 🔹 Conteúdo em Cards */}
         <div className="mt-6 space-y-4">
+
           <TabsContent value="equipe">
             <Card className="p-6 space-y-4">
               <PerfisEquipePanel />
@@ -64,6 +75,7 @@ export default function PerfisPage() {
               <PerfisLeadsPanel />
             </Card>
           </TabsContent>
+
         </div>
       </Tabs>
     </div>

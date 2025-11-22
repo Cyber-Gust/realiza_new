@@ -1,52 +1,73 @@
 "use client";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
-import Card from "@/components/admin/ui/Card";
+
+import { Button } from "@/components/admin/ui/Button";
+import { Card } from "@/components/admin/ui/Card";
 import Modal from "@/components/admin/ui/Modal";
-import Toast from "@/components/admin/ui/Toast";
+import { useToast } from "@/contexts/ToastContext";
+
 import {
   FileText,
   Loader2,
   Plus,
   Pencil,
   Trash2,
-  Check,
-  X,
   RefreshCcw,
   Search,
   Home,
   BadgeCheck,
+  X,
+  AlertTriangle,
 } from "lucide-react";
+
 import CRMPropostaForm from "./CRMPropostaForm";
 
+/* ============================================================
+   Helpers
+============================================================ */
 const money = (v) =>
   `R$ ${Number(v || 0).toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
   })}`;
 
+/* ============================================================
+   Status Badge
+============================================================ */
 const StatusBadge = ({ status }) => {
   const map = {
-    pendente: "bg-amber-100 text-amber-800 border-amber-200",
-    aceita: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    recusada: "bg-rose-100 text-rose-800 border-rose-200",
-    contraproposta: "bg-indigo-100 text-indigo-800 border-indigo-200",
+    pendente: "bg-amber-100 text-amber-800 border border-amber-300",
+    aceita: "bg-emerald-100 text-emerald-800 border border-emerald-300",
+    recusada: "bg-rose-100 text-rose-800 border border-rose-300",
+    contraproposta: "bg-indigo-100 text-indigo-800 border border-indigo-300",
   };
+
   return (
     <span
-      className={`inline-block px-2 py-0.5 text-xs rounded border capitalize ${
-        map[status] || "bg-muted text-foreground border-border"
-      }`}
+      className={`
+        inline-flex items-center px-2 py-[2px] rounded-md text-xs font-medium capitalize
+        ${map[status] || "bg-muted text-foreground border border-border"}
+      `}
     >
       {status}
     </span>
   );
 };
 
+/* ============================================================
+   CRMPropostasPanel — versão enterprise
+============================================================ */
 export default function CRMPropostasPanel() {
+  const toast = useToast();
+
   const [propostas, setPropostas] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState(null);
+
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [imoveis, setImoveis] = useState([]);
   const [corretores, setCorretores] = useState([]);
@@ -67,54 +88,49 @@ export default function CRMPropostasPanel() {
   const [total, setTotal] = useState(0);
   const totalPages = Math.max(1, Math.ceil(total / filters.pageSize));
 
-  // ============================================================
-  // 🔹 Carrega previamente listas (imóveis & corretores)
-  // ============================================================
+  /* ============================================================
+     Load Listas
+  ============================================================ */
   const loadLists = useCallback(async () => {
     try {
       const [imRes, corrRes] = await Promise.all([
-        fetch("/api/crm/imoveis/list", { cache: "no-store" }),
+        fetch("/api/imoveis/list", { cache: "no-store" }),
         fetch("/api/perfis/list?type=equipe", { cache: "no-store" }),
       ]);
 
-      const [imJson, corrJson] = await Promise.all([
+      const [imJson, corJson] = await Promise.all([
         imRes.json(),
         corrRes.json(),
       ]);
 
-      if (!imRes.ok) throw new Error(imJson.error || "Erro ao carregar imóveis");
-      if (!corrRes.ok)
-        throw new Error(corrJson.error || "Erro ao carregar equipe");
+      if (!imRes.ok) throw new Error(imJson.error);
+      if (!corrRes.ok) throw new Error(corJson.error);
 
       setImoveis(imJson.data || []);
-      setCorretores(corrJson.data || []);
+      setCorretores(corJson.data || []);
     } catch (err) {
-      Toast.error("Erro ao carregar filtros: " + err.message);
+      toast.error("Erro ao carregar filtros: " + err.message);
     }
   }, []);
 
   useEffect(() => {
-    async function init() {
-      await loadLists();
-    }
-    init();
+    loadLists();
   }, [loadLists]);
 
-  // ============================================================
-  // 🔹 Monta QueryString / filtros dinâmicos
-  // ============================================================
+  /* ============================================================
+     QueryString
+  ============================================================ */
   const queryString = useMemo(() => {
-    const p = new URLSearchParams();
-    Object.entries(filters).forEach(([key, val]) => {
-      if (val !== "" && val !== undefined && val !== null)
-        p.set(key, String(val));
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v !== "" && v !== null && v !== undefined) params.set(k, String(v));
     });
-    return p.toString();
+    return params.toString();
   }, [filters]);
 
-  // ============================================================
-  // 🔹 Carrega propostas
-  // ============================================================
+  /* ============================================================
+     Load Propostas
+  ============================================================ */
   const loadPropostas = useCallback(async () => {
     try {
       setLoading(true);
@@ -129,22 +145,19 @@ export default function CRMPropostasPanel() {
       setPropostas(json.data || []);
       setTotal(json.count || json.data?.length || 0);
     } catch (err) {
-      Toast.error(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
   }, [queryString]);
 
   useEffect(() => {
-    async function init() {
-      await loadPropostas();
-    }
-    init();
+    loadPropostas();
   }, [loadPropostas]);
 
-  // ============================================================
-  // 🔹 Handlers
-  // ============================================================
+  /* ============================================================
+     CRUD Handlers
+  ============================================================ */
   const handleCreate = () => {
     setEditing(null);
     setOpenForm(true);
@@ -160,25 +173,28 @@ export default function CRMPropostasPanel() {
     loadPropostas();
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm("Excluir esta proposta?")) return;
+  const confirmDelete = (p) => setDeleteTarget(p);
 
-    const prev = propostas;
-    setPropostas((ps) => ps.filter((p) => p.id !== id));
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget?.id) return toast.error("ID inválido!");
+
+    setDeleting(true);
 
     try {
-      const res = await fetch(`/api/crm/propostas?id=${id}`, {
+      const res = await fetch(`/api/crm/propostas?id=${deleteTarget.id}`, {
         method: "DELETE",
       });
 
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
-      Toast.success("Proposta excluída!");
+      toast.success("Proposta removida com sucesso!");
+      setDeleteTarget(null);
       loadPropostas();
     } catch (err) {
-      setPropostas(prev);
-      Toast.error(err.message);
+      toast.error(err.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -196,10 +212,10 @@ export default function CRMPropostasPanel() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
-      Toast.success("Status atualizado!");
+      toast.success("Status atualizado!");
     } catch (err) {
       setPropostas(prev);
-      Toast.error(err.message);
+      toast.error(err.message);
     }
   };
 
@@ -217,13 +233,13 @@ export default function CRMPropostasPanel() {
       pageSize: 9,
     });
 
-  // ============================================================
-  // 🔹 UI
-  // ============================================================
+  /* ============================================================
+     UI
+  ============================================================ */
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
 
-      {/* ===================== HEADER ===================== */}
+      {/* HEADER */}
       <div className="flex justify-between items-center">
         <h3 className="text-xl font-semibold flex items-center gap-2 text-foreground">
           <FileText size={20} /> Gestão de Propostas
@@ -234,14 +250,15 @@ export default function CRMPropostasPanel() {
         </Button>
       </div>
 
-      {/* ===================== FILTROS ===================== */}
-      <Card className="p-4 shadow-sm border-border bg-panel-card">
+      {/* FILTROS */}
+      <Card className="p-4 bg-panel-card border-border shadow-sm rounded-xl">
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
 
+          {/* Search */}
           <div className="flex items-center gap-2 border border-border rounded-md bg-panel-card px-2">
             <Search size={14} className="text-muted-foreground" />
             <input
-              placeholder="Buscar por lead/imóvel"
+              placeholder="Buscar por lead / imóvel"
               value={filters.q}
               onChange={(e) =>
                 setFilters((f) => ({ ...f, q: e.target.value, page: 1 }))
@@ -250,12 +267,13 @@ export default function CRMPropostasPanel() {
             />
           </div>
 
+          {/* Status */}
           <select
             value={filters.status}
             onChange={(e) =>
               setFilters((f) => ({ ...f, status: e.target.value, page: 1 }))
             }
-            className="w-full border border-border rounded-md p-2 bg-panel-card text-sm"
+            className="w-full border border-border rounded-md p-2 text-sm bg-panel-card"
           >
             <option value="">Status (todos)</option>
             <option value="pendente">Pendente</option>
@@ -264,12 +282,13 @@ export default function CRMPropostasPanel() {
             <option value="contraproposta">Contraproposta</option>
           </select>
 
+          {/* Corretor */}
           <select
             value={filters.corretor_id}
             onChange={(e) =>
               setFilters((f) => ({ ...f, corretor_id: e.target.value, page: 1 }))
             }
-            className="w-full border border-border rounded-md p-2 bg-panel-card text-sm"
+            className="w-full border border-border rounded-md p-2 text-sm bg-panel-card"
           >
             <option value="">Corretor (todos)</option>
             {corretores.map((c) => (
@@ -279,12 +298,13 @@ export default function CRMPropostasPanel() {
             ))}
           </select>
 
+          {/* Imóvel */}
           <select
             value={filters.imovel_id}
             onChange={(e) =>
               setFilters((f) => ({ ...f, imovel_id: e.target.value, page: 1 }))
             }
-            className="w-full border border-border rounded-md p-2 bg-panel-card text-sm"
+            className="w-full border border-border rounded-md p-2 text-sm bg-panel-card"
           >
             <option value="">Imóvel (todos)</option>
             {imoveis.map((im) => (
@@ -294,10 +314,13 @@ export default function CRMPropostasPanel() {
             ))}
           </select>
 
+          {/* Ordenação */}
           <select
             value={filters.orderBy}
-            onChange={(e) => setFilters((f) => ({ ...f, orderBy: e.target.value }))}
-            className="w-full border border-border rounded-md p-2 bg-panel-card text-sm"
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, orderBy: e.target.value }))
+            }
+            className="w-full border border-border rounded-md p-2 text-sm bg-panel-card"
           >
             <option value="created_at">Ordenar por: Data</option>
             <option value="valor_proposta">Ordenar por: Valor</option>
@@ -306,8 +329,10 @@ export default function CRMPropostasPanel() {
 
           <select
             value={filters.orderDir}
-            onChange={(e) => setFilters((f) => ({ ...f, orderDir: e.target.value }))}
-            className="w-full border border-border rounded-md p-2 bg-panel-card text-sm"
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, orderDir: e.target.value }))
+            }
+            className="w-full border border-border rounded-md p-2 text-sm bg-panel-card"
           >
             <option value="desc">Desc</option>
             <option value="asc">Asc</option>
@@ -316,37 +341,46 @@ export default function CRMPropostasPanel() {
 
         <div className="flex justify-end mt-3">
           <Button
-            variant="outline"
+            variant="secondary"
             onClick={resetFilters}
             className="flex items-center gap-2"
           >
-            <RefreshCcw size={14} /> Limpar filtros
+            <RefreshCcw size={14} /> Limpar Filtros
           </Button>
         </div>
       </Card>
 
-      {/* ===================== LISTA ===================== */}
+      {/* LISTA */}
       {loading ? (
         <div className="flex justify-center items-center py-10 text-muted-foreground">
           <Loader2 className="animate-spin mr-2" /> Carregando...
         </div>
       ) : propostas.length === 0 ? (
-        <p className="p-4 text-center text-muted-foreground">
+        <Card className="p-5 text-center text-muted-foreground bg-panel-card border-border rounded-xl">
           Nenhuma proposta encontrada.
-        </p>
+        </Card>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {propostas.map((p) => (
-            <Card key={p.id} className="p-5 space-y-3 shadow-md">
+            <Card
+              key={p.id}
+              className="
+                p-5 space-y-3 border border-border rounded-xl
+                bg-panel-card shadow-sm hover:shadow-md transition
+              "
+            >
+              {/* Header */}
               <div className="flex justify-between items-start">
                 <div>
-                  <h4 className="font-semibold text-foreground text-base">
+                  <h4 className="font-semibold text-foreground">
                     {p.leads?.nome || "Lead não identificado"}
                   </h4>
+
                   <p className="text-sm text-muted-foreground flex items-center gap-1">
                     <Home size={14} /> {p.imoveis?.titulo || "-"}
                   </p>
                 </div>
+
                 <StatusBadge status={p.status} />
               </div>
 
@@ -369,33 +403,33 @@ export default function CRMPropostasPanel() {
 
                 <Button
                   variant="destructive"
-                  onClick={() => handleDelete(p.id)}
+                  onClick={() => confirmDelete(p)}
                   className="flex items-center gap-2"
                 >
                   <Trash2 size={14} /> Excluir
                 </Button>
 
                 <Button
+                  className="flex items-center gap-2"
                   onClick={() => patchStatus(p.id, "aceita")}
-                  className="flex items-center gap-2 col-span-1"
                 >
                   <BadgeCheck size={14} /> Aceitar
                 </Button>
 
-                <Button
-                  variant="secondary"
-                  onClick={() => patchStatus(p.id, "recusada")}
-                  className="flex items-center gap-2 col-span-1"
-                >
-                  <X size={14} /> Recusar
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
+              <Button
+                variant="secondary"
+                onClick={() => patchStatus(p.id, "recusada")}
+                className="flex items-center gap-2"
+              >
+                <X size={14} /> Recusar
+              </Button>
+            </div>
+          </Card>
+        ))}
+      </div>
       )}
 
-      {/* ===================== PAGINAÇÃO ===================== */}
+      {/* PAGINAÇÃO */}
       <div className="flex items-center justify-between pt-2">
         <p className="text-xs text-muted-foreground">
           Página {filters.page} de {totalPages} • {total} propostas
@@ -420,9 +454,9 @@ export default function CRMPropostasPanel() {
         </div>
       </div>
 
-      {/* ===================== MODAL FORM ===================== */}
+      {/* MODAL: FORM */}
       <Modal
-        open={openForm}
+        isOpen={openForm}
         onOpenChange={setOpenForm}
         title={editing ? "Editar Proposta" : "Nova Proposta"}
       >
@@ -431,6 +465,60 @@ export default function CRMPropostasPanel() {
           onSaved={handleSaved}
           onClose={() => setOpenForm(false)}
         />
+      </Modal>
+
+      {/* MODAL: DELETE */}
+      <Modal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Remover Proposta"
+        className="max-w-md"
+      >
+        {deleteTarget && (
+          <div className="space-y-5">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="text-red-500 mt-1 shrink-0" />
+
+              <div>
+                <p>
+                  Tem certeza que deseja remover a proposta de{" "}
+                  <strong>{deleteTarget.leads?.nome || "Lead desconhecido"}</strong>?
+                </p>
+
+                <p className="text-sm text-muted-foreground mt-1">
+                  Valor:{" "}
+                  <strong>
+                    R$ {Number(deleteTarget.valor_proposta).toLocaleString("pt-BR")}
+                  </strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="secondary"
+                className="w-1/2"
+                onClick={() => setDeleteTarget(null)}
+              >
+                Cancelar
+              </Button>
+
+              <Button
+                className="w-1/2 bg-red-600 hover:bg-red-700"
+                onClick={handleDeleteConfirm}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin" /> Removendo...
+                  </span>
+                ) : (
+                  "Confirmar Remoção"
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

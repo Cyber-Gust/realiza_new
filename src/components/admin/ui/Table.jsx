@@ -1,63 +1,71 @@
-"use client";
 import { cn } from "@/lib/utils";
 
-export default function Table({ columns = [], data = [], className }) {
-  return (
-    <div className={cn("relative w-full overflow-auto rounded-lg border", className)}>
-      <table className="w-full caption-bottom text-sm">
-        <thead className="[&_tr]:border-b">
-          <tr className="border-b bg-muted transition-colors hover:bg-muted/50">
-            {columns.map((col, idx) => {
-              const key = typeof col === "string" ? col : col.key ?? idx;
-              const label = typeof col === "string" ? col : col.label ?? col.key;
-              return (
-                <th
-                  key={key}
-                  className="h-12 px-4 text-left align-middle font-medium text-muted-foreground whitespace-nowrap"
-                >
-                  {label}
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody className="[&_tr:last-child]:border-0">
-          {data?.length ? (
-            data.map((row, i) => (
-              <tr
-                key={i}
-                className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
-              >
-                {columns.map((col, j) => {
-                  const key = typeof col === "string" ? col : col.key;
-                  const val = row[key];
-                  return (
-                    <td
-                      key={`${i}-${key || j}`}
-                      className="p-4 align-middle"
-                    >
-                      {val === null || val === undefined
-                        ? ""
-                        : typeof val === "object" && val.$$typeof
-                          ? val
-                          : String(val)}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td
-                className="p-6 text-center text-muted-foreground"
-                colSpan={columns.length}
-              >
-                Nenhum registro encontrado
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+const Table = ({ className, children, ...props }) => (
+  <div className="w-full overflow-auto rounded-2xl border border-border/60 shadow-md bg-panel-card/95 backdrop-blur-sm transition-all">
+    <table
+      className={cn(
+        "w-full caption-bottom text-sm text-left align-middle",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </table>
+  </div>
+);
+
+const TableHeader = ({ className, children, ...props }) => (
+  <thead
+    className={cn(
+      "bg-muted/40 backdrop-blur-sm",
+      "[&_tr]:border-b [&_th]:text-xs [&_th]:uppercase [&_th]:tracking-wide [&_th]:font-semibold",
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </thead>
+);
+
+const TableRow = ({ className, children, ...props }) => (
+  <tr
+    className={cn(
+      "border-b border-border/40 transition-all duration-200",
+      "hover:bg-muted/25",
+      "data-[state=selected]:bg-primary/10",
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </tr>
+);
+
+const TableHead = ({ className, children, ...props }) => (
+  <th
+    className={cn(
+      "h-12 px-4 align-middle text-muted-foreground/80 font-semibold",
+      "[&:has([role=checkbox])]:pr-0",
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </th>
+);
+
+const TableCell = ({ className, children, ...props }) => (
+  <td
+    className={cn(
+      "p-4 align-middle text-foreground/90",
+      "group-hover:text-foreground transition-colors",
+      "[&:has([role=checkbox])]:pr-0",
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </td>
+);
+
+export { Table, TableHeader, TableRow, TableHead, TableCell };

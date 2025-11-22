@@ -19,170 +19,7 @@
     "transacao_status": ["pendente", "pago", "atrasado", "cancelado"],
     "os_status": ["aberta", "orcamento", "aprovada_pelo_inquilino", "aprovada_pelo_proprietario", "em_execucao", "concluida", "cancelada"]
   },
-  "tables": {
-    "profiles": {
-      "id": "uuid (pk, ref auth.users.id)",
-      "nome_completo": "text",
-      "email": "text",
-      "cpf_cnpj": "text",
-      "telefone": "text",
-      "role": "user_role",
-      "creci": "text",
-      "dados_bancarios_json": "jsonb",
-      "updated_at": "timestamptz",
-      "avatar_url": "text"
-    },
-      "imoveis": {
-      "id": "uuid (pk)",
-      "proprietario_id": "uuid (ref personas.id)",
-      "corretor_id": "uuid (ref profiles.id)",
-      "codigo_ref": "text",
-      "titulo": "text",
-      "descricao": "text",
-      "endereco_cep": "text",
-      "endereco_logradouro": "text",
-      "endereco_numero": "text",
-      "endereco_bairro": "text",
-      "endereco_cidade": "text",
-      "endereco_estado": "char(2)",
-      "tipo": "imovel_tipo",
-      "status": "imovel_status",
-      "disponibilidade": "disponibilidade_tipo", 
-      "preco_venda": "decimal(12,2)",
-      "preco_locacao": "decimal(10,2)",
-      "valor_condominio": "decimal(10,2)",
-      "valor_iptu": "decimal(10,2)",
-      "area_total": "int",
-      "quartos": "int",
-      "banheiros": "int",
-      "vagas_garagem": "int",
-      "pet_friendly": "bool",
-      "mobiliado": "bool",
-      "documentos_compliance_json": "jsonb",
-      "chaves_localizacao": "text",
-      "created_at": "timestamptz DEFAULT now()",
-      "updated_at": "timestamptz DEFAULT now()"
-    },
 
-    "imoveis_chaves_historico": {
-      "id": "uuid (pk)",
-      "imovel_id": "uuid (ref imoveis.id)",
-      "usuario_id": "uuid (ref profiles.id)",
-      "acao": "text (check: ['retirada', 'devolucao', 'transferencia', 'outro'])",
-      "localizacao": "text",
-      "observacao": "text",
-      "created_at": "timestamptz"
-    },
-    "imoveis_precos": {
-      "id": "uuid (pk)",
-      "imovel_id": "uuid (ref imoveis.id)",
-      "usuario_id": "uuid (ref profiles.id)",
-      "tipo": "text (check: ['venda', 'locacao'])",
-      "valor": "decimal(12,2)",
-      "descricao": "text",
-      "created_at": "timestamptz"
-    },
-    "leads": {
-      "id": "uuid (pk)",
-      "corretor_id": "uuid (ref profiles.id)",
-      "nome": "text",
-      "email": "text",
-      "telefone": "text",
-      "status": "lead_status",
-      "origem": "text",
-      "perfil_busca_json": "jsonb",
-      "created_at": "timestamptz",
-      "updated_at": "timestamptz"
-    },
-
-      "personas": {
-      "id": "uuid (pk)",
-      "nome": "text",
-      "email": "text",
-      "telefone": "text",
-      "cpf_cnpj": "text",
-      "tipo": "persona_tipo",
-      "endereco_json": "jsonb",
-      "observacoes": "text",
-      "created_at": "timestamptz",
-      "updated_at": "timestamptz"
-    },  
-    "propostas": {
-      "id": "uuid (pk)",
-      "imovel_id": "uuid (ref imoveis.id)",
-      "lead_id": "uuid (ref leads.id)",
-      "cliente_id": "uuid (ref profiles.id)",
-      "corretor_id": "uuid (ref profiles.id)",
-      "valor_proposta": "decimal(12,2)",
-      "condicao_garantia": "text",
-      "status": "text",
-      "created_at": "timestamptz"
-    },
-    "contratos": {
-      "id": "uuid (pk)",
-      "imovel_id": "uuid (ref imoveis.id)",
-      "proprietario_id": "uuid (ref personas.id)",
-      "inquilino_id": "uuid (ref personas.id)",
-      "tipo": "contrato_tipo",
-      "data_inicio": "date",
-      "data_fim": "date",
-      "valor_acordado": "decimal(10,2)",
-      "taxa_administracao_percent": "decimal(5,2)",
-      "dia_vencimento_aluguel": "int",
-      "indice_reajuste": "text",
-      "status": "text",
-      "documento_assinado_url": "text",
-      "created_at": "timestamptz"
-    },
-    "transacoes": {
-      "id": "uuid (pk)",
-      "contrato_id": "uuid (ref contratos.id)",
-      "imovel_id": "uuid (ref imoveis.id)",
-      "profile_id": "uuid (ref profiles.id)",
-      "tipo": "transacao_tipo",
-      "status": "transacao_status",
-      "descricao": "text",
-      "valor": "decimal(10,2)",
-      "data_vencimento": "date",
-      "data_pagamento": "date",
-      "dados_cobranca_json": "jsonb",
-      "created_at": "timestamptz"
-    },
-    "ordens_servico": {
-      "id": "uuid (pk)",
-      "imovel_id": "uuid (ref imoveis.id)",
-      "contrato_id": "uuid (ref contratos.id)",
-      "solicitante_id": "uuid (ref profiles.id)",
-      "descricao_problema": "text",
-      "status": "os_status",
-      "orcamentos_json": "jsonb",
-      "custo_final": "decimal(10,2)",
-      "prestador_aprovado": "text",
-      "created_at": "timestamptz",
-      "updated_at": "timestamptz"
-    },
-    "vistorias": {
-      "id": "uuid (pk)",
-      "imovel_id": "uuid (ref imoveis.id)",
-      "contrato_id": "uuid (ref contratos.id)",
-      "tipo": "text",
-      "data_vistoria": "date",
-      "laudo_descricao": "text",
-      "documento_laudo_url": "text",
-      "created_at": "timestamptz"
-    },
-    "agenda_eventos": {
-      "id": "uuid (pk)",
-      "profile_id": "uuid (ref profiles.id)",
-      "lead_id": "uuid (ref leads.id)",
-      "imovel_id": "uuid (ref imoveis.id)",
-      "titulo": "text",
-      "tipo": "text",
-      "data_inicio": "timestamptz",
-      "data_fim": "timestamptz",
-      "created_at": "timestamptz"
-    }
-  },
   "buckets": {
     "imoveis_media": "fotos e plantas públicas dos imóveis",
     "documentos_kyc": "documentos pessoais de clientes (RG/CPF)",
@@ -191,3 +28,257 @@
     "documentos_compliance": "documentos de regularização dos imóveis"
   }
 }
+
+{
+  "table_schema": "public",
+  "table_name": "agenda_eventos",
+  "row_security": true,
+  "columns": [
+    { "name": "id", "type": "uuid", "nullable": false, "default": "uuid_generate_v4()", "constraint": "PRIMARY KEY" },
+    { "name": "profile_id", "type": "uuid", "nullable": false, "default": null, "constraint": "FOREIGN KEY", "foreign_table": "profiles", "foreign_column": "id" },
+    { "name": "lead_id", "type": "uuid", "nullable": true, "default": null, "constraint": "FOREIGN KEY", "foreign_table": "leads", "foreign_column": "id" },
+    { "name": "imovel_id", "type": "uuid", "nullable": true, "default": null, "constraint": "FOREIGN KEY", "foreign_table": "imoveis", "foreign_column": "id" },
+    { "name": "titulo", "type": "text", "nullable": false },
+    { "name": "tipo", "type": "text", "nullable": false },
+    { "name": "data_inicio", "type": "timestamptz", "nullable": false },
+    { "name": "data_fim", "type": "timestamptz", "nullable": false },
+    { "name": "created_at", "type": "timestamptz", "nullable": true, "default": "now()" },
+    { "name": "updated_at", "type": "date", "nullable": true },
+    { "name": "tipo_participante", "type": "text", "nullable": true, "default": "'lead'::text" },
+    { "name": "participante_id", "type": "uuid", "nullable": true },
+    { "name": "local", "type": "text", "nullable": true },
+    { "name": "observacoes", "type": "text", "nullable": true }
+  ]
+}
+
+{
+  "table_schema": "public",
+  "table_name": "contratos",
+  "row_security": true,
+  "columns": [
+    { "name": "id", "type": "uuid", "nullable": false, "default": "uuid_generate_v4()", "constraint": "PRIMARY KEY" },
+    { "name": "imovel_id", "type": "uuid", "nullable": false, "constraint": "FOREIGN KEY", "foreign_table": "imoveis", "foreign_column": "id" },
+    { "name": "proprietario_id", "type": "uuid", "nullable": false, "constraint": "FOREIGN KEY", "foreign_table": "personas", "foreign_column": "id" },
+    { "name": "inquilino_id", "type": "uuid", "nullable": false, "constraint": "FOREIGN KEY", "foreign_table": "personas", "foreign_column": "id" },
+    { "name": "tipo", "type": "contrato_tipo", "nullable": false },
+    { "name": "data_inicio", "type": "date", "nullable": false },
+    { "name": "data_fim", "type": "date", "nullable": false },
+    { "name": "valor_acordado", "type": "numeric", "nullable": false },
+    { "name": "taxa_administracao_percent", "type": "numeric", "nullable": true },
+    { "name": "dia_vencimento_aluguel", "type": "int4", "nullable": true },
+    { "name": "indice_reajuste", "type": "text", "nullable": true },
+    { "name": "status", "type": "text", "nullable": false, "default": "'ativo'::text" },
+    { "name": "documento_assinado_url", "type": "text", "nullable": true },
+    { "name": "created_at", "type": "timestamptz", "nullable": true, "default": "now()" }
+  ]
+}
+
+{
+  "table_schema": "public",
+  "table_name": "imoveis",
+  "row_security": true,
+  "columns": [
+    { "name": "id", "type": "uuid", "nullable": false, "default": "uuid_generate_v4()", "constraint": "PRIMARY KEY" },
+    { "name": "proprietario_id", "type": "uuid", "nullable": true, "constraint": "FOREIGN KEY", "foreign_table": "personas", "foreign_column": "id" },
+    { "name": "codigo_ref", "type": "text", "nullable": false, "constraint": "UNIQUE" },
+    { "name": "titulo", "type": "text", "nullable": false },
+    { "name": "descricao", "type": "text", "nullable": true },
+    { "name": "endereco_cep", "type": "text", "nullable": true },
+    { "name": "endereco_logradouro", "type": "text", "nullable": true },
+    { "name": "endereco_numero", "type": "text", "nullable": true },
+    { "name": "endereco_bairro", "type": "text", "nullable": true },
+    { "name": "endereco_cidade", "type": "text", "nullable": true },
+    { "name": "endereco_estado", "type": "bpchar", "nullable": true },
+    { "name": "tipo", "type": "imovel_tipo", "nullable": false },
+    { "name": "status", "type": "imovel_status", "nullable": false, "default": "'inativo'::imovel_status" },
+    { "name": "preco_venda", "type": "numeric", "nullable": true },
+    { "name": "preco_locacao", "type": "numeric", "nullable": true },
+    { "name": "valor_condominio", "type": "numeric", "nullable": true },
+    { "name": "valor_iptu", "type": "numeric", "nullable": true },
+    { "name": "area_total", "type": "int4", "nullable": true },
+    { "name": "quartos", "type": "int4", "nullable": true, "default": "0" },
+    { "name": "banheiros", "type": "int4", "nullable": true, "default": "0" },
+    { "name": "vagas_garagem", "type": "int4", "nullable": true, "default": "0" },
+    { "name": "pet_friendly", "type": "bool", "nullable": true, "default": "false" },
+    { "name": "mobiliado", "type": "bool", "nullable": true, "default": "false" },
+    { "name": "documentos_compliance_json", "type": "jsonb", "nullable": true },
+    { "name": "chaves_localizacao", "type": "text", "nullable": true },
+    { "name": "created_at", "type": "timestamptz", "nullable": true, "default": "now()" },
+    { "name": "updated_at", "type": "timestamptz", "nullable": true, "default": "now()" },
+    { "name": "corretor_id", "type": "uuid", "nullable": true, "constraint": "FOREIGN KEY", "foreign_table": "profiles", "foreign_column": "id" },
+    { "name": "disponibilidade", "type": "disponibilidade_tipo", "nullable": true, "default": "'venda'::disponibilidade_tipo" },
+    { "name": "slug", "type": "text", "nullable": false, "constraint": "UNIQUE" },
+    { "name": "titulo_curto", "type": "text", "nullable": true },
+    { "name": "condominio", "type": "text", "nullable": true },
+    { "name": "imagem_principal", "type": "text", "nullable": true },
+    { "name": "midias", "type": "jsonb", "nullable": true },
+    { "name": "suites", "type": "int4", "nullable": true, "default": "0" },
+    { "name": "elevador", "type": "bool", "nullable": true, "default": "false" },
+    { "name": "piscina", "type": "bool", "nullable": true, "default": "false" },
+    { "name": "area_gourmet", "type": "bool", "nullable": true, "default": "false" },
+    { "name": "categorias", "type": "_text", "nullable": true },
+    { "name": "detalhes_extra", "type": "jsonb", "nullable": true }
+  ]
+}
+
+{
+  "table_schema": "public",
+  "table_name": "imoveis_chaves_historico",
+  "row_security": false,
+  "columns": [
+    { "name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraint": "PRIMARY KEY" },
+    { "name": "imovel_id", "type": "uuid", "nullable": true, "constraint": "FOREIGN KEY", "foreign_table": "imoveis", "foreign_column": "id" },
+    { "name": "usuario_id", "type": "uuid", "nullable": true, "constraint": "FOREIGN KEY", "foreign_table": "profiles", "foreign_column": "id" },
+    { "name": "acao", "type": "text", "nullable": true },
+    { "name": "localizacao", "type": "text", "nullable": true },
+    { "name": "observacao", "type": "text", "nullable": true },
+    { "name": "created_at", "type": "timestamptz", "nullable": true, "default": "now()" }
+  ]
+}
+
+{
+  "table_schema": "public",
+  "table_name": "imoveis_precos",
+  "row_security": false,
+  "columns": [
+    { "name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraint": "PRIMARY KEY" },
+    { "name": "imovel_id", "type": "uuid", "nullable": false, "constraint": "FOREIGN KEY", "foreign_table": "imoveis", "foreign_column": "id" },
+    { "name": "usuario_id", "type": "uuid", "nullable": true, "constraint": "FOREIGN KEY", "foreign_table": "profiles", "foreign_column": "id" },
+    { "name": "tipo", "type": "text", "nullable": false },
+    { "name": "valor", "type": "numeric", "nullable": false },
+    { "name": "descricao", "type": "text", "nullable": true },
+    { "name": "created_at", "type": "timestamptz", "nullable": true, "default": "now()" }
+  ]
+}
+
+{
+  "table_schema": "public",
+  "table_name": "leads",
+  "row_security": true,
+  "columns": [
+    { "name": "id", "type": "uuid", "nullable": false, "default": "uuid_generate_v4()", "constraint": "PRIMARY KEY" },
+    { "name": "corretor_id", "type": "uuid", "nullable": true, "constraint": "FOREIGN KEY", "foreign_table": "profiles", "foreign_column": "id" },
+    { "name": "nome", "type": "text", "nullable": false },
+    { "name": "email", "type": "text", "nullable": true },
+    { "name": "telefone", "type": "text", "nullable": false },
+    { "name": "status", "type": "lead_status", "nullable": false, "default": "'novo'::lead_status" },
+    { "name": "origem", "type": "text", "nullable": true },
+    { "name": "perfil_busca_json", "type": "jsonb", "nullable": true },
+    { "name": "created_at", "type": "timestamptz", "nullable": true, "default": "now()" },
+    { "name": "updated_at", "type": "timestamptz", "nullable": true, "default": "now()" }
+  ]
+}
+
+{
+  "table_schema": "public",
+  "table_name": "ordens_servico",
+  "row_security": true,
+  "columns": [
+    { "name": "id", "type": "uuid", "nullable": false, "default": "uuid_generate_v4()", "constraint": "PRIMARY KEY" },
+    { "name": "imovel_id", "type": "uuid", "nullable": false, "constraint": "FOREIGN KEY", "foreign_table": "imoveis", "foreign_column": "id" },
+    { "name": "contrato_id", "type": "uuid", "nullable": true, "constraint": "FOREIGN KEY", "foreign_table": "contratos", "foreign_column": "id" },
+    { "name": "solicitante_id", "type": "uuid", "nullable": false, "constraint": "FOREIGN KEY", "foreign_table": "profiles", "foreign_column": "id" },
+    { "name": "descricao_problema", "type": "text", "nullable": false },
+    { "name": "status", "type": "os_status", "nullable": false, "default": "'aberta'::os_status" },
+    { "name": "orcamentos_json", "type": "jsonb", "nullable": true },
+    { "name": "custo_final", "type": "numeric", "nullable": true },
+    { "name": "prestador_aprovado", "type": "text", "nullable": true },
+    { "name": "created_at", "type": "timestamptz", "nullable": true, "default": "now()" },
+    { "name": "updated_at", "type": "timestamptz", "nullable": true, "default": "now()" }
+  ]
+}
+
+{
+  "table_schema": "public",
+  "table_name": "personas",
+  "row_security": false,
+  "columns": [
+    { "name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraint": "PRIMARY KEY" },
+    { "name": "nome", "type": "text", "nullable": false },
+    { "name": "email", "type": "text", "nullable": true },
+    { "name": "telefone", "type": "text", "nullable": true },
+    { "name": "cpf_cnpj", "type": "text", "nullable": true },
+    { "name": "tipo", "type": "persona_tipo", "nullable": false },
+    { "name": "endereco_json", "type": "jsonb", "nullable": true },
+    { "name": "observacoes", "type": "text", "nullable": true },
+    { "name": "created_at", "type": "timestamptz", "nullable": true, "default": "now()" },
+    { "name": "updated_at", "type": "timestamptz", "nullable": true, "default": "now()" }
+  ]
+}
+
+{
+  "table_schema": "public",
+  "table_name": "profiles",
+  "row_security": true,
+  "columns": [
+    { "name": "id", "type": "uuid", "nullable": false, "constraint": "PRIMARY KEY" },
+    { "name": "nome_completo", "type": "text", "nullable": true },
+    { "name": "email", "type": "text", "nullable": false, "constraint": "UNIQUE" },
+    { "name": "cpf_cnpj", "type": "text", "nullable": true, "constraint": "UNIQUE" },
+    { "name": "telefone", "type": "text", "nullable": true },
+    { "name": "role", "type": "user_role", "nullable": false, "default": "'cliente'::user_role" },
+    { "name": "creci", "type": "text", "nullable": true },
+    { "name": "dados_bancarios_json", "type": "jsonb", "nullable": true },
+    { "name": "updated_at", "type": "timestamptz", "nullable": true, "default": "now()" },
+    { "name": "avatar_url", "type": "text", "nullable": true },
+    { "name": "slug", "type": "text", "nullable": false, "constraint": "UNIQUE" },
+    { "name": "resumo", "type": "text", "nullable": true },
+    { "name": "detalhes", "type": "_text", "nullable": true }
+  ]
+}
+
+{
+  "table_schema": "public",
+  "table_name": "propostas",
+  "row_security": true,
+  "columns": [
+    { "name": "id", "type": "uuid", "nullable": false, "default": "uuid_generate_v4()", "constraint": "PRIMARY KEY" },
+    { "name": "imovel_id", "type": "uuid", "nullable": false, "constraint": "FOREIGN KEY", "foreign_table": "imoveis", "foreign_column": "id" },
+    { "name": "lead_id", "type": "uuid", "nullable": false, "constraint": "FOREIGN KEY", "foreign_table": "leads", "foreign_column": "id" },
+    { "name": "cliente_id", "type": "uuid", "nullable": true, "constraint": "FOREIGN KEY", "foreign_table": "profiles", "foreign_column": "id" },
+    { "name": "corretor_id", "type": "uuid", "nullable": false, "constraint": "FOREIGN KEY", "foreign_table": "profiles", "foreign_column": "id" },
+    { "name": "valor_proposta", "type": "numeric", "nullable": false },
+    { "name": "condicao_garantia", "type": "text", "nullable": true },
+    { "name": "status", "type": "text", "nullable": false, "default": "'enviada'::text" },
+    { "name": "created_at", "type": "timestamptz", "nullable": true, "default": "now()" },
+    { "name": "observacoes", "type": "text", "nullable": true },
+    { "name": "updated_at", "type": "date", "nullable": true }
+  ]
+}
+
+{
+  "table_schema": "public",
+  "table_name": "transacoes",
+  "row_security": true,
+  "columns": [
+    { "name": "id", "type": "uuid", "nullable": false, "default": "uuid_generate_v4()", "constraint": "PRIMARY PRIMARY KEY" },
+    { "name": "contrato_id", "type": "uuid", "nullable": true, "constraint": "FOREIGN KEY", "foreign_table": "contratos", "foreign_column": "id" },
+    { "name": "imovel_id", "type": "uuid", "nullable": true, "constraint": "FOREIGN KEY", "foreign_table": "imoveis", "foreign_column": "id" },
+    { "name": "profile_id", "type": "uuid", "nullable": true, "constraint": "FOREIGN KEY", "foreign_table": "profiles", "foreign_column": "id" },
+    { "name": "tipo", "type": "transacao_tipo", "nullable": false },
+    { "name": "status", "type": "transacao_status", "nullable": false, "default": "'pendente'::transacao_status" },
+    { "name": "descricao", "type": "text", "nullable": false },
+    { "name": "valor", "type": "numeric", "nullable": false },
+    { "name": "data_vencimento", "type": "date", "nullable": false },
+    { "name": "data_pagamento", "type": "date", "nullable": true },
+    { "name": "dados_cobranca_json", "type": "jsonb", "nullable": true },
+    { "name": "created_at", "type": "timestamptz", "nullable": true, "default": "now()" }
+  ]
+}
+
+{
+  "table_schema": "public",
+  "table_name": "vistorias",
+  "row_security": true,
+  "columns": [
+    { "name": "id", "type": "uuid", "nullable": false, "default": "uuid_generate_v4()", "constraint": "PRIMARY KEY" },
+    { "name": "imovel_id", "type": "uuid", "nullable": false, "constraint": "FOREIGN KEY", "foreign_table": "imoveis", "foreign_column": "id" },
+    { "name": "contrato_id", "type": "uuid", "nullable": false, "constraint": "FOREIGN KEY", "foreign_table": "contratos", "foreign_column": "id" },
+    { "name": "tipo", "type": "text", "nullable": false },
+    { "name": "data_vistoria", "type": "date", "nullable": false },
+    { "name": "laudo_descricao", "type": "text", "nullable": true },
+    { "name": "documento_laudo_url", "type": "text", "nullable": true },
+    { "name": "created_at", "type": "timestamptz", "nullable": true, "default": "now()" }
+  ]
+}
+

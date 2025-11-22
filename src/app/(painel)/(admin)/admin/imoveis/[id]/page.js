@@ -1,57 +1,71 @@
 "use client";
+
 import { useEffect, useState } from "react";
+
 import PageHeader from "@/components/admin/layout/PageHeader";
 import Card from "@/components/admin/ui/Card";
+
 import ImovelForm from "@/components/imoveis/ImovelForm";
 import FinanceiroPanel from "@/components/imoveis/FinanceiroPanel";
 import MidiaPanel from "@/components/imoveis/MidiaPanel";
 import CompliancePanel from "@/components/imoveis/CompliancePanel";
 import ChavesDialog from "@/components/imoveis/ChavesDialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
+
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/admin/ui/Tabs";
+import { Button } from "@/components/admin/ui/Button";
+
 import { KeyRound, Save } from "lucide-react";
-import Toast from "@/components/admin/ui/Toast";
+import { useToast } from "@/contexts/ToastContext";
 import useModal from "@/hooks/useModal";
+
 import { formatCurrency } from "@/utils/formatters";
 
 export default function ImovelDetailPage({ params }) {
+  const toast = useToast();
+
   const [imovelId, setImovelId] = useState(null);
   const [imovel, setImovel] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // state para tabs custom
+  const [tab, setTab] = useState("cadastro");
+
   const modalChaves = useModal();
 
-  // ✅ Corrigido: params é síncrono, não precisa de async/await
+  // Resolve params.id
   useEffect(() => {
     let mounted = true;
-
     (async () => {
-      const p = await params; // ✅ Desembrulha a Promise corretamente
+      const p = await params;
       if (mounted && p?.id) setImovelId(p.id);
     })();
-
     return () => {
       mounted = false;
     };
   }, [params]);
 
-  // 🔹 Carrega dados do imóvel
+  // Carrega dados do imóvel
   const loadImovel = async (id) => {
     try {
       const res = await fetch(`/api/imoveis/list?id=${id}`, { cache: "no-store" });
       const data = await res.json();
+
       if (!res.ok) throw new Error(data.error || "Erro ao carregar imóvel");
+
       setImovel(data.data?.[0] || null);
     } catch (err) {
-      Toast.error(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔹 Salvar alterações gerais do imóvel
+  // Salvar alterações
   const salvarAlteracoes = async () => {
     if (!imovel) return;
+
     setSaving(true);
     try {
       const res = await fetch("/api/imoveis/update", {
@@ -59,18 +73,19 @@ export default function ImovelDetailPage({ params }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(imovel),
       });
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao salvar alterações");
+
       setImovel(data.data);
-      Toast.success("Imóvel atualizado com sucesso!");
+      toast.success("Imóvel atualizado com sucesso!");
     } catch (err) {
-      Toast.error(err.message);
+      toast.error(err.message);
     } finally {
       setSaving(false);
     }
   };
 
-  // ✅ Carrega imóvel só depois de resolver o id
   useEffect(() => {
     if (imovelId) loadImovel(imovelId);
   }, [imovelId]);
@@ -91,7 +106,7 @@ export default function ImovelDetailPage({ params }) {
 
   return (
     <div className="space-y-6">
-      {/* 🔹 Cabeçalho com botão de salvar e controle de chaves */}
+      {/* Header */}
       <PageHeader
         title={imovel.titulo || "Imóvel sem título"}
         description={`${imovel.tipo?.toUpperCase()} • ${imovel.endereco_cidade || "-"} / ${
@@ -111,7 +126,7 @@ export default function ImovelDetailPage({ params }) {
             <Button
               onClick={() => {
                 if (!imovel?.id) {
-                  Toast.error("Imóvel ainda não carregado.");
+                  toast.error("Imóvel ainda não carregado.");
                   return;
                 }
                 modalChaves.openModal();
@@ -125,8 +140,8 @@ export default function ImovelDetailPage({ params }) {
         }
       />
 
-      {/* 🔹 Abas do painel */}
-      <Tabs defaultValue="cadastro" className="w-full">
+      {/* Tabs */}
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
         <TabsList className="bg-muted rounded-lg p-1 flex gap-2">
           <TabsTrigger value="cadastro">Cadastro</TabsTrigger>
           <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
@@ -134,42 +149,41 @@ export default function ImovelDetailPage({ params }) {
           <TabsTrigger value="compliance">Compliance</TabsTrigger>
         </TabsList>
 
-        {/* 🏠 Aba de Cadastro */}
-        <TabsContent value="cadastro" className="mt-4">
+        <TabsContent value="cadastro" currentValue={tab} className="mt-4">
           <ImovelForm data={imovel} onChange={setImovel} />
         </TabsContent>
 
-        {/* 💰 Aba Financeiro */}
-        <TabsContent value="financeiro" className="mt-4">
+        <TabsContent value="financeiro" currentValue={tab} className="mt-4">
           <FinanceiroPanel imovel={imovel} onUpdateImovel={setImovel} />
         </TabsContent>
 
-        {/* 🖼 Aba Mídia */}
-        <TabsContent value="midia" className="mt-4">
+        <TabsContent value="midia" currentValue={tab} className="mt-4">
           <MidiaPanel imovel={imovel} />
         </TabsContent>
 
-        {/* ⚖️ Aba Compliance */}
-        <TabsContent value="compliance" className="mt-4">
+        <TabsContent value="compliance" currentValue={tab} className="mt-4">
           <CompliancePanel imovelId={imovel.id} />
         </TabsContent>
       </Tabs>
 
-      {/* 🔹 Info rodapé (datas + valores) */}
+      {/* Rodapé com datas e valores */}
       <Card className="p-4 text-sm text-muted-foreground">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           <p>
             <strong>Criado em:</strong>{" "}
             {new Date(imovel.created_at).toLocaleDateString("pt-BR")}
           </p>
+
           <p>
             <strong>Última atualização:</strong>{" "}
             {new Date(imovel.updated_at).toLocaleDateString("pt-BR")}
           </p>
+
           <p>
             <strong>Valor de Venda:</strong>{" "}
             {formatCurrency(imovel.preco_venda)}
           </p>
+
           <p>
             <strong>Valor de Locação:</strong>{" "}
             {formatCurrency(imovel.preco_locacao)}
@@ -177,7 +191,7 @@ export default function ImovelDetailPage({ params }) {
         </div>
       </Card>
 
-      {/* 🔹 Modal de controle de chaves */}
+      {/* Modal de chaves */}
       <ChavesDialog
         imovelId={imovel.id}
         open={modalChaves.open}

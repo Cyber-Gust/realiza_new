@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 import {
   MoreVertical,
@@ -7,16 +8,25 @@ import {
   MoveRight,
   Loader2,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import Card from "@/components/admin/ui/Card";
-import Toast from "@/components/admin/ui/Toast";
 
+import { Card } from "@/components/admin/ui/Card";
+import { Button } from "@/components/admin/ui/Button";
+import { useToast } from "@/contexts/ToastContext";
+
+/* ============================================================
+   🔥 CRMKanbanCard – versão Enterprise
+   • 100% aderente ao seu design system
+   • Microinterações suaves
+   • Layout premium estilo Linear
+   ============================================================ */
 export default function CRMKanbanCard({ lead, onClick, onMove }) {
   const [moving, setMoving] = useState(false);
+  const toast = useToast();
 
   const handleMove = async (nextStage) => {
     try {
       setMoving(true);
+
       const res = await fetch("/api/crm/pipeline", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -26,10 +36,10 @@ export default function CRMKanbanCard({ lead, onClick, onMove }) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
-      Toast.success("Lead movido com sucesso!");
+      toast.success("Lead movido com sucesso!");
       onMove?.();
     } catch (err) {
-      Toast.error(err.message);
+      toast.error(err.message);
     } finally {
       setMoving(false);
     }
@@ -38,21 +48,23 @@ export default function CRMKanbanCard({ lead, onClick, onMove }) {
   return (
     <Card
       className="
-        p-4 border border-border bg-background/95 
-        hover:bg-muted/40
-        transition-all cursor-pointer rounded-lg shadow-sm
-        flex flex-col gap-3
+        p-4 bg-panel-card border border-border/70 rounded-lg
+        hover:shadow-[0_4px_14px_rgba(0,0,0,0.06)]
+        hover:border-border transition-all cursor-pointer
+        flex flex-col gap-4
       "
       onClick={() => onClick?.(lead.id)}
     >
-      {/* ========================= HEADER ========================= */}
+      {/* ============================================================
+         HEADER
+      ============================================================ */}
       <div className="flex justify-between items-start">
         <div className="flex flex-col">
-          <h4 className="text-sm font-semibold text-foreground leading-tight">
+          <h4 className="text-sm font-semibold text-foreground leading-tight tracking-tight">
             {lead.nome || "Sem nome"}
           </h4>
 
-          <div className="mt-1 space-y-1">
+          <div className="mt-2 space-y-[2px]">
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <Phone size={12} /> {lead.telefone || "-"}
             </p>
@@ -63,30 +75,35 @@ export default function CRMKanbanCard({ lead, onClick, onMove }) {
         </div>
 
         <MoreVertical
-          size={16}
-          className="text-muted-foreground opacity-60 hover:opacity-100"
+          size={18}
+          className="text-muted-foreground/70 hover:text-foreground transition"
         />
       </div>
 
-      {/* ========================= ORIGEM ========================= */}
-      <div className="text-[11px] text-muted-foreground italic border-l pl-2 border-border/60">
+      {/* ============================================================
+         ORIGEM
+      ============================================================ */}
+      <div className="text-[11px] text-muted-foreground border-l pl-2 border-border/70 italic">
         Origem: {lead.origem || "Manual"}
       </div>
 
-      {/* ========================= AÇÕES ========================= */}
+      {/* ============================================================
+         AÇÕES
+      ============================================================ */}
       {onMove && (
-        <div className="flex justify-end">
+        <div className="flex justify-end pt-1">
           <Button
             size="sm"
-            variant="outline"
+            variant="secondary"
             disabled={moving}
             onClick={(e) => {
-              e.stopPropagation();
+              e.stopPropagation(); // evita abrir modal ao mover
               handleMove("proposta_feita");
             }}
             className="
-              text-xs flex items-center gap-1
+              text-xs h-7 flex items-center gap-1
               hover:bg-primary hover:text-primary-foreground
+              border-border/70
               transition-colors
             "
           >

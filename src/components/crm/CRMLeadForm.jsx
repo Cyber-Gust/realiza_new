@@ -1,8 +1,9 @@
 "use client";
+
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Select } from "@/components/admin/forms/Select";
-import Toast from "@/components/admin/ui/Toast";
+import { Button } from "@/components/admin/ui/Button";
+import { Input, Textarea, Select, Label, FormError } from "@/components/admin/ui/Form";
+import { useToast } from "@/contexts/ToastContext";
 import { cn } from "@/lib/utils";
 
 export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
@@ -20,38 +21,59 @@ export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
   const [corretores, setCorretores] = useState([]);
   const [jsonError, setJsonError] = useState(false);
 
-  // 🔹 Carrega corretores
+  const toast = useToast();
+
+  const handleChange = (field, value) =>
+    setForm((prev) => ({ ...prev, [field]: value }));
+
+  /* ============================================================
+     Corretores
+  ============================================================ */
   useEffect(() => {
     const loadCorretores = async () => {
       try {
-        const res = await fetch("/api/perfis/list?type=equipe", { cache: "no-store" });
+        const res = await fetch("/api/perfis/list?type=equipe", {
+          cache: "no-store",
+        });
+
         const json = await res.json();
         if (!res.ok) throw new Error(json.error);
+
         setCorretores(json.data || []);
       } catch (err) {
-        Toast.error("Erro ao carregar corretores: " + err.message);
+        toast.error("Erro ao carregar corretores", err.message);
       }
     };
+
     loadCorretores();
   }, []);
 
-  const handleChange = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
-
+  /* ============================================================
+     Payload Cleaner
+  ============================================================ */
   const cleanPayload = (obj) => {
     const cleaned = {};
-    Object.entries(obj).forEach(([key, value]) => {
-      if (value !== "" && value !== null && value !== undefined) cleaned[key] = value;
-    });
+    for (const [k, v] of Object.entries(obj)) {
+      if (v !== "" && v !== null && v !== undefined) cleaned[k] = v;
+    }
     return cleaned;
   };
 
+  /* ============================================================
+     Submit
+  ============================================================ */
   const handleSubmit = async () => {
-    if (!form.nome || !form.telefone) return Toast.error("Nome e telefone são obrigatórios!");
-    if (jsonError) return Toast.error("Corrija o JSON antes de salvar!");
+    if (!form.nome || !form.telefone)
+      return toast.error("Erro", "Nome e telefone são obrigatórios!");
+
+    if (jsonError)
+      return toast.error("Erro", "Corrija o JSON antes de salvar!");
 
     setLoading(true);
+
     try {
       const isEdit = !!lead?.id;
+
       const payload = cleanPayload({
         type: "leads",
         ...form,
@@ -68,86 +90,143 @@ export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
       });
 
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Erro ao salvar lead");
+      if (!res.ok) throw new Error(json.error);
 
-      Toast.success(`Lead ${isEdit ? "atualizado" : "criado"} com sucesso!`);
+      toast.success(
+        "Sucesso",
+        `Lead ${isEdit ? "atualizado" : "criado"} com sucesso!`
+      );
+
       onSaved?.(json.data);
       onClose?.();
     } catch (err) {
-      Toast.error(err.message);
+      toast.error("Erro", err.message);
     } finally {
       setLoading(false);
     }
   };
 
+  /* ============================================================
+     Render
+  ============================================================ */
   return (
-    <div className="space-y-3">
-      {["nome", "email", "telefone", "origem"].map((field) => (
-        <input
-          key={field}
-          placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
-          value={form[field]}
-          onChange={(e) => handleChange(field, e.target.value)}
-          className="w-full border border-border rounded-md p-2 bg-panel-card text-sm"
+    <div className="space-y-4">
+
+      {/* GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        {/* Nome */}
+        <div>
+          <Label>Nome</Label>
+          <Input
+            value={form.nome}
+            onChange={(e) => handleChange("nome", e.target.value)}
+          />
+        </div>
+
+        {/* Telefone */}
+        <div>
+          <Label>Telefone</Label>
+          <Input
+            value={form.telefone}
+            onChange={(e) => handleChange("telefone", e.target.value)}
+          />
+        </div>
+
+        {/* Email */}
+        <div>
+          <Label>Email</Label>
+          <Input
+            type="email"
+            value={form.email}
+            onChange={(e) => handleChange("email", e.target.value)}
+          />
+        </div>
+
+        {/* Origem */}
+        <div>
+          <Label>Origem</Label>
+          <Input
+            value={form.origem}
+            onChange={(e) => handleChange("origem", e.target.value)}
+          />
+        </div>
+
+        {/* Status */}
+        <div>
+          <Label>Status</Label>
+          <Select
+            value={form.status}
+            onChange={(e) => handleChange("status", e.target.value)}
+          >
+            {[
+              "novo",
+              "qualificado",
+              "visita_agendada",
+              "proposta_feita",
+              "documentacao",
+              "concluido",
+              "perdido",
+            ].map((s) => (
+              <option key={s} value={s}>
+                {s.replaceAll("_", " ").toUpperCase()}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        {/* Corretor */}
+        <div>
+          <Label>Corretor Responsável</Label>
+          <Select
+            value={form.corretor_id}
+            onChange={(e) => handleChange("corretor_id", e.target.value)}
+          >
+            <option value="">Selecione</option>
+            {corretores.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nome_completo}
+              </option>
+            ))}
+          </Select>
+        </div>
+      </div>
+
+      {/* Perfil JSON */}
+      <div>
+        <Label>Perfil de busca (JSON)</Label>
+        <Textarea
+          rows={6}
+          className={cn(
+            "font-mono text-xs resize-none bg-panel-card",
+            jsonError ? "border-red-500" : "border-border"
+          )}
+          value={JSON.stringify(form.perfil_busca_json, null, 2)}
+          onChange={(e) => {
+            try {
+              const parsed = JSON.parse(e.target.value);
+              setJsonError(false);
+              handleChange("perfil_busca_json", parsed);
+            } catch {
+              setJsonError(true);
+            }
+          }}
         />
-      ))}
 
-      {/* SELEÇÃO DO CORRETOR */}
-      <Select
-        label="Corretor Responsável"
-        value={form.corretor_id}
-        onChange={(e) => handleChange("corretor_id", e?.target?.value || e)}
-        options={corretores.map((c) => ({
-          label: c.nome_completo,
-          value: c.id,
-        }))}
-        placeholder="Selecione o corretor"
-      />
+        {jsonError && <FormError message="JSON inválido." />}
+      </div>
 
-      {/* STATUS */}
-      <select
-        value={form.status}
-        onChange={(e) => handleChange("status", e.target.value)}
-        className="w-full border border-border rounded-md p-2 bg-panel-card text-sm"
+      {/* Botão */}
+      <Button
+        className="w-full mt-6 h-11 text-sm"
+        disabled={loading || jsonError}
+        onClick={handleSubmit}
       >
-        {[
-          "novo",
-          "qualificado",
-          "visita_agendada",
-          "proposta_feita",
-          "documentacao",
-          "concluido",
-          "perdido",
-        ].map((s) => (
-          <option key={s} value={s}>
-            {s.replaceAll("_", " ").toUpperCase()}
-          </option>
-        ))}
-      </select>
-
-      {/* PERFIL DE BUSCA */}
-      <textarea
-        placeholder={`Perfil de busca (JSON)\nExemplo:\n{\n  "bairro": "Centro",\n  "min_preco": 200000\n}`}
-        value={JSON.stringify(form.perfil_busca_json, null, 2)}
-        onChange={(e) => {
-          try {
-            const parsed = JSON.parse(e.target.value);
-            setJsonError(false);
-            handleChange("perfil_busca_json", parsed);
-          } catch {
-            setJsonError(true);
-          }
-        }}
-        className={cn(
-          "w-full border rounded-md p-2 bg-panel-card text-xs font-mono resize-none",
-          jsonError ? "border-red-500" : "border-border"
-        )}
-        rows={5}
-      />
-      {jsonError && <p className="text-xs text-red-500">JSON inválido.</p>}
-
-      <Button className="w-full" disabled={loading || jsonError} onClick={handleSubmit}>
-        {loading ? "Salvando..." : lead ? "Atualizar Lead" : "Salvar Lead"}
+        {loading
+          ? "Salvando..."
+          : lead
+          ? "Atualizar Lead"
+          : "Salvar Lead"}
       </Button>
     </div>
   );

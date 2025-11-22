@@ -1,5 +1,7 @@
 "use client";
-import { useEffect, useState, useMemo } from "react";
+
+import { useEffect, useMemo, useState } from "react";
+
 import {
   Loader2,
   BarChart3,
@@ -15,13 +17,19 @@ import {
 } from "lucide-react";
 
 import CRMKPIWidget from "./CRMKPIWidget";
-import Card from "@/components/admin/ui/Card";
-import { Button } from "@/components/ui/button";
-import Toast from "@/components/admin/ui/Toast";
 
+import { Card } from "@/components/admin/ui/Card";
+import { Button } from "@/components/admin/ui/Button";
+import { useToast } from "@/contexts/ToastContext";
+
+/* ============================================================
+   🔥 Painel de Relatórios — Enterprise
+============================================================ */
 export default function CRMRelatoriosPanel() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const toast = useToast();
 
   const [filtros, setFiltros] = useState({
     inicio: "",
@@ -33,13 +41,18 @@ export default function CRMRelatoriosPanel() {
   const [corretores, setCorretores] = useState([]);
   const [origens, setOrigens] = useState([]);
 
+  /* ============================================================
+     QueryString
+  ============================================================ */
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
     Object.entries(filtros).forEach(([k, v]) => v && params.set(k, v));
     return params.toString();
   }, [filtros]);
 
-  // ===================== LOAD LISTAS =====================
+  /* ============================================================
+     Load Listas
+  ============================================================ */
   const loadListas = async () => {
     try {
       const [corrRes, origRes] = await Promise.all([
@@ -59,7 +72,9 @@ export default function CRMRelatoriosPanel() {
     }
   };
 
-  // ===================== LOAD KPIS =====================
+  /* ============================================================
+     Load KPIs
+  ============================================================ */
   const loadKpis = async () => {
     try {
       setLoading(true);
@@ -71,33 +86,31 @@ export default function CRMRelatoriosPanel() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Erro ao carregar relatórios");
 
-      setData(json.data);
+      setData(json.data || null);
     } catch (err) {
-      Toast.error(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // ===================== FIX: useEffect correto =====================
+  /* ============================================================
+     Efeitos
+  ============================================================ */
   useEffect(() => {
-    async function run() {
-      await loadListas();
-    }
-    run();
+    loadListas();
   }, []);
 
   useEffect(() => {
-    async function run() {
-      await loadKpis();
-    }
-    run();
+    loadKpis();
   }, [queryString]);
 
   const resetFiltros = () =>
     setFiltros({ inicio: "", fim: "", corretor_id: "", origem: "" });
 
-  // ===================== LOADING =====================
+  /* ============================================================
+     Loading States
+  ============================================================ */
   if (loading)
     return (
       <div className="flex justify-center items-center py-16 text-muted-foreground">
@@ -112,15 +125,15 @@ export default function CRMRelatoriosPanel() {
       </div>
     );
 
-  // ============================================================
-  //                      PAINEL DE RELATÓRIOS
-  // ============================================================
+  /* ============================================================
+     UI
+  ============================================================ */
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-300">
 
-      {/* CABEÇALHO EXECUTIVO */}
+      {/* HEADER */}
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold text-foreground tracking-tight">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">
           Painel de Inteligência Comercial
         </h1>
         <p className="text-muted-foreground text-sm">
@@ -129,18 +142,19 @@ export default function CRMRelatoriosPanel() {
       </div>
 
       {/* FILTROS */}
-      <Card className="p-6 shadow-md border-border bg-panel-card">
+      <Card className="p-6 shadow-sm bg-panel-card border-border rounded-xl">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-lg font-semibold flex items-center gap-2 text-foreground">
-            <Filter size={18} /> Filtros Analíticos
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <Filter size={16} /> Filtros Analíticos
           </h3>
+
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
-            className="flex items-center gap-2"
             onClick={resetFiltros}
+            className="flex items-center gap-2"
           >
-            <RefreshCcw size={16} /> Limpar filtros
+            <RefreshCcw size={14} /> Limpar
           </Button>
         </div>
 
@@ -151,16 +165,14 @@ export default function CRMRelatoriosPanel() {
             onChange={(e) =>
               setFiltros((f) => ({ ...f, inicio: e.target.value }))
             }
-            className="p-2 rounded-md border border-border bg-panel-card text-sm"
+            className="p-2 border border-border bg-panel-card rounded-md text-sm"
           />
 
           <input
             type="date"
             value={filtros.fim}
-            onChange={(e) =>
-              setFiltros((f) => ({ ...f, fim: e.target.value }))
-            }
-            className="p-2 rounded-md border border-border bg-panel-card text-sm"
+            onChange={(e) => setFiltros((f) => ({ ...f, fim: e.target.value }))}
+            className="p-2 border border-border bg-panel-card rounded-md text-sm"
           />
 
           <select
@@ -168,7 +180,7 @@ export default function CRMRelatoriosPanel() {
             onChange={(e) =>
               setFiltros((f) => ({ ...f, corretor_id: e.target.value }))
             }
-            className="p-2 rounded-md border border-border bg-panel-card text-sm"
+            className="p-2 border border-border bg-panel-card rounded-md text-sm"
           >
             <option value="">Todos os Corretores</option>
             {corretores.map((c) => (
@@ -183,7 +195,7 @@ export default function CRMRelatoriosPanel() {
             onChange={(e) =>
               setFiltros((f) => ({ ...f, origem: e.target.value }))
             }
-            className="p-2 rounded-md border border-border bg-panel-card text-sm"
+            className="p-2 border border-border bg-panel-card rounded-md text-sm"
           >
             <option value="">Todas as Origens</option>
             {origens.map((o) => (
@@ -196,25 +208,32 @@ export default function CRMRelatoriosPanel() {
       </Card>
 
       {/* KPIS */}
-      <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-5">
+      <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-6">
         <CRMKPIWidget label="Total de Leads" value={data.totalLeads} icon={Users} />
         <CRMKPIWidget label="Propostas Enviadas" value={data.totalPropostas} icon={FileText} />
         <CRMKPIWidget label="Visitas Agendadas" value={data.totalVisitas} icon={MapPin} />
         <CRMKPIWidget label="Taxa de Conversão" value={`${data.taxaConversao}%`} icon={BarChart3} />
-        <CRMKPIWidget label="Tempo Médio Lead → Proposta" value={`${data.tempoMedioConversao} dias`} icon={TrendingUp} />
+        <CRMKPIWidget
+          label="Lead → Proposta (Média)"
+          value={`${data.tempoMedioConversao} dias`}
+          icon={TrendingUp}
+        />
       </div>
 
-      {/* FUNIL */}
-      <Card className="p-6 shadow-md">
+      {/* FUNIL DE LEADS */}
+      <Card className="p-6 shadow-sm border-border bg-panel-card rounded-xl">
         <div className="flex items-center gap-2 mb-6">
-          <ListChecks size={20} className="text-primary" />
+          <ListChecks className="text-primary" size={18} />
           <h3 className="text-xl font-semibold">Funil de Leads</h3>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {Object.entries(data.funilLeads || {}).map(([status, count]) => (
-            <div key={status} className="rounded-xl border border-border bg-muted/40 p-4 text-center">
-              <p className="text-sm font-medium capitalize text-muted-foreground">
+            <div
+              key={status}
+              className="p-4 rounded-xl border bg-muted/40 border-border text-center"
+            >
+              <p className="text-sm text-muted-foreground capitalize">
                 {status.replaceAll("_", " ")}
               </p>
               <p className="text-3xl font-bold text-primary mt-1">{count}</p>
@@ -223,17 +242,20 @@ export default function CRMRelatoriosPanel() {
         </div>
       </Card>
 
-      {/* STATUS PROPOSTAS */}
-      <Card className="p-6 shadow-md">
+      {/* STATUS DAS PROPOSTAS */}
+      <Card className="p-6 shadow-sm border-border bg-panel-card rounded-xl">
         <div className="flex items-center gap-2 mb-6">
-          <PieChart size={20} className="text-primary" />
+          <PieChart className="text-primary" size={18} />
           <h3 className="text-xl font-semibold">Status das Propostas</h3>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {Object.entries(data.propostasStatus || {}).map(([status, count]) => (
-            <div key={status} className="rounded-xl border border-border bg-muted/40 p-4 text-center">
-              <p className="text-sm font-medium capitalize text-muted-foreground">
+            <div
+              key={status}
+              className="p-4 rounded-xl border bg-muted/40 border-border text-center"
+            >
+              <p className="text-sm text-muted-foreground capitalize">
                 {status.replaceAll("_", " ")}
               </p>
               <p className="text-3xl font-bold text-primary mt-1">{count}</p>
@@ -242,42 +264,43 @@ export default function CRMRelatoriosPanel() {
         </div>
       </Card>
 
-      {/* ORIGEM LEADS */}
-      <Card className="p-6 shadow-md">
+      {/* ORIGEM DOS LEADS */}
+      <Card className="p-6 shadow-sm border-border bg-panel-card rounded-xl">
         <div className="flex items-center gap-2 mb-6">
-          <MapPin size={20} className="text-primary" />
+          <MapPin className="text-primary" size={18} />
           <h3 className="text-xl font-semibold">Origem dos Leads</h3>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {Object.entries(data.origens || {}).map(([origem, count]) => (
-            <div key={origem} className="rounded-xl border border-border bg-muted/40 p-4 text-center">
-              <p className="text-sm font-medium capitalize text-muted-foreground">{origem}</p>
+            <div
+              key={origem}
+              className="p-4 rounded-xl border bg-muted/40 border-border text-center"
+            >
+              <p className="text-sm text-muted-foreground capitalize">{origem}</p>
               <p className="text-3xl font-bold text-primary mt-1">{count}</p>
             </div>
           ))}
         </div>
       </Card>
 
-      {/* TOP CORRETORES */}
+      {/* RANKING DE CORRETORES */}
       {data.topCorretores?.length > 0 && (
-        <Card className="p-6 shadow-md">
+        <Card className="p-6 shadow-sm border-border bg-panel-card rounded-xl">
           <div className="flex items-center gap-2 mb-6">
-            <Award size={20} className="text-primary" />
+            <Award size={18} className="text-primary" />
             <h3 className="text-xl font-semibold">Top 5 Corretores</h3>
           </div>
 
           <ul className="divide-y divide-border">
-            {data.topCorretores.map((c, idx) => (
-              <li
-                key={c.corretor_id}
-                className="flex justify-between items-center py-3 text-sm"
-              >
+            {data.topCorretores.map((c, i) => (
+              <li key={c.corretor_id} className="flex justify-between py-3 text-sm">
                 <span className="flex items-center gap-3">
-                  <span className="text-primary font-bold text-lg">#{idx + 1}</span>
-                  <span className="text-foreground/90">{c.nome}</span>
+                  <span className="text-primary font-bold text-lg">#{i + 1}</span>
+                  <span>{c.nome}</span>
                 </span>
-                <span className="font-semibold text-foreground">{c.total}</span>
+
+                <span className="font-semibold">{c.total}</span>
               </li>
             ))}
           </ul>

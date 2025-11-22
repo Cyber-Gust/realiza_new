@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import {
   CalendarDays,
@@ -13,66 +14,55 @@ import {
   FileText,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import Card from "@/components/admin/ui/Card";
+import { Button } from "@/components/admin/ui/Button";
+import { Card } from "@/components/admin/ui/Card";
 import Modal from "@/components/admin/ui/Modal";
-import Toast from "@/components/admin/ui/Toast";
+import { useToast } from "@/contexts/ToastContext";
 import CRMAgendaForm from "./CRMAgendaForm";
 import CRMCalendario from "./CRMCalendario";
+import Badge from "@/components/admin/ui/Badge";
 
-/** 🔹 Badge sólida interna */
+// ------------------------------------------------------
+// BadgeInline — adaptada para o Badge REAL do seu sistema
+// ------------------------------------------------------
 function BadgeInline({ status }) {
   const normalized = (status || "")
-    .toString()
     .trim()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replaceAll(" ", "_");
 
-  const colorMap = {
-    visita_presencial: "bg-emerald-600 text-white",
-    visita_virtual: "bg-sky-600 text-white",
-    reuniao: "bg-blue-600 text-white",
-    follow_up: "bg-amber-600 text-white",
-    tecnico: "bg-orange-600 text-white",
-    administrativo: "bg-gray-600 text-white",
-    outro: "bg-purple-600 text-white",
-  };
-
+  // Apenas converte nomes → textos coerentes
   return (
-    <span
-      className={`inline-flex items-center justify-center rounded-full text-xs font-semibold px-3 py-[3px] capitalize ${colorMap[normalized] || "bg-gray-600 text-white"}`}
-    >
-      {status}
-    </span>
+    <Badge className="px-3 py-[3px] text-xs font-semibold capitalize">
+      {normalized.replaceAll("_", " ")}
+    </Badge>
   );
 }
 
 export default function CRMAgendaPanel() {
   const [eventos, setEventos] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState(null);
+
+  const toast = useToast();
 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  // ============================================================
-  // 🔥 LOAD EVENTOS – ROTA NOVA (100% compatível)
-  // ============================================================
   const loadEventos = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/crm/agenda", { cache: "no-store" });
 
+      const res = await fetch("/api/crm/agenda", { cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
       setEventos(json.data || []);
     } catch (err) {
-      Toast.error("Erro ao carregar eventos: " + err.message);
+      toast.error("Erro ao carregar eventos: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -82,12 +72,8 @@ export default function CRMAgendaPanel() {
     loadEventos();
   }, []);
 
-  // ============================================================
-  // 🔥 DELETE — rota nova correta:
-  // DELETE /api/crm/agenda?id=ID
-  // ============================================================
   const handleDelete = async () => {
-    if (!deleteTarget?.id) return Toast.error("ID inválido!");
+    if (!deleteTarget?.id) return toast.error("ID inválido!");
 
     setDeleting(true);
     try {
@@ -98,23 +84,20 @@ export default function CRMAgendaPanel() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
-      Toast.success("Evento removido com sucesso!");
+      toast.success("Evento removido com sucesso!");
       setDeleteTarget(null);
       loadEventos();
     } catch (err) {
-      Toast.error(err.message);
+      toast.error(err.message);
     } finally {
       setDeleting(false);
     }
   };
 
-  // ============================================================
-  // 🔥 UI
-  // ============================================================
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-200">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-200">
 
-      {/* HEADER */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
         <h3 className="text-xl font-semibold flex items-center gap-2 text-foreground">
           <CalendarDays size={20} /> Agenda de Compromissos
@@ -131,28 +114,28 @@ export default function CRMAgendaPanel() {
         </Button>
       </div>
 
-      {/* CALENDÁRIO */}
+      {/* Calendário */}
       <CRMCalendario />
 
-      {/* LISTAGEM */}
+      {/* Lista */}
       {loading ? (
         <div className="flex justify-center items-center py-10 text-muted-foreground">
           <Loader2 className="animate-spin mr-2" /> Carregando...
         </div>
       ) : eventos.length === 0 ? (
-        <p className="p-4 text-center text-muted-foreground">
+        <Card className="p-6 text-center text-muted-foreground bg-panel-card border-border">
           Nenhum evento agendado.
-        </p>
+        </Card>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
           {eventos.map((ev) => (
             <Card
               key={ev.id}
-              className="p-5 space-y-2 hover:shadow-lg transition border border-border bg-panel-card relative"
+              className="p-6 space-y-3 bg-panel-card border border-border hover:border-primary/50 hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)] transition-all"
             >
-              {/* TOPO */}
+              {/* Título + Ações */}
               <div className="flex justify-between items-start">
-                <h4 className="font-semibold text-foreground leading-tight text-base">
+                <h4 className="font-semibold text-foreground text-base leading-tight">
                   {ev.titulo}
                 </h4>
 
@@ -178,27 +161,27 @@ export default function CRMAgendaPanel() {
                 </div>
               </div>
 
-              {/* BADGE */}
+              {/* Tipo */}
               <BadgeInline status={ev.tipo?.replaceAll("_", " ") || "sem tipo"} />
 
-              {/* DATA */}
+              {/* Datas */}
               <p className="text-xs text-muted-foreground italic">
                 {new Date(ev.data_inicio).toLocaleString("pt-BR")} →{" "}
                 {new Date(ev.data_fim).toLocaleString("pt-BR")}
               </p>
 
-              {/* PARTICIPANTE */}
+              {/* Participante */}
               {ev.participante && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                  <User size={14} className="text-foreground/70" />
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <User size={14} className="text-foreground/60" />
                   <span>{ev.participante}</span>
                 </div>
               )}
 
-              {/* IMÓVEL */}
+              {/* Imóvel */}
               {ev.imoveis?.titulo && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Home size={14} className="text-foreground/70" />
+                  <Home size={14} className="text-foreground/60" />
                   <span>
                     {ev.imoveis.titulo}
                     {ev.imoveis.endereco_bairro && (
@@ -211,18 +194,18 @@ export default function CRMAgendaPanel() {
                 </div>
               )}
 
-              {/* LOCAL */}
+              {/* Local */}
               {ev.local && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <MapPin size={14} className="text-foreground/70" />
+                  <MapPin size={14} className="text-foreground/60" />
                   <span>{ev.local}</span>
                 </div>
               )}
 
-              {/* OBSERVAÇÕES */}
+              {/* Observações */}
               {ev.observacoes && (
-                <div className="flex items-start gap-2 text-sm text-muted-foreground mt-1">
-                  <FileText size={14} className="text-foreground/70 mt-[2px]" />
+                <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                  <FileText size={14} className="text-foreground/60 mt-[1px]" />
                   <p className="whitespace-pre-wrap leading-snug">
                     {ev.observacoes}
                   </p>
@@ -233,12 +216,12 @@ export default function CRMAgendaPanel() {
         </div>
       )}
 
-      {/* FORM MODAL */}
+      {/* Modal Form */}
       <Modal
-        open={openForm}
-        onOpenChange={(v) => {
-          setOpenForm(v);
-          if (!v) setEditing(null);
+        isOpen={openForm}
+        onClose={() => {
+          setOpenForm(false);
+          setEditing(null);
         }}
         title={editing ? "Editar Evento" : "Novo Evento"}
       >
@@ -252,30 +235,28 @@ export default function CRMAgendaPanel() {
         />
       </Modal>
 
-      {/* DELETE MODAL */}
+      {/* Modal Delete */}
       <Modal
-        open={!!deleteTarget}
-        onOpenChange={(v) => !v && setDeleteTarget(null)}
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
         title="Remover Evento"
       >
         {deleteTarget && (
-          <div className="space-y-4">
-            <div className="flex items-start gap-3 text-foreground">
-              <AlertTriangle className="text-red-500 mt-1" />
-
+          <div className="space-y-5">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="text-red-500 mt-1 shrink-0" />
               <div>
                 <p>
                   Tem certeza que deseja remover{" "}
                   <strong>{deleteTarget.titulo}</strong>?
                 </p>
-
                 <p className="text-sm text-muted-foreground mt-1">
                   {new Date(deleteTarget.data_inicio).toLocaleString("pt-BR")}
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-2">
               <Button
                 variant="secondary"
                 className="w-1/2"
@@ -289,7 +270,13 @@ export default function CRMAgendaPanel() {
                 onClick={handleDelete}
                 disabled={deleting}
               >
-                {deleting ? "Removendo..." : "Confirmar Remoção"}
+                {deleting ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin" /> Removendo...
+                  </span>
+                ) : (
+                  "Confirmar Remoção"
+                )}
               </Button>
             </div>
           </div>

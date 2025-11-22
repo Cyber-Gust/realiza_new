@@ -1,9 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import Input from "@/components/admin/forms/Input";
-import Toast from "@/components/admin/ui/Toast";
+
+// UI
+import { Button } from "@/components/admin/ui/Button";
+import {
+  Input,
+  Textarea,
+  Select,
+  Label,
+  FormError,
+} from "@/components/admin/ui/Form";
+
+// Toast correto
+import { useToast } from "@/contexts/ToastContext";
+
 import { Loader2 } from "lucide-react";
 
 export default function OrdemServicoForm({ ordem, onClose, onSaved }) {
@@ -16,6 +27,8 @@ export default function OrdemServicoForm({ ordem, onClose, onSaved }) {
 
   const [saving, setSaving] = useState(false);
   const [imoveis, setImoveis] = useState([]);
+
+  const toast = useToast();
 
   useEffect(() => {
     if (ordem) setForm(ordem);
@@ -35,7 +48,7 @@ export default function OrdemServicoForm({ ordem, onClose, onSaved }) {
         }))
       );
     } catch (err) {
-      Toast.error("Erro ao carregar imóveis");
+      toast.error("Erro ao carregar imóveis", err.message);
     }
   };
 
@@ -62,11 +75,15 @@ export default function OrdemServicoForm({ ordem, onClose, onSaved }) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
-      Toast.success(ordem ? "Ordem de serviço atualizada!" : "Ordem de serviço criada!");
+      toast.success(
+        ordem ? "Ordem de serviço atualizada!" : "Ordem de serviço criada!",
+        ""
+      );
+
       onSaved?.();
       onClose?.();
     } catch (err) {
-      Toast.error("Erro ao salvar: " + err.message);
+      toast.error("Erro ao salvar", err.message);
     } finally {
       setSaving(false);
     }
@@ -76,13 +93,12 @@ export default function OrdemServicoForm({ ordem, onClose, onSaved }) {
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Imóvel */}
       <div className="space-y-1">
-        <label className="text-sm font-medium text-foreground">Imóvel</label>
-        <select
+        <Label>Imóvel</Label>
+        <Select
           name="imovel_id"
           value={form.imovel_id}
           onChange={handleChange}
           required
-          className="w-full border border-border rounded-md px-3 py-2 text-sm"
         >
           <option value="">Selecione o imóvel...</option>
           {imoveis.map((i) => (
@@ -90,37 +106,41 @@ export default function OrdemServicoForm({ ordem, onClose, onSaved }) {
               {i.label}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
-      <Input
-        label="Descrição do problema"
-        name="descricao_problema"
-        value={form.descricao_problema}
-        onChange={handleChange}
-        required
-        textarea
-      />
+      {/* Descrição */}
+      <div className="space-y-1">
+        <Label>Descrição do problema</Label>
+        <Textarea
+          name="descricao_problema"
+          value={form.descricao_problema}
+          onChange={handleChange}
+          required
+        />
+      </div>
 
       {/* Status */}
       <div className="space-y-1">
-        <label className="text-sm font-medium text-foreground">Status</label>
-        <select
+        <Label>Status</Label>
+        <Select
           name="status"
           value={form.status}
           onChange={handleChange}
-          className="w-full border border-border rounded-md px-3 py-2 text-sm"
         >
           <option value="aberta">Aberta</option>
           <option value="orcamento">Orçamento</option>
           <option value="aprovada_pelo_inquilino">Aprovada pelo Inquilino</option>
-          <option value="aprovada_pelo_proprietario">Aprovada pelo Proprietário</option>
+          <option value="aprovada_pelo_proprietario">
+            Aprovada pelo Proprietário
+          </option>
           <option value="em_execucao">Em Execução</option>
           <option value="concluida">Concluída</option>
           <option value="cancelada">Cancelada</option>
-        </select>
+        </Select>
       </div>
 
+      {/* Botão */}
       <Button type="submit" disabled={saving} className="w-full">
         {saving ? (
           <>

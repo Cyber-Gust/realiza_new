@@ -1,26 +1,35 @@
 "use client";
+
 import { useEffect, useState } from "react";
-import Toast from "@/components/admin/ui/Toast";
+import { Trophy } from "lucide-react";
+
+import { Card } from "@/components/admin/ui/Card";
+import { useToast } from "@/contexts/ToastContext";
+
 import FinanceiroTable from "./FinanceiroTable";
 import FinanceiroResumo from "./FinanceiroResumo";
-import { Trophy } from "lucide-react";
-import Card from "@/components/admin/ui/Card";
 
 export default function ComissoesPanel() {
   const [dados, setDados] = useState([]);
   const [meta, setMeta] = useState({});
   const [loading, setLoading] = useState(true);
 
+  const toast = useToast();
+
   const carregar = async () => {
     try {
       setLoading(true);
+
       const res = await fetch("/api/financeiro?type=comissoes", { cache: "no-store" });
       const json = await res.json();
+
       if (!res.ok) throw new Error(json.error);
+
       setDados(json.data || []);
-      setMeta(json.meta || {});
+      setMeta(json.meta || []);
+
     } catch (err) {
-      Toast.error(err.message);
+      toast.error("Erro ao carregar", err.message);
     } finally {
       setLoading(false);
     }
@@ -40,6 +49,7 @@ export default function ComissoesPanel() {
 
   return (
     <div className="space-y-4">
+
       <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
         <Trophy size={18} /> Comissões e Ranking
       </h3>
@@ -48,6 +58,7 @@ export default function ComissoesPanel() {
 
       <Card className="p-4">
         <h4 className="font-semibold mb-2 text-foreground">Ranking de Corretores</h4>
+
         <ul className="space-y-1">
           {rankingArray.map((r, i) => (
             <li key={r.nome} className="flex justify-between text-sm">
@@ -59,6 +70,7 @@ export default function ComissoesPanel() {
       </Card>
 
       <FinanceiroTable data={dados} loading={loading} />
+
     </div>
   );
 }

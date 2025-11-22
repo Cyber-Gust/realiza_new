@@ -1,15 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import PageHeader from "@/components/admin/layout/PageHeader";
-import Card from "@/components/admin/ui/Card";
+
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/admin/ui/Card";
 
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@/components/ui/tabs";
+} from "@/components/admin/ui/Tabs";
 
 import {
   UsersRound,
@@ -19,144 +19,98 @@ import {
   BarChart3,
 } from "lucide-react";
 
-// Painéis principais (versões atualizadas que construímos)
+// Painéis
 import CRMLeadsPanel from "@/components/crm/CRMLeadsPanel";
 import CRMPipeline from "@/components/crm/CRMPipeline";
 import CRMAgendaPanel from "@/components/crm/CRMAgendaPanel";
 import CRMPropostasPanel from "@/components/crm/CRMPropostasPanel";
 import CRMRelatoriosPanel from "@/components/crm/CRMRelatoriosPanel";
 
+/* ============================================================
+   🔥 Página principal do CRM — versão enterprise refinada
+============================================================ */
 export default function CRMPage() {
   const [tab, setTab] = useState("leads");
 
   return (
-    <div className="space-y-8">
-      {/* ============================================================
-         🔹 Header Institucional
-      ============================================================ */}
-      <PageHeader
-        title="CRM Imobiliário"
-        description="Gestão completa de leads, pipeline, agenda, propostas e relatórios comerciais."
-      />
+    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-      {/* ============================================================
-         🔹 Navegação entre módulos (Tabs)
-      ============================================================ */}
-      <Tabs
-        value={tab}
-        onValueChange={setTab}
-        className="w-full"
-      >
+      {/* HEADER */}
+      <Card className="p-6">
+        <CardHeader className="p-0 mb-2">
+          <CardTitle className="text-2xl text-center font-bold tracking-tight">
+            CRM
+          </CardTitle>
+        </CardHeader>
+      </Card>
+
+      {/* TABS */}
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
+
+        {/* TAB NAVIGATION */}
         <TabsList
           className="
-            bg-muted/40 backdrop-blur-sm border border-border 
+            bg-muted/40 border border-border backdrop-blur-sm
             rounded-xl p-1 flex flex-wrap md:flex-nowrap gap-2
+            shadow-sm
           "
         >
-          <TabsTrigger
-            value="leads"
-            className="
-              flex items-center gap-2 
-              px-4 py-2 rounded-md
-              data-[state=active]:bg-foreground 
-              data-[state=active]:text-background
-              transition-all text-sm font-medium
-            "
-          >
-            <UsersRound size={16} /> Leads
-          </TabsTrigger>
-
-          <TabsTrigger
-            value="pipeline"
-            className="
-              flex items-center gap-2 
-              px-4 py-2 rounded-md
-              data-[state=active]:bg-foreground 
-              data-[state=active]:text-background
-              transition-all text-sm font-medium
-            "
-          >
-            <Workflow size={16} /> Pipeline
-          </TabsTrigger>
-
-          <TabsTrigger
-            value="agenda"
-            className="
-              flex items-center gap-2 
-              px-4 py-2 rounded-md
-              data-[state=active]:bg-foreground 
-              data-[state=active]:text-background
-              transition-all text-sm font-medium
-            "
-          >
-            <CalendarDays size={16} /> Agenda
-          </TabsTrigger>
-
-          <TabsTrigger
-            value="propostas"
-            className="
-              flex items-center gap-2 
-              px-4 py-2 rounded-md
-              data-[state=active]:bg-foreground 
-              data-[state=active]:text-background
-              transition-all text-sm font-medium
-            "
-          >
-            <FileText size={16} /> Propostas
-          </TabsTrigger>
-
-          <TabsTrigger
-            value="relatorios"
-            className="
-              flex items-center gap-2 
-              px-4 py-2 rounded-md
-              data-[state=active]:bg-foreground 
-              data-[state=active]:text-background
-              transition-all text-sm font-medium
-            "
-          >
-            <BarChart3 size={16} /> Relatórios
-          </TabsTrigger>
+          {[
+            { id: "leads", icon: UsersRound, label: "Leads" },
+            { id: "pipeline", icon: Workflow, label: "Pipeline" },
+            { id: "agenda", icon: CalendarDays, label: "Agenda" },
+            { id: "propostas", icon: FileText, label: "Propostas" },
+            { id: "relatorios", icon: BarChart3, label: "Relatórios" },
+          ].map(({ id, icon: Icon, label }) => (
+            <TabsTrigger
+              key={id}
+              value={id}
+              className="
+                flex items-center gap-2 px-4 py-2 rounded-md
+                text-sm font-medium transition-all
+                data-[state=active]:bg-foreground 
+                data-[state=active]:text-background
+                hover:bg-foreground/10
+              "
+            >
+              <Icon size={15} /> {label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
-        {/* ============================================================
-           🔹 Conteúdo das Abas
-        ============================================================ */}
+        {/* PANELS */}
         <div className="mt-6">
-          {/* Leads */}
-          <TabsContent value="leads">
-            <Card className="p-6">
+
+          <TabsContent value="leads" className="animate-in fade-in duration-200">
+            <Card className="p-6 shadow-sm border-border bg-panel-card rounded-xl">
               <CRMLeadsPanel />
             </Card>
           </TabsContent>
 
-          {/* Pipeline */}
-          <TabsContent value="pipeline">
-            <Card className="p-6">
+          <TabsContent value="pipeline" className="animate-in fade-in duration-200">
+            <Card className="p-6 shadow-sm border-border bg-panel-card rounded-xl">
               <CRMPipeline />
             </Card>
           </TabsContent>
 
-          {/* Agenda */}
-          <TabsContent value="agenda">
-            <Card className="p-6">
+          <TabsContent value="agenda" className="animate-in fade-in duration-200">
+            <Card className="p-6 shadow-sm border-border bg-panel-card rounded-xl">
               <CRMAgendaPanel />
             </Card>
           </TabsContent>
 
-          {/* Propostas */}
-          <TabsContent value="propostas">
-            <Card className="p-6">
+          <TabsContent value="propostas" className="animate-in fade-in duration-200">
+            <Card className="p-6 shadow-sm border-border bg-panel-card rounded-xl">
               <CRMPropostasPanel />
             </Card>
           </TabsContent>
 
-          {/* Relatórios */}
-          <TabsContent value="relatorios">
-            <Card className="p-6">
+          <TabsContent value="relatorios" className="animate-in fade-in duration-200">
+            <Card className="p-6 shadow-sm border-border bg-panel-card rounded-xl">
               <CRMRelatoriosPanel />
             </Card>
           </TabsContent>
+
         </div>
       </Tabs>
     </div>

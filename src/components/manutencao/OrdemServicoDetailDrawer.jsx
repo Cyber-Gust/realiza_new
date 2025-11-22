@@ -1,14 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import Toast from "@/components/admin/ui/Toast";
+
+// UI
+import Modal from "@/components/admin/ui/Modal";
+import { Button } from "@/components/admin/ui/Button";
+
+// Toast correto
+import { useToast } from "@/contexts/ToastContext";
+
 import { Loader2, Wrench, FileText, X } from "lucide-react";
 
 export default function OrdemServicoDetailDrawer({ ordemId, onClose, onUpdated }) {
   const [ordem, setOrdem] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const toast = useToast(); // ✔ agora realmente mostra os toasts
 
   const loadOrdem = async () => {
     try {
@@ -16,9 +23,10 @@ export default function OrdemServicoDetailDrawer({ ordemId, onClose, onUpdated }
       const res = await fetch(`/api/manutencao/ordens-servico?id=${ordemId}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
+
       setOrdem(json.data?.find((o) => o.id === ordemId));
     } catch (err) {
-      Toast.error("Erro ao carregar OS: " + err.message);
+      toast.error("Erro ao carregar OS", err.message);
     } finally {
       setLoading(false);
     }
@@ -28,70 +36,84 @@ export default function OrdemServicoDetailDrawer({ ordemId, onClose, onUpdated }
     if (ordemId) loadOrdem();
   }, [ordemId]);
 
-  if (loading)
+  // -------------------------
+  // LOADING STATE
+  // -------------------------
+  if (loading) {
     return (
-      <Dialog open onOpenChange={onClose}>
-        <DialogContent className="p-6 text-center text-muted-foreground">
-          <Loader2 className="animate-spin mx-auto mb-3" /> Carregando detalhes...
-        </DialogContent>
-      </Dialog>
-    );
-
-  if (!ordem) return null;
-
-  return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="p-6 space-y-4">
-        <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Wrench size={18} /> Ordem de Serviço
-          </h3>
-          <Button size="icon" variant="ghost" onClick={onClose}>
-            <X size={16} />
-          </Button>
+      <Modal isOpen={true} onClose={onClose} title="Carregando...">
+        <div className="flex flex-col items-center text-muted-foreground py-6">
+          <Loader2 className="animate-spin mb-3 h-6 w-6" />
+          Carregando detalhes...
         </div>
 
-        <div className="border-t border-border pt-3 space-y-2 text-sm">
-          <p>
-            <strong>Imóvel:</strong> {ordem.imovel?.titulo || "Não informado"}
-          </p>
-          <p>
-            <strong>Status:</strong> {ordem.status}
-          </p>
-          <p>
-            <strong>Descrição:</strong> {ordem.descricao_problema}
-          </p>
-          <p>
-            <strong>Prestador:</strong> {ordem.prestador_aprovado || "—"}
-          </p>
-          {ordem.custo_final && (
-            <p>
-              <strong>Custo Final:</strong> R$ {Number(ordem.custo_final).toFixed(2)}
-            </p>
-          )}
-        </div>
-
-        {ordem.orcamentos_json?.length > 0 && (
-          <div className="mt-4">
-            <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
-              <FileText size={14} /> Orçamentos
-            </h4>
-            <ul className="space-y-1 text-sm text-muted-foreground">
-              {ordem.orcamentos_json.map((o, idx) => (
-                <li key={idx}>
-                  • {o.prestador} — R$ {Number(o.valor).toFixed(2)} ({o.status})
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        <div className="pt-4 border-t border-border">
-          <Button variant="secondary" className="w-full" onClick={onClose}>
+        <div className="flex justify-end pt-4">
+          <Button variant="secondary" onClick={onClose}>
             Fechar
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </Modal>
+    );
+  }
+
+  if (!ordem) return null;
+
+  // -------------------------
+  // MODAL COM OS DETALHES
+  // -------------------------
+
+  return (
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title={
+        <span className="flex items-center gap-2">
+          <Wrench size={18} /> Ordem de Serviço
+        </span>
+      }
+      footer={
+        <Button variant="secondary" className="w-full" onClick={onClose}>
+          Fechar
+        </Button>
+      }
+    >
+      {/* Conteúdo principal */}
+      <div className="space-y-3 text-sm">
+        <p>
+          <strong>Imóvel:</strong> {ordem.imovel?.titulo || "Não informado"}
+        </p>
+        <p>
+          <strong>Status:</strong> {ordem.status}
+        </p>
+        <p>
+          <strong>Descrição:</strong> {ordem.descricao_problema}
+        </p>
+        <p>
+          <strong>Prestador:</strong> {ordem.prestador_aprovado || "—"}
+        </p>
+
+        {ordem.custo_final && (
+          <p>
+            <strong>Custo Final:</strong> R$ {Number(ordem.custo_final).toFixed(2)}
+          </p>
+        )}
+      </div>
+
+      {/* Orçamentos */}
+      {ordem.orcamentos_json?.length > 0 && (
+        <div className="mt-4">
+          <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+            <FileText size={14} /> Orçamentos
+          </h4>
+          <ul className="space-y-1 text-sm text-muted-foreground">
+            {ordem.orcamentos_json.map((o, idx) => (
+              <li key={idx}>
+                • {o.prestador} — R$ {Number(o.valor).toFixed(2)} ({o.status})
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Modal>
   );
 }

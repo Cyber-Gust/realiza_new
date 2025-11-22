@@ -1,43 +1,58 @@
-"use client";
-import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
-const Card = forwardRef(function Card(
-  {
-    title,
-    icon: Icon,
-    children,
-    className,
-    variant = "solid",
-    noPadding = false,
-    ...props
-  },
-  ref
-) {
-  const variants = {
-    solid: "bg-card text-card-foreground border shadow-sm",
-    muted: "bg-muted/40 border border-border/60 shadow-sm",
-    glass: "bg-white/5 backdrop-blur-md border border-white/10 shadow-lg",
-  };
+const Card = ({ className, children, ...props }) => (
+  <div
+    className={cn(
+      "rounded-2xl border border-border/60 bg-panel-card/95 backdrop-blur-sm shadow-md transition-all duration-300 hover:shadow-lg hover:border-border",
+      "will-change-transform hover:-translate-y-[2px]",
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </div>
+);
 
-  return (
-    <div
-      ref={ref}
-      {...props}
-      className={cn("rounded-lg", variants[variant], className)}
-    >
-      {title && (
-        <div className="flex items-center gap-2 p-6 border-b">
-          {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
-          <h3 className="text-lg font-semibold leading-none tracking-tight text-foreground">
-            {title}
-          </h3>
-        </div>
-      )}
+const CardHeader = ({ className, children, ...props }) => (
+  <div
+    className={cn("flex flex-col space-y-2 p-6 pb-2", className)}
+    {...props}
+  >
+    {children}
+  </div>
+);
 
-      <div className={cn(noPadding ? "p-0" : "p-6")}>{children}</div>
-    </div>
-  );
-});
+const CardTitle = ({ className, children, ...props }) => (
+  <h3
+    className={cn(
+      "font-semibold leading-tight tracking-tight text-xl text-foreground",
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </h3>
+);
 
-export default Card;
+const CardContent = ({ className, children, ...props }) => (
+  <div
+    className={cn("p-6 pt-2 text-sm text-muted-foreground", className)}
+    {...props}
+  >
+    {children}
+  </div>
+);
+
+const CardFooter = ({ className, children, ...props }) => (
+  <div
+    className={cn(
+      "flex items-center justify-end p-6 pt-0 space-x-2",
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </div>
+);
+
+export { Card, CardHeader, CardTitle, CardContent, CardFooter };

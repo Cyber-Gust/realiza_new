@@ -1,53 +1,132 @@
-/components
-  ThemeToggle.js
+/componentts
   /admin
-    /ui
-      Card.jsx
-      Table.jsx
-      Modal.jsx
-      Badge.jsx
-      Toast.jsx
-    /forms
-      Input.jsx
-      Select.jsx
-      Switch.jsx
-      DatePicker.jsx
     /layout
-      Header.js
       Footer.js
+      Header.js
       Sidebar.js
-      PageHeader.jsx
+    /ui
+      Badge.jsx
+      Button.jsx
+      Card.jsx
+      Form.jsx
       KPIWidget.jsx
-  /ui
-    button.js
-    dialog.jsx
-    select.jsx
-    switch.jsx
-    tabs.jsx
-    use-toast.jsx
+      Modal.jsx
+      Skeleton.jsx
+      Switch.jsx
+      Table.jsx
+      Tabs.jsx
+      Toast.jsx
 
-/lib
-  utils.js
-  /supabase
-    server.js
-    client.js
+/Contexts
+  ToastContext.jsx      
 
-/utils  
-  formatters.js
-  qrcode.js
-  validators.js´
+  📦 ALOCAÇÃO DOS COMPONENTES
+🔹 /components/admin/ui/Badge.jsx
 
+Contém:
 
-  /components
-  /crm
-    CRMLeadsPanel.jsx
-    CRMPipeline.jsx
-    CRMAgendaPanel.jsx
-    CRMPropostasPanel.jsx
-    CRMRelatoriosPanel.jsx
-    CRMLeadDetailDrawer.jsx
-    CRMLeadForm.jsx
-    CRMAgendaForm.jsx
-    CRMPropostaForm.jsx
-    CRMKanbanCard.jsx
-    CRMKPIWidget.jsx
+Badge
+
+statusConfig
+
+🔹 /components/admin/ui/Button.jsx
+
+Contém:
+
+Button
+
+buttonVariants
+
+🔹 /components/admin/ui/Card.jsx
+
+Contém:
+
+Card
+
+CardHeader
+
+CardTitle
+
+CardContent
+
+CardFooter
+
+🔹 /components/admin/ui/Form.jsx
+
+Contém:
+
+Label
+
+Input
+
+Textarea
+
+Select
+
+FormError
+
+🔹 /components/admin/ui/KPIWidget.jsx
+
+Contém:
+
+KPI Widget com cálculo de tendência
+
+🔹 /components/admin/ui/Modal.jsx
+
+Contém:
+
+Modal com animação controlada
+
+🔹 /components/admin/ui/Skeleton.jsx
+
+Contém:
+
+Skeleton Loader
+
+🔹 /components/admin/ui/Switch.jsx
+
+Contém:
+
+Switch customizado
+
+🔹 /components/admin/ui/Table.jsx
+
+Contém:
+
+Table
+
+TableHeader
+
+TableRow
+
+TableHead
+
+TableCell
+
+🔹 /components/admin/ui/Tabs.jsx
+
+Contém:
+
+Tabs
+
+TabsList
+
+TabsTrigger
+
+TabsContent
+
+🔹 /components/admin/ui/Toast.jsx
+
+Contém:
+
+Toast visual
+
+🔹 /contexts/ToastContext.jsx
+
+Contém:
+
+ToastProvider
+
+useToast() Hook
+
+Renderização global dos toasts

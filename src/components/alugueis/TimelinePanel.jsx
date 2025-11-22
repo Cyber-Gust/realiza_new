@@ -1,147 +1,197 @@
 "use client";
 
 import { useState } from "react";
-import Toast from "@/components/admin/ui/Toast";
-import { Button } from "@/components/ui/button";
-import Card from "@/components/admin/ui/Card";
-import { Loader2, Clock, CheckCircle2, AlertTriangle } from "lucide-react";
+
+import { Card } from "@/components/admin/ui/Card";
+import { Button } from "@/components/admin/ui/Button";
+import Badge from "@/components/admin/ui/Badge";
+import { Skeleton } from "@/components/admin/ui/Skeleton";
+import { Input } from "@/components/admin/ui/Form";
+import { useToast } from "@/contexts/ToastContext";
+
+import { cn } from "@/lib/utils";
+import {
+  Loader2,
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
+} from "lucide-react";
 
 export default function TimelinePanel() {
   const [contratoId, setContratoId] = useState("");
   const [dados, setDados] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  const { error: toastError } = useToast();
+
   const load = async () => {
     try {
-      if (!contratoId.trim()) return Toast.error("Informe o ID do contrato.");
+      if (!contratoId.trim()) {
+        toastError("Informe o ID do contrato.");
+        return;
+      }
 
       setLoading(true);
-      const res = await fetch(`/api/alugueis?view=timeline&contrato_id=${contratoId}`, {
-        cache: "no-store",
-      });
+
+      const res = await fetch(
+        `/api/alugueis?view=timeline&contrato_id=${contratoId}`,
+        { cache: "no-store" }
+      );
 
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
+
       setDados(json.data || []);
     } catch (err) {
-      Toast.error("Erro ao carregar timeline: " + err.message);
+      toastError("Erro ao carregar timeline: " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case "pago":
-        return (
-          <span className="flex items-center gap-1 text-emerald-600 bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded text-xs">
-            <CheckCircle2 size={14} /> Pago
-          </span>
-        );
-      case "atrasado":
-        return (
-          <span className="flex items-center gap-1 text-rose-700 bg-rose-100 border border-rose-200 px-2 py-0.5 rounded text-xs">
-            <AlertTriangle size={14} /> Atrasado
-          </span>
-        );
-      default:
-        return (
-          <span className="flex items-center gap-1 text-amber-700 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded text-xs">
-            <Clock size={14} /> {status}
-          </span>
-        );
-    }
-  };
-
   return (
-    <div className="space-y-6">
-
-      {/* =====================================
-          🔹 HEADER
-      ====================================== */}
+    <div className="space-y-6 animate-in fade-in-10 duration-200">
+      
+      {/* HEADER */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <Clock size={18} /> Histórico do Contrato
-        </h3>
+        <div className="flex items-center gap-2">
+          <Clock size={18} className="text-muted-foreground" />
+          <h3 className="text-lg font-semibold tracking-tight">
+            Histórico do Contrato
+          </h3>
+        </div>
 
+        {/* INPUT + BUTTON */}
         <div className="flex items-center gap-2 flex-wrap">
-          <input
+          <Input
             placeholder="ID do contrato"
-            className="p-2 border border-border rounded bg-panel-card text-sm"
             value={contratoId}
             onChange={(e) => setContratoId(e.target.value)}
+            className="w-40"
           />
 
-          <Button className="flex gap-2 items-center" onClick={load} disabled={loading}>
-            {loading ? <Loader2 className="animate-spin" size={16} /> : <Clock size={16} />}
+          <Button
+            onClick={load}
+            disabled={loading}
+            className="flex items-center gap-2"
+          >
+            {loading ? (
+              <Loader2 className="animate-spin" size={16} />
+            ) : (
+              <Clock size={16} />
+            )}
             Carregar
           </Button>
         </div>
       </div>
 
-      {/* =====================================
-          🔹 LOADING
-      ====================================== */}
+      {/* LOADING */}
       {loading && (
-        <p className="text-muted-foreground text-sm flex items-center gap-2">
-          <Loader2 className="animate-spin" size={16} /> Carregando timeline...
-        </p>
+        <div className="space-y-3">
+          <Skeleton className="h-6 w-48 rounded-md" />
+          <Skeleton className="h-24 w-full rounded-md" />
+          <Skeleton className="h-24 w-full rounded-md" />
+        </div>
       )}
 
-      {/* =====================================
-          🔹 VAZIO
-      ====================================== */}
+      {/* VAZIO */}
       {!loading && dados.length === 0 && (
         <p className="text-muted-foreground italic text-sm">
           Nenhum evento encontrado para este contrato.
         </p>
       )}
 
-      {/* =====================================
-          🔹 TIMELINE LIST
-      ====================================== */}
+      {/* TIMELINE */}
       <div className="space-y-4">
-        {dados.map((t, index) => (
-          <div key={t.id} className="flex items-start gap-3">
-            {/* Linha vertical da timeline */}
-            <div className="flex flex-col items-center">
-              <span
-                className={`w-3 h-3 rounded-full ${
-                  t.status === "pago"
-                    ? "bg-emerald-600"
-                    : t.status === "atrasado"
-                    ? "bg-rose-600"
-                    : "bg-amber-600"
-                }`}
-              />
+        {!loading &&
+          dados.map((t, index) => (
+            <div key={t.id} className="flex items-start gap-4">
 
-              {index < dados.length - 1 && (
-                <div className="w-0.5 flex-1 bg-border mt-1 mb-1" />
-              )}
-            </div>
-
-            <Card className="flex-1 p-4 space-y-2 bg-panel-card border border-border">
-              <div className="flex justify-between items-center">
-                <h4 className="font-semibold text-foreground">{t.descricao}</h4>
-                {getStatusBadge(t.status)}
+              {/* LINHA DA TIMELINE */}
+              <div className="flex flex-col items-center pt-1">
+                <span
+                  className={cn(
+                    "w-3 h-3 rounded-full shadow-sm",
+                    t.status === "pago"
+                      ? "bg-emerald-600"
+                      : t.status === "atrasado"
+                      ? "bg-rose-600"
+                      : "bg-amber-600"
+                  )}
+                />
+                {index < dados.length - 1 && (
+                  <div className="w-0.5 flex-1 bg-border mt-1"></div>
+                )}
               </div>
 
-              <p className="text-sm text-muted-foreground">
-                Vencimento:{" "}
-                <span className="text-foreground font-medium">
-                  {t.data_vencimento}
-                </span>
-              </p>
+              {/* CARD DO EVENTO */}
+              <Card
+                className={cn(
+                  "flex-1 p-4 space-y-2 border border-border bg-card",
+                  "rounded-lg shadow-sm hover:shadow-md transition-all duration-150",
+                  "animate-in fade-in-0"
+                )}
+              >
+                {/* TÍTULO + STATUS */}
+                <div className="flex justify-between items-center">
+                  <h4 className="font-semibold text-foreground">
+                    {t.descricao}
+                  </h4>
+                  <StatusBadge status={t.status} />
+                </div>
 
-              {t.valor && (
-                <p className="text-sm text-foreground font-medium">
-                  Valor: R$ {Number(t.valor).toFixed(2)}
+                {/* VENCIMENTO */}
+                <p className="text-sm text-muted-foreground">
+                  Vencimento:
+                  <span className="text-foreground font-medium ml-1">
+                    {t.data_vencimento}
+                  </span>
                 </p>
-              )}
-            </Card>
-          </div>
-        ))}
+
+                {/* VALOR */}
+                {t.valor && (
+                  <p className="text-sm text-foreground font-medium">
+                    Valor: R$ {Number(t.valor).toFixed(2)}
+                  </p>
+                )}
+              </Card>
+            </div>
+          ))}
       </div>
     </div>
+  );
+}
+
+/* ===========================================================
+   🔹 STATUS BADGE (fornecedor oficial do design system)
+=========================================================== */
+function StatusBadge({ status }) {
+  const map = {
+    pago: {
+      icon: CheckCircle2,
+      class: "bg-emerald-600 text-white",
+      label: "Pago",
+    },
+    atrasado: {
+      icon: AlertTriangle,
+      class: "bg-rose-600 text-white",
+      label: "Atrasado",
+    },
+    pendente: {
+      icon: Clock,
+      class: "bg-amber-600 text-white",
+      label: "Pendente",
+    },
+  };
+
+  const item = map[status] || map["pendente"];
+  const Icon = item.icon;
+
+  return (
+    <Badge
+      className={cn("flex items-center gap-1 text-xs px-2 py-0.5", item.class)}
+    >
+      <Icon size={12} /> {item.label}
+    </Badge>
   );
 }

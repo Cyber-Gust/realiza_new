@@ -1,9 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import PageHeader from "@/components/admin/layout/PageHeader";
-import Card from "@/components/admin/ui/Card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+} from "@/components/admin/ui/Card";
+
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/components/admin/ui/Tabs";
+
 import {
   Bell,
   Wallet,
@@ -13,7 +24,6 @@ import {
   Clock,
 } from "lucide-react";
 
-// Painéis do módulo
 import AlertasPanel from "@/components/alugueis/AlertasPanel";
 import CarteiraPanel from "@/components/alugueis/CarteiraPanel";
 import InadimplenciaPanel from "@/components/alugueis/InadimplenciaPanel";
@@ -21,130 +31,104 @@ import RenovacaoPanel from "@/components/alugueis/RenovacaoPanel";
 import RescisaoPanel from "@/components/alugueis/RescisaoPanel";
 import TimelinePanel from "@/components/alugueis/TimelinePanel";
 
-/**
- * ============================================================
- * 🏢 PÁGINA PRINCIPAL DO MÓDULO DE ALUGUÉIS
- * Estrutura unificada de controle:
- * - Alertas
- * - Carteira
- * - Inadimplência
- * - Renovação
- * - Rescisão
- * - Timeline Financeira
- * ============================================================
- */
 export default function AlugueisPage() {
   const [tab, setTab] = useState("alertas");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-in fade-in duration-150">
 
-      {/* =====================================
-          🔹 HEAD
-      ====================================== */}
-      <PageHeader
-        title="Módulo de Aluguéis"
-        description="Centralização completa dos contratos de locação, inadimplência, carteira ativa, alertas e operações."
-      />
+      {/* HEADER */}
+      <Card className="p-6">
+        <CardHeader className="p-0 mb-2">
+          <CardTitle className="text-2xl text-center font-bold tracking-tight">
+            Aluguéis
+          </CardTitle>
+        </CardHeader>
+      </Card>
 
-      {/* =====================================
-          🔹 ABAS
-      ====================================== */}
-      <Tabs value={tab} onValueChange={setTab} className="w-full">
+      {/* TABS */}
+      <Tabs className="w-full">
         <TabsList className="bg-muted rounded-lg p-1 flex flex-wrap md:flex-nowrap gap-2">
 
           <TabsTrigger
-            value="alertas"
-            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-foreground data-[state=active]:text-background"
+            className="flex items-center gap-2 px-4 py-2"
+            onClick={() => setTab("alertas")}
           >
-            <Bell size={16} />
-            Alertas
+            <Bell size={16} /> Alertas
           </TabsTrigger>
 
           <TabsTrigger
-            value="carteira"
-            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-foreground data-[state=active]:text-background"
+            className="flex items-center gap-2 px-4 py-2"
+            onClick={() => setTab("carteira")}
           >
-            <Wallet size={16} />
-            Carteira
+            <Wallet size={16} /> Carteira
           </TabsTrigger>
 
           <TabsTrigger
-            value="inadimplencia"
-            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-foreground data-[state=active]:text-background"
+            className="flex items-center gap-2 px-4 py-2"
+            onClick={() => setTab("inadimplencia")}
           >
-            <AlertTriangle size={16} />
-            Inadimplência
+            <AlertTriangle size={16} /> Inadimplência
           </TabsTrigger>
 
           <TabsTrigger
-            value="renovacao"
-            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-foreground data-[state=active]:text-background"
+            className="flex items-center gap-2 px-4 py-2"
+            onClick={() => setTab("renovacao")}
           >
-            <RefreshCcw size={16} />
-            Renovação
+            <RefreshCcw size={16} /> Renovação
           </TabsTrigger>
 
           <TabsTrigger
-            value="rescisao"
-            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-foreground data-[state=active]:text-background"
+            className="flex items-center gap-2 px-4 py-2"
+            onClick={() => setTab("rescisao")}
           >
-            <DoorOpen size={16} />
-            Rescisão
+            <DoorOpen size={16} /> Rescisão
           </TabsTrigger>
 
           <TabsTrigger
-            value="timeline"
-            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-foreground data-[state=active]:text-background"
+            className="flex items-center gap-2 px-4 py-2"
+            onClick={() => setTab("timeline")}
           >
-            <Clock size={16} />
-            Timeline
+            <Clock size={16} /> Timeline
           </TabsTrigger>
+
         </TabsList>
 
-        {/* =====================================
-            🔹 CONTEÚDOS
-        ====================================== */}
-        <div className="mt-6 space-y-4">
+        {/* CONTEÚDO */}
+        <div className="mt-6 space-y-6">
 
-          {/* ALERTAS */}
-          <TabsContent value="alertas">
-            <Card className="p-6 space-y-4">
+          <TabsContent value="alertas" currentValue={tab}>
+            <Card className="p-6">
               <AlertasPanel />
             </Card>
           </TabsContent>
 
-          {/* CARTEIRA */}
-          <TabsContent value="carteira">
-            <Card className="p-6 space-y-4">
+          <TabsContent value="carteira" currentValue={tab}>
+            <Card className="p-6">
               <CarteiraPanel />
             </Card>
           </TabsContent>
 
-          {/* INADIMPLÊNCIA */}
-          <TabsContent value="inadimplencia">
-            <Card className="p-6 space-y-4">
+          <TabsContent value="inadimplencia" currentValue={tab}>
+            <Card className="p-6">
               <InadimplenciaPanel />
             </Card>
           </TabsContent>
 
-          {/* RENOVAÇÃO */}
-          <TabsContent value="renovacao">
-            <Card className="p-6 space-y-4">
+          <TabsContent value="renovacao" currentValue={tab}>
+            <Card className="p-6">
               <RenovacaoPanel />
             </Card>
           </TabsContent>
 
-          {/* RESCISÃO */}
-          <TabsContent value="rescisao">
-            <Card className="p-6 space-y-4">
+          <TabsContent value="rescisao" currentValue={tab}>
+            <Card className="p-6">
               <RescisaoPanel />
             </Card>
           </TabsContent>
 
-          {/* TIMELINE */}
-          <TabsContent value="timeline">
-            <Card className="p-6 space-y-4">
+          <TabsContent value="timeline" currentValue={tab}>
+            <Card className="p-6">
               <TimelinePanel />
             </Card>
           </TabsContent>

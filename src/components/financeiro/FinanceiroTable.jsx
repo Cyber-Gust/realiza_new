@@ -1,57 +1,28 @@
 "use client";
+
 import { useState } from "react";
-import Table from "@/components/admin/ui/Table";
+
+import { Badge } from "@/components/admin/ui/Badge";
+import { Table, TableHeader, TableRow, TableHead, TableCell } from "@/components/admin/ui/Table";
 import Modal from "@/components/admin/ui/Modal";
-import Toast from "@/components/admin/ui/Toast";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/admin/ui/Button";
+import { useToast } from "@/contexts/ToastContext";
+
 import { formatCurrency } from "@/utils/formatters";
-import {
-  CheckCircle2,
-  Clock,
-  XCircle,
-  AlertTriangle,
-  Edit,
-  Trash2,
-} from "lucide-react";
+import { Edit, Trash2 } from "lucide-react";
 
 /* ==========================================
-   🔹 BADGE DE STATUS
-========================================== */
-const StatusBadge = ({ status }) => {
-  const map = {
-    pago: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    pendente: "bg-amber-100 text-amber-800 border-amber-200",
-    atrasado: "bg-rose-100 text-rose-800 border-rose-200",
-    cancelado: "bg-gray-200 text-gray-800 border-gray-300",
-  };
-
-  return (
-    <span
-      className={`inline-block px-2 py-0.5 text-xs rounded border capitalize ${
-        map[status] || "bg-muted text-foreground border-border"
-      }`}
-    >
-      {status}
-    </span>
-  );
-};
+   🔹 STATUS BADGE (usando seu componente real)
+=========================================== */
+const StatusBadge = ({ status }) => <Badge status={status} />;
 
 /* ==========================================
    🔹 TABELA PRINCIPAL
-========================================== */
+=========================================== */
 export default function FinanceiroTable({ data = [], loading, onReload }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
-
-  const columns = [
-    { key: "descricao", label: "Descrição" },
-    { key: "tipo", label: "Tipo" },
-    { key: "status", label: "Status" },
-    { key: "valor", label: "Valor" },
-    { key: "data_vencimento", label: "Vencimento" },
-    { key: "data_pagamento", label: "Pagamento" },
-    { key: "acoes", label: "" },
-  ];
+  const toast = useToast();
 
   if (loading)
     return (
@@ -70,73 +41,92 @@ export default function FinanceiroTable({ data = [], loading, onReload }) {
   const handleDelete = async () => {
     if (!deleteTarget?.id) return;
     setDeleting(true);
+
     try {
       const res = await fetch(`/api/financeiro?id=${deleteTarget.id}`, {
         method: "DELETE",
       });
+
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
-      Toast.success("Lançamento removido com sucesso!");
+
+      toast.success("Sucesso", "Lançamento removido com sucesso!");
+
       setDeleteTarget(null);
       onReload?.();
     } catch (err) {
-      Toast.error("Erro ao excluir: " + err.message);
+      toast.error("Erro ao excluir", err.message);
     } finally {
       setDeleting(false);
     }
   };
 
-  // 🔹 Ajusta visualmente os dados
-  const tableData = data.map((t) => ({
-    ...t,
-    status: <StatusBadge status={t.status} />,
-    valor: formatCurrency(t.valor),
-    acoes: (
-      <div className="flex items-center gap-1 justify-end">
-        <Button
-          size="icon"
-          variant="ghost"
-          className="hover:bg-muted/50"
-          onClick={() => Toast.info("Em breve: edição de lançamento")}
-        >
-          <Edit size={16} className="text-blue-600" />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="hover:bg-muted/50"
-          onClick={() => setDeleteTarget(t)}
-        >
-          <Trash2 size={16} className="text-red-600" />
-        </Button>
-      </div>
-    ),
-  }));
-
   return (
     <>
+      {/* ======================= */}
+      {/*        TABELA          */}
+      {/* ======================= */}
       <div className="overflow-hidden rounded-xl border border-border shadow-sm">
-        <Table columns={columns} data={tableData} />
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Descrição</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Valor</TableHead>
+              <TableHead>Vencimento</TableHead>
+              <TableHead>Pagamento</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+
+          <tbody>
+            {data.map((t) => (
+              <TableRow key={t.id}>
+                <TableCell>{t.descricao}</TableCell>
+                <TableCell className="capitalize">{t.tipo.replace(/_/g, " ")}</TableCell>
+                <TableCell><StatusBadge status={t.status} /></TableCell>
+                <TableCell>{formatCurrency(t.valor)}</TableCell>
+                <TableCell>{t.data_vencimento || "-"}</TableCell>
+                <TableCell>{t.data_pagamento || "-"}</TableCell>
+
+                <TableCell className="text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="hover:bg-muted/50"
+                      onClick={() => toast.info("Em breve", "Edição de lançamento")}
+                    >
+                      <Edit size={16} className="text-blue-600" />
+                    </Button>
+
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="hover:bg-muted/50"
+                      onClick={() => setDeleteTarget(t)}
+                    >
+                      <Trash2 size={16} className="text-red-600" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </tbody>
+        </Table>
       </div>
 
-      {/* =======================================
-          🔹 MODAL DE CONFIRMAÇÃO DE EXCLUSÃO
-      ======================================= */}
+      {/* ======================================= */}
+      {/*       MODAL CONFIRMAR EXCLUSÃO          */}
+      {/* ======================================= */}
       <Modal
-        open={!!deleteTarget}
-        onOpenChange={(val) => {
-          if (!val) setDeleteTarget(null);
-        }}
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
         title="Remover Lançamento"
-      >
-        {deleteTarget && (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Tem certeza que deseja excluir o lançamento{" "}
-              <strong>{deleteTarget.descricao}</strong> no valor de{" "}
-              <strong>{formatCurrency(deleteTarget.valor)}</strong>?
-            </p>
-            <div className="flex gap-2">
+        footer={
+          deleteTarget ? (
+            <div className="flex gap-2 w-full">
               <Button
                 variant="secondary"
                 className="w-1/2"
@@ -144,6 +134,7 @@ export default function FinanceiroTable({ data = [], loading, onReload }) {
               >
                 Cancelar
               </Button>
+
               <Button
                 className="w-1/2 bg-red-600 hover:bg-red-700"
                 onClick={handleDelete}
@@ -152,7 +143,15 @@ export default function FinanceiroTable({ data = [], loading, onReload }) {
                 {deleting ? "Removendo..." : "Confirmar Exclusão"}
               </Button>
             </div>
-          </div>
+          ) : null
+        }
+      >
+        {deleteTarget && (
+          <p className="text-sm text-muted-foreground">
+            Tem certeza que deseja excluir o lançamento{" "}
+            <strong>{deleteTarget.descricao}</strong> no valor de{" "}
+            <strong>{formatCurrency(deleteTarget.valor)}</strong>?
+          </p>
         )}
       </Modal>
     </>

@@ -1,0 +1,599 @@
+import { cn } from "@/lib/utils";
+
+// Mapeamento baseado nos ENUMs do seu SQL
+const statusConfig = {
+  // Status Imóvel
+  disponivel: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 border-emerald-200/50",
+  reservado: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400 border-amber-200/50",
+  alugado: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400 border-blue-200/50",
+  vendido: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-400 border-indigo-200/50",
+  inativo: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200/50",
+  
+  // Status Lead
+  novo: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400 border-sky-200/50",
+  qualificado: "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-400 border-purple-200/50",
+  perdido: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400 border-red-200/50",
+  
+  // Default
+  default: "bg-secondary text-secondary-foreground border-border",
+};
+
+export default function Badge({ status, children, className }) {
+  // Normaliza a string para garantir o match (ex: "Visita Agendada" -> "visita_agendada")
+  const statusKey = status?.toString().toLowerCase().replace(/ /g, "_") || "default";
+  const styleClass = statusConfig[statusKey] || statusConfig.default;
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors",
+        "shadow-[0_1px_2px_rgb(0,0,0,0.05)]", // Sombra sutil estilo Apple
+        styleClass,
+        className
+      )}
+    >
+      {children || status}
+    </span>
+  );
+}
+
+import * as React from "react";
+import clsx from "clsx";
+
+/* NOTA: Esta é uma implementação simplificada do botão do shadcn/ui,
+  adaptada para usar suas variáveis de CSS do Tailwind e sem 
+  depender de 'cva' (class-variance-authority).
+*/
+
+const buttonVariants = ({ variant, size }) => {
+  const base =
+    "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
+
+  // Variantes de Estilo
+  const variants = {
+    default: "bg-accent text-accent-foreground shadow hover:bg-accent/90",
+    ghost: "hover:bg-secondary hover:text-secondary-foreground",
+    secondary:
+      "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
+    link: "text-primary underline-offset-4 hover:underline",
+  };
+
+  // Variantes de Tamanho
+  const sizes = {
+    default: "h-9 px-4 py-2",
+    sm: "h-8 rounded-md px-3 text-xs",
+    lg: "h-10 rounded-md px-8",
+    icon: "h-9 w-9", // Este é o que o ThemeToggle usa
+  };
+
+  return clsx(
+    base,
+    variants[variant] || variants.default,
+    sizes[size] || sizes.default
+  );
+};
+
+const Button = React.forwardRef(
+  ({ className, variant, size, asChild = false, onClick, ...props }, ref) => {
+    const Comp = asChild ? "span" : "button";
+
+    return (
+      <Comp
+        ref={ref}
+        // ✅ evita erro de "onClick = false"
+        onClick={typeof onClick === "function" ? onClick : undefined}
+        className={clsx(buttonVariants({ variant, size }), className)}
+        {...props}
+      />
+    );
+  }
+);
+Button.displayName = "Button";
+
+export { Button, buttonVariants };
+
+import { cn } from "@/lib/utils";
+
+const Card = ({ className, children, ...props }) => (
+  <div
+    className={cn(
+      "rounded-xl border border-border bg-panel-card text-panel-card-foreground shadow-sm transition-all duration-200 hover:shadow-md",
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </div>
+);
+
+const CardHeader = ({ className, children, ...props }) => (
+  <div className={cn("flex flex-col space-y-1.5 p-6", className)} {...props}>
+    {children}
+  </div>
+);
+
+const CardTitle = ({ className, children, ...props }) => (
+  <h3 className={cn("font-semibold leading-none tracking-tight text-lg", className)} {...props}>
+    {children}
+  </h3>
+);
+
+const CardContent = ({ className, children, ...props }) => (
+  <div className={cn("p-6 pt-0", className)} {...props}>
+    {children}
+  </div>
+);
+
+const CardFooter = ({ className, children, ...props }) => (
+  <div className={cn("flex items-center p-6 pt-0", className)} {...props}>
+    {children}
+  </div>
+);
+
+export { Card, CardHeader, CardTitle, CardContent, CardFooter };
+
+import React, { forwardRef } from "react";
+import { cn } from "@/lib/utils";
+import { ChevronDown } from "lucide-react";
+
+// 1. Label (Rótulo)
+const Label = forwardRef(({ className, error, ...props }, ref) => (
+  <label
+    ref={ref}
+    className={cn(
+      "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+      error ? "text-red-500" : "text-foreground",
+      className
+    )}
+    {...props}
+  />
+));
+Label.displayName = "Label";
+
+// 2. Input (Texto, Número, Email)
+const Input = forwardRef(({ className, error, ...props }, ref) => {
+  return (
+    <input
+      className={cn(
+        "flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200",
+        error 
+          ? "border-red-500 focus-visible:ring-red-500" 
+          : "border-input focus-visible:border-ring",
+        className
+      )}
+      ref={ref}
+      {...props}
+    />
+  );
+});
+Input.displayName = "Input";
+
+// 3. Textarea (Para descrições longas)
+const Textarea = forwardRef(({ className, error, ...props }, ref) => {
+  return (
+    <textarea
+      className={cn(
+        "flex min-h-[80px] w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200",
+        error 
+          ? "border-red-500 focus-visible:ring-red-500" 
+          : "border-input focus-visible:border-ring",
+        className
+      )}
+      ref={ref}
+      {...props}
+    />
+  );
+});
+Textarea.displayName = "Textarea";
+
+// 4. Select (Estilo Customizado sobre o Nativo)
+const Select = forwardRef(({ className, children, error, ...props }, ref) => {
+  return (
+    <div className="relative">
+      <select
+        className={cn(
+          "flex h-10 w-full appearance-none items-center justify-between rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200",
+          error 
+            ? "border-red-500 focus:ring-red-500" 
+            : "border-input focus:border-ring",
+          className
+        )}
+        ref={ref}
+        {...props}
+      >
+        {children}
+      </select>
+      <ChevronDown className="absolute right-3 top-3 h-4 w-4 opacity-50 pointer-events-none" />
+    </div>
+  );
+});
+Select.displayName = "Select";
+
+// 5. Mensagem de Erro
+const FormError = ({ message }) => {
+  if (!message) return null;
+  return <p className="text-[0.8rem] font-medium text-red-500 mt-1.5 animate-in slide-in-from-top-1 fade-in">{message}</p>;
+};
+
+export { Input, Label, Textarea, Select, FormError };
+
+
+import { cn } from "@/lib/utils";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+
+export default function KPI({ title, value, trend, trendValue, icon: Icon }) {
+  const isPositive = trend === "up";
+  
+  return (
+    <div className="rounded-xl border border-border bg-panel-card p-6 shadow-sm hover:shadow-md transition-all duration-200">
+      <div className="flex items-center justify-between space-y-0 pb-2">
+        <p className="text-sm font-medium text-muted-foreground tracking-wide uppercase text-[11px]">
+          {title}
+        </p>
+        {Icon && <Icon className="h-4 w-4 text-muted-foreground opacity-70" />}
+      </div>
+      <div className="flex items-baseline gap-2">
+        <div className="text-2xl font-bold text-foreground">{value}</div>
+        
+        {trendValue && (
+          <div
+            className={cn(
+              "flex items-center text-xs font-medium px-1.5 py-0.5 rounded-md",
+              isPositive 
+                ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400" 
+                : "text-red-600 bg-red-50 dark:bg-red-500/10 dark:text-red-400"
+            )}
+          >
+            {isPositive ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
+            {trendValue}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+import { useState, useEffect } from "react";
+import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+export default function Modal({ isOpen, onClose, title, children, footer }) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    let timer;
+
+    if (isOpen) {
+      // Fix: Adicionamos um delay minúsculo (10ms).
+      // 1. Remove o erro de "Synchronous setState".
+      // 2. Garante que o navegador renderize o DOM (opacity-0) ANTES de aplicar a animação (opacity-100).
+      document.body.style.overflow = 'hidden';
+      timer = setTimeout(() => setVisible(true), 10);
+    } else {
+      // Delay para a animação de saída terminar antes de desmontar
+      document.body.style.overflow = 'unset';
+      timer = setTimeout(() => setVisible(false), 200);
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      // Segurança extra: garante que o scroll volte se o componente morrer
+      document.body.style.overflow = 'unset'; 
+    };
+  }, [isOpen]);
+
+  // Lógica de renderização:
+  // Se não deve estar aberto (isOpen=false) E a animação acabou (visible=false), não renderiza nada.
+  if (!isOpen && !visible) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+      {/* Backdrop */}
+      <div 
+        className={cn(
+          "fixed inset-0 bg-background/80 backdrop-blur-sm transition-opacity duration-200",
+          // Usamos 'visible' para controlar a transição CSS
+          visible ? "opacity-100" : "opacity-0"
+        )}
+        onClick={onClose}
+      />
+
+      {/* Modal Content */}
+      <div
+        className={cn(
+          "relative z-50 w-full max-w-lg rounded-2xl border border-border bg-panel-card shadow-2xl",
+          "transform transition-all duration-200 sm:scale-95",
+          // Aqui também usamos 'visible' para o efeito de escala e opacidade
+          visible ? "opacity-100 translate-y-0 sm:scale-100" : "opacity-0 translate-y-4 sm:scale-95"
+        )}
+      >
+        <div className="flex flex-col space-y-1.5 p-6 pb-4 border-b border-border/40">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold leading-none tracking-tight text-lg text-foreground">
+              {title}
+            </h3>
+            <button
+              onClick={onClose}
+              className="rounded-full p-1 opacity-70 hover:opacity-100 hover:bg-muted transition-all"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6 text-sm text-muted-foreground">
+          {children}
+        </div>
+
+        {footer && (
+          <div className="flex items-center justify-end p-6 pt-0 gap-2">
+            {footer}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+import { cn } from "@/lib/utils";
+
+function Skeleton({ className, ...props }) {
+  return (
+    <div
+      className={cn("animate-pulse rounded-md bg-muted/60", className)}
+      {...props}
+    />
+  );
+}
+
+export { Skeleton };
+
+import * as React from "react";
+import { cn } from "@/lib/utils";
+
+const Switch = React.forwardRef(({ className, checked, onCheckedChange, ...props }, ref) => (
+  <button
+    type="button"
+    role="switch"
+    aria-checked={checked}
+    onClick={() => onCheckedChange?.(!checked)}
+    ref={ref}
+    className={cn(
+      "peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
+      checked ? "bg-emerald-500" : "bg-input", // Usei emerald para combinar com seus badges
+      className
+    )}
+    {...props}
+  >
+    <span
+      className={cn(
+        "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform duration-200",
+        checked ? "translate-x-5" : "translate-x-0"
+      )}
+    />
+  </button>
+));
+Switch.displayName = "Switch";
+
+export { Switch };
+
+import { cn } from "@/lib/utils";
+
+const Table = ({ className, children, ...props }) => (
+  <div className="w-full overflow-auto rounded-xl border border-border shadow-sm bg-panel-card">
+    <table className={cn("w-full caption-bottom text-sm text-left", className)} {...props}>
+      {children}
+    </table>
+  </div>
+);
+
+const TableHeader = ({ className, children, ...props }) => (
+  <thead className={cn("[&_tr]:border-b bg-muted/30", className)} {...props}>
+    {children}
+  </thead>
+);
+
+const TableRow = ({ className, children, ...props }) => (
+  <tr
+    className={cn(
+      "border-b border-border transition-colors hover:bg-muted/30 data-[state=selected]:bg-muted",
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </tr>
+);
+
+const TableHead = ({ className, children, ...props }) => (
+  <th
+    className={cn(
+      "h-12 px-4 align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </th>
+);
+
+const TableCell = ({ className, children, ...props }) => (
+  <td
+    className={cn(
+      "p-4 align-middle [&:has([role=checkbox])]:pr-0 text-foreground/90",
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </td>
+);
+
+export { Table, TableHeader, TableRow, TableHead, TableCell };
+
+import React from "react";
+import { cn } from "@/lib/utils";
+
+// Container das abas
+export function Tabs({ children, className, value, onValueChange }) {
+  // Passamos o contexto para os filhos (simples)
+  return (
+    <div className={cn("w-full", className)}>
+      {React.Children.map(children, (child) => {
+        if (React.isValidElement(child)) {
+          return React.cloneElement(child, { value, onValueChange });
+        }
+        return child;
+      })}
+    </div>
+  );
+}
+
+// Lista de botões (o cabeçalho das abas)
+export function TabsList({ children, className }) {
+  return (
+    <div className={cn("inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground", className)}>
+      {children}
+    </div>
+  );
+}
+
+// O gatilho (botão individual)
+export function TabsTrigger({ value, children, onClick, activeValue, className }) {
+  // Nota: Em uma implementação real, usaria Context API, mas aqui simplificamos a passagem de props
+  // Se estiver usando dentro do TabsList, precisamos injetar a lógica no pai ou usar Context.
+  // Para manter simples e funcional sem Context complexo:
+  return (
+    <button
+      className={cn(
+        "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+        "data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
+        className
+      )}
+      // A lógica de clique deve ser controlada pelo pai se usar Context, 
+      // ou você pode usar componentes controlados manualmente na página.
+    >
+      {children}
+    </button>
+  );
+}
+
+// Conteúdo
+export function TabsContent({ value, currentValue, children, className }) {
+  if (value !== currentValue) return null;
+  return (
+    <div className={cn("mt-4 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 animate-in fade-in zoom-in-95 duration-200", className)}>
+      {children}
+    </div>
+  );
+}
+
+import { cn } from "@/lib/utils";
+import { CheckCircle2, AlertCircle, X } from "lucide-react";
+
+export default function Toast({ type = "success", title, message, onClose }) {
+  const isSuccess = type === "success";
+
+  return (
+    <div className={cn(
+      "pointer-events-auto relative w-full max-w-sm overflow-hidden rounded-lg border border-border bg-panel-card shadow-lg ring-1 ring-black/5",
+      "animate-in slide-in-from-right-full fade-in duration-300"
+    )}>
+      <div className="p-4">
+        <div className="flex items-start">
+          <div className="flex-shrink-0">
+            {isSuccess ? (
+              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+            ) : (
+              <AlertCircle className="h-5 w-5 text-red-500" />
+            )}
+          </div>
+          <div className="ml-3 w-0 flex-1 pt-0.5">
+            <p className="text-sm font-medium text-foreground">{title}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{message}</p>
+          </div>
+          <div className="ml-4 flex flex-shrink-0">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex rounded-md bg-transparent text-muted-foreground hover:text-foreground focus:outline-none"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+      {/* Barra de progresso sutil (Opcional) */}
+      <div className={cn("h-1 w-full", isSuccess ? "bg-emerald-500" : "bg-red-500")} />
+    </div>
+  );
+}
+
+"use client";
+
+import React, { createContext, useContext, useState, useCallback } from "react";
+import Toast from "@/components/ui/Toast"; // Importe o componente visual que criamos antes!
+
+const ToastContext = createContext(null);
+
+export function ToastProvider({ children }) {
+  const [toasts, setToasts] = useState([]);
+
+  // Função para remover toast pelo ID
+  const removeToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  }, []);
+
+  // Função para adicionar toast
+  const toast = useCallback(({ type = "success", title, message, duration = 5000 }) => {
+    const id = Date.now().toString();
+    
+    const newToast = { id, type, title, message };
+    
+    setToasts((prev) => [...prev, newToast]);
+
+    // Auto-remove após X segundos
+    if (duration > 0) {
+      setTimeout(() => {
+        removeToast(id);
+      }, duration);
+    }
+  }, [removeToast]);
+
+  // Helpers práticos (syntactic sugar)
+  const helpers = {
+    success: (title, message) => toast({ type: "success", title, message }),
+    error: (title, message) => toast({ type: "error", title, message }),
+    info: (title, message) => toast({ type: "info", title, message }), // Se tiver esse tipo no seu componente
+    custom: toast,
+  };
+
+  return (
+    <ToastContext.Provider value={helpers}>
+      {children}
+
+      {/* Container fixo para renderizar os Toasts na tela */}
+      <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-3 w-full max-w-sm pointer-events-none">
+        {toasts.map((t) => (
+          <div key={t.id} className="pointer-events-auto transition-all duration-300 animate-in slide-in-from-right-full">
+            <Toast
+              type={t.type}
+              title={t.title}
+              message={t.message}
+              onClose={() => removeToast(t.id)}
+            />
+          </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
+}
+
+// Hook para usar em qualquer lugar
+export function useToast() {
+  const context = useContext(ToastContext);
+  if (!context) {
+    throw new Error("useToast deve ser usado dentro de um ToastProvider");
+  }
+  return context;
+}

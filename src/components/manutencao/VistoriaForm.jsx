@@ -1,9 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import Input from "@/components/admin/forms/Input";
-import Toast from "@/components/admin/ui/Toast";
+
+// UI
+import { Button } from "@/components/admin/ui/Button";
+import {
+  Input,
+  Textarea,
+  Select,
+  Label,
+} from "@/components/admin/ui/Form";
+
+// Toast
+import { useToast } from "@/contexts/ToastContext";
+
 import { Loader2, Upload } from "lucide-react";
 
 export default function VistoriaForm({ vistoria, onClose, onSaved }) {
@@ -19,6 +29,8 @@ export default function VistoriaForm({ vistoria, onClose, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [imoveis, setImoveis] = useState([]);
+
+  const toast = useToast();
 
   useEffect(() => {
     if (vistoria) setForm(vistoria);
@@ -38,8 +50,7 @@ export default function VistoriaForm({ vistoria, onClose, onSaved }) {
         }))
       );
     } catch (err) {
-      Toast.error("Erro ao carregar imóveis");
-      console.error(err);
+      toast.error("Erro ao carregar imóveis", err.message);
     }
   };
 
@@ -49,7 +60,7 @@ export default function VistoriaForm({ vistoria, onClose, onSaved }) {
   };
 
   // =======================================================
-  // 🔹 Upload direto para o bucket "documentos_vistorias"
+  // 🔹 UPLOAD PARA O BUCKET
   // =======================================================
   const handleUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -75,16 +86,16 @@ export default function VistoriaForm({ vistoria, onClose, onSaved }) {
       if (!uploadRes.ok) throw new Error(uploadJson.error);
 
       setForm((prev) => ({ ...prev, documento_laudo_url: uploadJson.url }));
-      Toast.success("Laudo anexado com sucesso!");
+      toast.success("Laudo anexado com sucesso!", "");
     } catch (err) {
-      Toast.error("Falha ao enviar arquivo: " + err.message);
+      toast.error("Falha ao enviar arquivo", err.message);
     } finally {
       setUploading(false);
     }
   };
 
   // =======================================================
-  // 🔹 Submissão
+  // 🔹 SUBMIT
   // =======================================================
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -92,6 +103,7 @@ export default function VistoriaForm({ vistoria, onClose, onSaved }) {
 
     try {
       const method = vistoria ? "PUT" : "POST";
+
       const res = await fetch("/api/manutencao/vistorias", {
         method,
         headers: { "Content-Type": "application/json" },
@@ -105,11 +117,15 @@ export default function VistoriaForm({ vistoria, onClose, onSaved }) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Falha ao salvar");
 
-      Toast.success(vistoria ? "Vistoria atualizada!" : "Vistoria criada!");
+      toast.success(
+        vistoria ? "Vistoria atualizada!" : "Vistoria criada!",
+        ""
+      );
+
       onSaved?.();
       onClose?.();
     } catch (err) {
-      Toast.error("Erro ao salvar: " + err.message);
+      toast.error("Erro ao salvar", err.message);
     } finally {
       setSaving(false);
     }
@@ -119,13 +135,12 @@ export default function VistoriaForm({ vistoria, onClose, onSaved }) {
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* 🔸 Imóvel */}
       <div className="space-y-1">
-        <label className="text-sm font-medium text-foreground">Imóvel</label>
-        <select
+        <Label>Imóvel</Label>
+        <Select
           name="imovel_id"
           value={form.imovel_id}
           onChange={handleChange}
           required
-          className="w-full border border-border rounded-md px-3 py-2 text-sm"
         >
           <option value="">Selecione o imóvel...</option>
           {imoveis.map((i) => (
@@ -133,25 +148,24 @@ export default function VistoriaForm({ vistoria, onClose, onSaved }) {
               {i.label}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {/* 🔸 Tipo */}
       <div className="space-y-1">
-        <label className="text-sm font-medium text-foreground">Tipo de vistoria</label>
-        <select
+        <Label>Tipo de Vistoria</Label>
+        <Select
           name="tipo"
           value={form.tipo}
           onChange={handleChange}
           required
-          className="w-full border border-border rounded-md px-3 py-2 text-sm"
         >
           <option value="">Selecione...</option>
           <option value="entrada">Entrada</option>
           <option value="saida">Saída</option>
           <option value="preventiva">Preventiva</option>
           <option value="outra">Outra</option>
-        </select>
+        </Select>
       </div>
 
       {/* 🔸 Data */}
@@ -165,17 +179,19 @@ export default function VistoriaForm({ vistoria, onClose, onSaved }) {
       />
 
       {/* 🔸 Descrição */}
-      <Input
-        label="Descrição do Laudo"
-        name="laudo_descricao"
-        value={form.laudo_descricao}
-        onChange={handleChange}
-        textarea
-      />
+      <div className="space-y-1">
+        <Label>Descrição do Laudo</Label>
+        <Textarea
+          name="laudo_descricao"
+          value={form.laudo_descricao}
+          onChange={handleChange}
+        />
+      </div>
 
       {/* 🔸 Upload */}
       <div className="space-y-1">
-        <label className="text-sm font-medium text-foreground">Documento do Laudo</label>
+        <Label>Documento do Laudo</Label>
+
         {form.documento_laudo_url ? (
           <div className="flex items-center justify-between border p-2 rounded-md">
             <a
@@ -186,11 +202,14 @@ export default function VistoriaForm({ vistoria, onClose, onSaved }) {
             >
               Ver documento
             </a>
+
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => setForm((p) => ({ ...p, documento_laudo_url: "" }))}
+              onClick={() =>
+                setForm((p) => ({ ...p, documento_laudo_url: "" }))
+              }
             >
               Remover
             </Button>
@@ -199,11 +218,17 @@ export default function VistoriaForm({ vistoria, onClose, onSaved }) {
           <label className="flex items-center justify-center border border-dashed p-4 rounded-md cursor-pointer hover:bg-muted">
             <Upload size={16} className="mr-2" />
             {uploading ? "Enviando..." : "Anexar Laudo (PDF/Imagem)"}
-            <input type="file" accept=".pdf,image/*" className="hidden" onChange={handleUpload} />
+            <input
+              type="file"
+              accept=".pdf,image/*"
+              className="hidden"
+              onChange={handleUpload}
+            />
           </label>
         )}
       </div>
 
+      {/* 🔸 Botão Salvar */}
       <Button type="submit" disabled={saving || uploading} className="w-full">
         {saving ? (
           <>

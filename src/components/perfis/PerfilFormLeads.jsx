@@ -1,8 +1,13 @@
 "use client";
+
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import Input from "@/components/admin/forms/Input";
-import Toast from "@/components/admin/ui/Toast";
+
+// Componentes corretos
+import { Button } from "@/components/admin/ui/Button";
+import { Input, Label, Select } from "@/components/admin/ui/Form";
+
+// Toast Context
+import { useToast } from "@/contexts/ToastContext";
 
 const LEAD_STATUS = [
   "novo",
@@ -19,6 +24,8 @@ export default function PerfilFormLeads({
   modo = "create",
   dadosIniciais = {},
 }) {
+  const { success, error } = useToast();
+
   const [form, setForm] = useState({
     id: dadosIniciais.id || null,
     nome: dadosIniciais.nome || "",
@@ -32,12 +39,14 @@ export default function PerfilFormLeads({
   });
 
   const [saving, setSaving] = useState(false);
+
   const handleChange = (key, value) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
   const handleSave = async () => {
     try {
       setSaving(true);
+
       let payload = { ...form, type: "leads" };
 
       if (form.perfil_busca_json) {
@@ -57,17 +66,19 @@ export default function PerfilFormLeads({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
-      Toast.success(
+      success(
         modo === "edit"
           ? "Lead atualizado com sucesso!"
           : "Lead cadastrado com sucesso!"
       );
+
       onSuccess?.();
     } catch (err) {
-      Toast.error(err.message);
+      error("Erro", err.message);
     } finally {
       setSaving(false);
     }
@@ -75,45 +86,68 @@ export default function PerfilFormLeads({
 
   return (
     <div className="space-y-3">
-      <Input
-        label="Nome"
-        value={form.nome}
-        onChange={(e) => handleChange("nome", e.target.value)}
-      />
-      <Input
-        label="E-mail"
-        value={form.email}
-        onChange={(e) => handleChange("email", e.target.value)}
-      />
-      <Input
-        label="Telefone"
-        value={form.telefone}
-        onChange={(e) => handleChange("telefone", e.target.value)}
-      />
-      <label className="text-sm font-medium text-muted-foreground">Status</label>
-      <select
-        value={form.status}
-        onChange={(e) => handleChange("status", e.target.value)}
-        className="w-full rounded-md border border-border bg-panel-card px-3 py-2 text-sm"
-      >
-        {LEAD_STATUS.map((s) => (
-          <option key={s} value={s}>
-            {s}
-          </option>
-        ))}
-      </select>
-      <Input
-        label="Origem"
-        placeholder="WhatsApp, Site, Indicação..."
-        value={form.origem}
-        onChange={(e) => handleChange("origem", e.target.value)}
-      />
-      <Input
-        label="Preferências (JSON)"
-        value={form.perfil_busca_json}
-        onChange={(e) => handleChange("perfil_busca_json", e.target.value)}
-        placeholder='{"tipo":"apartamento","faixa_preco":"500000"}'
-      />
+      {/* Nome */}
+      <div>
+        <Label>Nome</Label>
+        <Input
+          value={form.nome}
+          onChange={(e) => handleChange("nome", e.target.value)}
+        />
+      </div>
+
+      {/* E-mail */}
+      <div>
+        <Label>E-mail</Label>
+        <Input
+          value={form.email}
+          onChange={(e) => handleChange("email", e.target.value)}
+        />
+      </div>
+
+      {/* Telefone */}
+      <div>
+        <Label>Telefone</Label>
+        <Input
+          value={form.telefone}
+          onChange={(e) => handleChange("telefone", e.target.value)}
+        />
+      </div>
+
+      {/* Status */}
+      <div>
+        <Label>Status</Label>
+        <Select
+          value={form.status}
+          onChange={(e) => handleChange("status", e.target.value)}
+        >
+          {LEAD_STATUS.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </Select>
+      </div>
+
+      {/* Origem */}
+      <div>
+        <Label>Origem</Label>
+        <Input
+          placeholder="WhatsApp, Site, Indicação..."
+          value={form.origem}
+          onChange={(e) => handleChange("origem", e.target.value)}
+        />
+      </div>
+
+      {/* Preferências */}
+      <div>
+        <Label>Preferências (JSON)</Label>
+        <Input
+          placeholder='{"tipo":"apartamento","faixa_preco":"500000"}'
+          value={form.perfil_busca_json}
+          onChange={(e) => handleChange("perfil_busca_json", e.target.value)}
+        />
+      </div>
+
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saving}>
           {saving

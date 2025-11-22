@@ -1,10 +1,27 @@
 "use client";
-import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import Toast from "@/components/admin/ui/Toast";
+
+import { useEffect, useState, useCallback } from "react";
+import { Button } from "@/components/admin/ui/Button";
+import { Card } from "@/components/admin/ui/Card";
+
+import {
+  Label,
+  Input,
+  Textarea,
+  Select,
+  FormError,
+} from "@/components/admin/ui/Form";
+
 import { Loader2 } from "lucide-react";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function CRMContratoForm({ contrato, onClose, onSaved }) {
+  const toast = useToast();
+
+  const [saving, setSaving] = useState(false);
+  const [imoveis, setImoveis] = useState([]);
+  const [pessoas, setPessoas] = useState([]);
+
   const [form, setForm] = useState({
     tipo: "locacao",
     imovel_id: "",
@@ -18,71 +35,79 @@ export default function CRMContratoForm({ contrato, onClose, onSaved }) {
     data_fim: "",
     status: "pendente_assinatura",
   });
-  const [imoveis, setImoveis] = useState([]);
-  const [pessoas, setPessoas] = useState([]);
-  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (contrato) setForm(contrato);
-    loadOptions();
-  }, [contrato]);
-
-  const loadOptions = async () => {
+  const loadOptions = useCallback(async () => {
     try {
       const [imv, ppl] = await Promise.all([
         fetch("/api/imoveis/list").then((r) => r.json()),
         fetch("/api/perfis/list?type=personas").then((r) => r.json()),
       ]);
+
       setImoveis(imv.data || []);
       setPessoas(ppl.data || []);
     } catch (e) {
-      Toast.error("Erro ao carregar opções: " + e.message);
+      toast.error("Erro ao carregar opções", e.message);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    if (contrato) {
+      setForm({
+        ...contrato,
+        valor_acordado: contrato.valor_acordado || "",
+        taxa_administracao_percent: contrato.taxa_administracao_percent || "",
+      });
+    }
+    loadOptions();
+  }, [contrato, loadOptions]);
+
+  const updateField = (field, value) =>
+    setForm((prev) => ({ ...prev, [field]: value }));
 
   const handleSave = async () => {
     try {
       setSaving(true);
       const method = contrato ? "PATCH" : "POST";
+
       const res = await fetch("/api/contratos", {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
+
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
-      Toast.success("Contrato salvo com sucesso!");
+
+      toast.success("Contrato salvo com sucesso!");
       onSaved?.();
       onClose?.();
     } catch (err) {
-      Toast.error(err.message);
+      toast.error("Erro ao salvar contrato", err.message);
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-sm text-muted-foreground">Tipo</label>
-          <select
+    <div className="space-y-6">
+      <Card className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Tipo */}
+        <Field label="Tipo">
+          <Select
             value={form.tipo}
-            onChange={(e) => setForm({ ...form, tipo: e.target.value })}
-            className="w-full border border-border rounded-md p-2 bg-panel-card text-sm"
+            onChange={(e) => updateField("tipo", e.target.value)}
           >
             <option value="locacao">Locação</option>
             <option value="venda">Venda</option>
             <option value="administracao">Administração</option>
-          </select>
-        </div>
+          </Select>
+        </Field>
 
-        <div>
-          <label className="text-sm text-muted-foreground">Imóvel</label>
-          <select
+        {/* Imóvel */}
+        <Field label="Imóvel">
+          <Select
             value={form.imovel_id}
-            onChange={(e) => setForm({ ...form, imovel_id: e.target.value })}
-            className="w-full border border-border rounded-md p-2 bg-panel-card text-sm"
+            onChange={(e) => updateField("imovel_id", e.target.value)}
           >
             <option value="">Selecione</option>
             {imoveis.map((i) => (
@@ -90,15 +115,14 @@ export default function CRMContratoForm({ contrato, onClose, onSaved }) {
                 {i.titulo}
               </option>
             ))}
-          </select>
-        </div>
+          </Select>
+        </Field>
 
-        <div>
-          <label className="text-sm text-muted-foreground">Proprietário</label>
-          <select
+        {/* Proprietário */}
+        <Field label="Proprietário">
+          <Select
             value={form.proprietario_id}
-            onChange={(e) => setForm({ ...form, proprietario_id: e.target.value })}
-            className="w-full border border-border rounded-md p-2 bg-panel-card text-sm"
+            onChange={(e) => updateField("proprietario_id", e.target.value)}
           >
             <option value="">Selecione</option>
             {pessoas
@@ -108,15 +132,14 @@ export default function CRMContratoForm({ contrato, onClose, onSaved }) {
                   {p.nome}
                 </option>
               ))}
-          </select>
-        </div>
+          </Select>
+        </Field>
 
-        <div>
-          <label className="text-sm text-muted-foreground">Inquilino</label>
-          <select
+        {/* Inquilino */}
+        <Field label="Inquilino">
+          <Select
             value={form.inquilino_id}
-            onChange={(e) => setForm({ ...form, inquilino_id: e.target.value })}
-            className="w-full border border-border rounded-md p-2 bg-panel-card text-sm"
+            onChange={(e) => updateField("inquilino_id", e.target.value)}
           >
             <option value="">Selecione</option>
             {pessoas
@@ -126,84 +149,96 @@ export default function CRMContratoForm({ contrato, onClose, onSaved }) {
                   {p.nome}
                 </option>
               ))}
-          </select>
-        </div>
+          </Select>
+        </Field>
 
-        <div>
-          <label className="text-sm text-muted-foreground">Valor Acordado (R$)</label>
-          <input
+        {/* Valor Acordado */}
+        <Field label="Valor Acordado (R$)">
+          <Input
             type="number"
-            className="w-full border border-border rounded-md p-2 bg-panel-card text-sm"
             value={form.valor_acordado}
-            onChange={(e) => setForm({ ...form, valor_acordado: e.target.value })}
+            onChange={(e) => updateField("valor_acordado", e.target.value)}
           />
-        </div>
+        </Field>
 
-        <div>
-          <label className="text-sm text-muted-foreground">% Taxa Administração</label>
-          <input
+        {/* Taxa Administração */}
+        <Field label="% Taxa Administração">
+          <Input
             type="number"
-            className="w-full border border-border rounded-md p-2 bg-panel-card text-sm"
             value={form.taxa_administracao_percent}
             onChange={(e) =>
-              setForm({ ...form, taxa_administracao_percent: e.target.value })
+              updateField("taxa_administracao_percent", e.target.value)
             }
           />
-        </div>
+        </Field>
 
-        <div>
-          <label className="text-sm text-muted-foreground">Dia Vencimento</label>
-          <input
+        {/* Dia Vencimento */}
+        <Field label="Dia Vencimento">
+          <Input
             type="number"
-            className="w-full border border-border rounded-md p-2 bg-panel-card text-sm"
             value={form.dia_vencimento_aluguel}
             onChange={(e) =>
-              setForm({ ...form, dia_vencimento_aluguel: Number(e.target.value) })
+              updateField("dia_vencimento_aluguel", Number(e.target.value))
             }
           />
-        </div>
+        </Field>
 
-        <div>
-          <label className="text-sm text-muted-foreground">Índice Reajuste</label>
-          <select
+        {/* Índice Reajuste */}
+        <Field label="Índice Reajuste">
+          <Select
             value={form.indice_reajuste}
-            onChange={(e) => setForm({ ...form, indice_reajuste: e.target.value })}
-            className="w-full border border-border rounded-md p-2 bg-panel-card text-sm"
+            onChange={(e) =>
+              updateField("indice_reajuste", e.target.value)
+            }
           >
             <option value="IGPM">IGP-M</option>
             <option value="IPCA">IPCA</option>
-          </select>
-        </div>
+          </Select>
+        </Field>
 
-        <div>
-          <label className="text-sm text-muted-foreground">Data Início</label>
-          <input
+        {/* Datas */}
+        <Field label="Data Início">
+          <Input
             type="date"
             value={form.data_inicio}
-            onChange={(e) => setForm({ ...form, data_inicio: e.target.value })}
-            className="w-full border border-border rounded-md p-2 bg-panel-card text-sm"
+            onChange={(e) => updateField("data_inicio", e.target.value)}
           />
-        </div>
+        </Field>
 
-        <div>
-          <label className="text-sm text-muted-foreground">Data Fim</label>
-          <input
+        <Field label="Data Fim">
+          <Input
             type="date"
             value={form.data_fim}
-            onChange={(e) => setForm({ ...form, data_fim: e.target.value })}
-            className="w-full border border-border rounded-md p-2 bg-panel-card text-sm"
+            onChange={(e) => updateField("data_fim", e.target.value)}
           />
-        </div>
-      </div>
+        </Field>
+      </Card>
 
-      <div className="flex justify-end gap-2 mt-4">
+      {/* Botões */}
+      <div className="flex justify-end gap-2 pt-2">
         <Button variant="secondary" onClick={onClose}>
           Cancelar
         </Button>
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? <Loader2 className="animate-spin mr-2" size={16} /> : "Salvar"}
+
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2"
+        >
+          {saving && <Loader2 className="animate-spin" size={16} />}
+          Salvar
         </Button>
       </div>
+    </div>
+  );
+}
+
+/* FIELD PADRÃO DO DS */
+function Field({ label, children }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <Label className="text-xs tracking-wide">{label}</Label>
+      {children}
     </div>
   );
 }

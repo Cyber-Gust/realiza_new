@@ -1,91 +1,38 @@
-"use client";
 import { cn } from "@/lib/utils";
 
-/**
- * 🔹 Badge Global
- * Cobre: CRM, Leads, Imóveis, Financeiro, Agenda e Papéis
- * Segue o padrão de estilo do painel de perfis (leads, imóveis etc.)
- */
-export default function Badge({ status, children, variant = "soft", className }) {
-  const value = (status || children || "")
-  .toString()
-  .trim()
-  .normalize("NFD") // remove acentos tipo "Reunião" -> "reuniao"
-  .replace(/[\u0300-\u036f]/g, "")
-  .toLowerCase()
-  .replaceAll(" ", "_");
+// Mapeamento baseado nos ENUMs do seu SQL
+const statusConfig = {
+  // Status Imóvel
+  disponivel: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 border-emerald-200/50",
+  reservado: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400 border-amber-200/50",
+  alugado: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400 border-blue-200/50",
+  vendido: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-400 border-indigo-200/50",
+  inativo: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200/50",
+  
+  // Status Lead
+  novo: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400 border-sky-200/50",
+  qualificado: "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-400 border-purple-200/50",
+  perdido: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400 border-red-200/50",
+  
+  // Default
+  default: "bg-secondary text-secondary-foreground border-border",
+};
 
-
-  // === ENUMS / MAPAS DE CORES GLOBAIS ===
-  const COLORS = {
-    // 👤 Perfis / Roles
-    admin: "emerald",
-    corretor: "purple",
-
-    // 💼 Status Gerais
-    ativo: "emerald",
-    inativo: "gray",
-    pendente: "amber",
-    pago: "emerald",
-    atrasado: "red",
-    reservado: "amber",
-    vendido: "blue",
-    alugado: "purple",
-    disponivel: "emerald",
-
-    // 💬 Leads (CRM)
-    novo: "sky",
-    qualificado: "indigo",
-    visita_agendada: "amber",
-    proposta_feita: "emerald",
-    documentacao: "purple",
-    concluido: "emerald",
-    perdido: "red",
-
-    // 🧾 Financeiro / Transações
-    taxa_adm_imobiliaria: "blue",
-    repasse_proprietario: "emerald",
-    comissao_corretor: "indigo",
-    despesa_manutencao: "orange",
-    pagamento_iptu: "amber",
-    pagamento_condominio: "teal",
-    pago: "esmerald",
-
-    // 📅 Agenda — Tipos de Evento
-    visita_presencial: "emerald",
-    visita_virtual: "sky",
-    reuniao: "blue",
-    follow_up: "amber",
-    tecnico: "orange",
-    administrativo: "gray",
-    outro: "purple",
-
-    // 📆 Agenda — Status Operacionais
-    agendado: "sky",
-    em_andamento: "blue",
-    concluido_evento: "emerald",
-    cancelado: "red",
-    adiado: "amber",
-    hoje: "indigo",
-    futuro: "sky",
-    encerrado: "gray",
-  };
-
-  const color = COLORS[value] || "gray";
-
-  // === VARIANTES ===
-  const base =
-    "inline-flex items-center justify-center rounded-full text-xs font-semibold px-3 py-1 select-none whitespace-nowrap transition";
-
-  const variants = {
-    soft: `bg-${color}-500/15 text-${color}-700 border border-${color}-400/30`,
-    solid: `bg-${color}-600 text-white`,
-    outline: `border border-${color}-500 text-${color}-700 bg-transparent`,
-  };
+export default function Badge({ status, children, className }) {
+  // Normaliza a string para garantir o match (ex: "Visita Agendada" -> "visita_agendada")
+  const statusKey = status?.toString().toLowerCase().replace(/ /g, "_") || "default";
+  const styleClass = statusConfig[statusKey] || statusConfig.default;
 
   return (
-    <span className={cn(base, variants[variant], className)}>
-      {status || children}
+    <span
+      className={cn(
+        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors",
+        "shadow-[0_1px_2px_rgb(0,0,0,0.05)]", // Sombra sutil estilo Apple
+        styleClass,
+        className
+      )}
+    >
+      {children || status}
     </span>
   );
 }

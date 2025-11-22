@@ -1,8 +1,11 @@
 "use client";
+
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import Toast from "@/components/admin/ui/Toast";
 import { Loader2 } from "lucide-react";
+
+import { Button } from "@/components/admin/ui/Button";
+import { Input, Label, Select } from "@/components/admin/ui/Form";
+import { useToast } from "@/contexts/ToastContext";
 
 /**
  * 🧾 Formulário de criação de lançamentos financeiros
@@ -24,8 +27,9 @@ export default function FinanceiroForm({ tipoDefault = "receber", onSaved, onClo
   const [saving, setSaving] = useState(false);
   const [tiposOptions, setTiposOptions] = useState([]);
 
+  const toast = useToast();
+
   useEffect(() => {
-    // 🔹 Define opções conforme o tipo do painel
     if (tipoDefault === "receber") {
       setTiposOptions([
         { value: "receita_aluguel", label: "Receita de Aluguel" },
@@ -47,11 +51,12 @@ export default function FinanceiroForm({ tipoDefault = "receber", onSaved, onClo
   const handleSave = async () => {
     try {
       if (!form.tipo || !form.valor) {
-        Toast.error("Preencha o tipo e o valor do lançamento.");
+        toast.error("Campos obrigatórios", "Preencha o tipo e o valor do lançamento.");
         return;
       }
 
       setSaving(true);
+
       const res = await fetch("/api/financeiro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -61,9 +66,10 @@ export default function FinanceiroForm({ tipoDefault = "receber", onSaved, onClo
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
-      Toast.success("Lançamento criado com sucesso!");
-      if (onSaved) onSaved();
-      if (onClose) onClose();
+      toast.success("Sucesso", "Lançamento criado com sucesso!");
+
+      onSaved?.();
+      onClose?.();
 
       setForm({
         descricao: "",
@@ -73,8 +79,9 @@ export default function FinanceiroForm({ tipoDefault = "receber", onSaved, onClo
         data_vencimento: "",
         data_pagamento: "",
       });
+
     } catch (err) {
-      Toast.error("Erro ao salvar: " + err.message);
+      toast.error("Erro ao salvar", err.message);
     } finally {
       setSaving(false);
     }
@@ -82,13 +89,13 @@ export default function FinanceiroForm({ tipoDefault = "receber", onSaved, onClo
 
   return (
     <div className="space-y-3 max-h-[70vh] overflow-y-auto">
+
       {/* Tipo */}
       <div className="space-y-1">
-        <label className="text-sm text-muted-foreground">Tipo de Lançamento</label>
-        <select
+        <Label>Tipo de Lançamento</Label>
+        <Select
           value={form.tipo}
           onChange={(e) => handleChange("tipo", e.target.value)}
-          className="w-full border border-border rounded-md p-2 bg-panel-card"
         >
           <option value="">Selecione</option>
           {tiposOptions.map((t) => (
@@ -96,70 +103,65 @@ export default function FinanceiroForm({ tipoDefault = "receber", onSaved, onClo
               {t.label}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {/* Descrição */}
       <div className="space-y-1">
-        <label className="text-sm text-muted-foreground">Descrição</label>
-        <input
+        <Label>Descrição</Label>
+        <Input
           placeholder="Ex: Repasse referente ao contrato #123"
           value={form.descricao}
           onChange={(e) => handleChange("descricao", e.target.value)}
-          className="w-full border border-border rounded-md p-2 bg-panel-card"
         />
       </div>
 
       {/* Valor */}
       <div className="space-y-1">
-        <label className="text-sm text-muted-foreground">Valor (R$)</label>
-        <input
+        <Label>Valor (R$)</Label>
+        <Input
           type="number"
           step="0.01"
           value={form.valor}
           onChange={(e) => handleChange("valor", e.target.value)}
-          className="w-full border border-border rounded-md p-2 bg-panel-card"
         />
       </div>
 
-      {/* Data de Vencimento */}
+      {/* Data de vencimento */}
       <div className="space-y-1">
-        <label className="text-sm text-muted-foreground">Data de Vencimento</label>
-        <input
+        <Label>Data de Vencimento</Label>
+        <Input
           type="date"
           value={form.data_vencimento}
           onChange={(e) => handleChange("data_vencimento", e.target.value)}
-          className="w-full border border-border rounded-md p-2 bg-panel-card"
         />
       </div>
 
-      {/* Data de Pagamento */}
+      {/* Data de pagamento */}
       <div className="space-y-1">
-        <label className="text-sm text-muted-foreground">Data de Pagamento (opcional)</label>
-        <input
+        <Label>Data de Pagamento (opcional)</Label>
+        <Input
           type="date"
           value={form.data_pagamento}
           onChange={(e) => handleChange("data_pagamento", e.target.value)}
-          className="w-full border border-border rounded-md p-2 bg-panel-card"
         />
       </div>
 
       {/* Status */}
       <div className="space-y-1">
-        <label className="text-sm text-muted-foreground">Status</label>
-        <select
+        <Label>Status</Label>
+        <Select
           value={form.status}
           onChange={(e) => handleChange("status", e.target.value)}
-          className="w-full border border-border rounded-md p-2 bg-panel-card"
         >
           <option value="pendente">Pendente</option>
           <option value="pago">Pago</option>
           <option value="atrasado">Atrasado</option>
           <option value="cancelado">Cancelado</option>
-        </select>
+        </Select>
       </div>
 
-      {/* Botão de salvar */}
+      {/* Botão */}
       <div className="flex justify-end pt-2">
         <Button onClick={handleSave} disabled={saving}>
           {saving && <Loader2 size={16} className="animate-spin mr-2" />}

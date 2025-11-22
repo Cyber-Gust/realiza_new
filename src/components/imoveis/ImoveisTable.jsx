@@ -1,7 +1,8 @@
 "use client";
+
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import StatusBadge from "./StatusBadge";
+import { Button } from "@/components/admin/ui/Button";
+import Badge from "@/components/admin/ui/Badge";
 
 export default function ImoveisTable({ data = [], onSelect }) {
   const router = useRouter();
@@ -37,22 +38,31 @@ export default function ImoveisTable({ data = [], onSelect }) {
               className="border-t border-border hover:bg-muted/20 transition-colors"
             >
               <td className="px-4 py-3">{i.codigo_ref || "-"}</td>
-              <td className="px-4 py-3 truncate max-w-[180px]">{i.titulo || "-"}</td>
+
+              <td className="px-4 py-3 truncate max-w-[180px]">
+                {i.titulo || "-"}
+              </td>
+
               <td className="px-4 py-3 capitalize">{i.tipo || "-"}</td>
+
               <td className="px-4 py-3">{i.endereco_cidade || "-"}</td>
+
               <td className="px-4 py-3">
                 {i.preco_venda
                   ? `R$ ${Number(i.preco_venda).toLocaleString("pt-BR")}`
                   : "-"}
               </td>
+
               <td className="px-4 py-3">
                 {i.preco_locacao
                   ? `R$ ${Number(i.preco_locacao).toLocaleString("pt-BR")}`
                   : "-"}
               </td>
+
               <td className="px-4 py-3">
-                <StatusBadge status={i.status} />
+                <Badge status={i.status} />
               </td>
+
               <td className="px-4 py-3 text-right">
                 <Button
                   size="sm"
