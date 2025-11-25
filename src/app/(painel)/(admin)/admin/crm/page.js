@@ -32,7 +32,7 @@ export default function CRMPage() {
       ======================================= */}
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          CRM – Gestão Comercial
+          CRM • Gestão Comercial
         </h1>
 
         <p className="text-muted-foreground max-w-1xl">

@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { cn } from "@/lib/utils"; // Usando seu utilitário
+import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Home, UsersRound, UserCog, FileText,
   CircleDollarSign, CalendarClock, Wrench, Megaphone, Settings,
@@ -38,12 +38,21 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-border bg-panel-bg text-foreground transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]",
+        // VARIÁVEIS ORIGINAIS (bg-panel-bg, etc) + DESIGN NOVO
+        "fixed left-0 top-0 z-50 flex h-screen flex-col transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]",
+        
+        // Cores do seu tema + Borda suavizada (/40) + Sombra na direita
+        "bg-panel-card/80 text-foreground border-r border-border/40 shadow-2xl shadow-black/5", 
+        
         isCollapsed ? "w-20" : "w-64"
       )}
     >
       {/* --- Header da Sidebar (Logo) --- */}
-      <div className="flex h-16 items-center justify-center border-b border-border px-4">
+      <div className={cn(
+        "flex h-20 items-center justify-center px-4 mb-2",
+        // Linha pontilhada bem sutil usando a cor da borda do seu tema
+        !isCollapsed && "border-b border-dashed border-border/40 mx-4" 
+      )}>
         <Link
           href="/admin/dashboard"
           className={cn(
@@ -51,7 +60,6 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
             isCollapsed ? "w-10" : "w-full"
           )}
         >
-          {/* Lógica: Se colapsado, mostra icone pequeno (idealmente), se não, logo full */}
           <Image
             src="/logo.png"
             alt="Logo"
@@ -63,21 +71,21 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
             )}
             priority
           />
-          {/* Opcional: Ícone de fallback quando colapsado se a logo sumir totalmente */}
-          {isCollapsed && <div className="absolute font-bold text-xl text-accent">IM</div>}
+          {/* Fallback visual caso a logo suma na animação */}
+          {isCollapsed && <div className="absolute font-bold text-xl text-primary">IM</div>}
         </Link>
       </div>
 
-      {/* --- Botão Toggle (Estilo Flutuante) --- */}
+      {/* --- Botão Toggle --- */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3 top-20 z-50 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-panel-card text-muted-foreground shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+        className="absolute -right-3 top-24 z-50 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-panel-card text-muted-foreground shadow-sm hover:bg-accent hover:text-accent-foreground hover:scale-105 transition-all"
       >
         {isCollapsed ? <ChevronRight size={14} /> : <PanelLeftClose size={14} />}
       </button>
 
       {/* --- Navegação --- */}
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-6 scrollbar-thin scrollbar-thumb-border">
+      <nav className="flex-1 space-y-1.5 overflow-y-auto px-3 py-4 scrollbar-thin scrollbar-thumb-border/50 scrollbar-track-transparent">
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
@@ -85,20 +93,23 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
               key={item.name}
               href={item.href}
               className={cn(
-                "group flex items-center px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                isCollapsed ? "justify-center px-2" : "rounded-xl",
+                "group flex items-center px-3 py-2.5 text-sm font-medium transition-all duration-200 rounded-xl relative",
+                isCollapsed ? "justify-center px-2" : "",
 
-                // Ativo (moderno, arredondado, elegante)
-                isActive &&
-                  "bg-panel-active text-panel-active-foreground shadow-sm rounded-xl ring-1 ring-border/40",
-
-                // Inativo / Hover
-                !isActive &&
-                  "text-muted-foreground hover:bg-muted hover:text-foreground rounded-x1"
+                // ATIVO: Usa suas variáveis de active (bg-panel-active)
+                isActive
+                  ? "bg-panel-active text-panel-active-foreground shadow-sm ring-1 ring-border/20"
+                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
               )}
               title={isCollapsed ? item.name : undefined}
             >
+              {/* Opcional: Indicador lateral da cor primária */}
+              {isActive && !isCollapsed && (
+                 <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-primary" />
+              )}
+
               <item.icon
+                strokeWidth={isActive ? 2.5 : 2}
                 className={cn(
                   "h-5 w-5 shrink-0 transition-colors",
                   isActive
@@ -111,7 +122,7 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
                 className={cn(
                   "ml-3 truncate transition-all duration-300",
                   isCollapsed
-                    ? "w-0 opacity-0 translate-x-[-12px]"
+                    ? "w-0 opacity-0 translate-x-[-10px]"
                     : "w-auto opacity-100 translate-x-0"
                 )}
               >
@@ -121,16 +132,17 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
           );
         })}
       </nav>
+
       {/* --- Footer da Sidebar --- */}
-      <div className="border-t border-border p-3">
+      <div className="border-t border-border/40 p-4">
         <button
           onClick={handleLogout}
           className={cn(
-            "group flex w-full items-center rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20",
+            "group flex w-full items-center rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-all hover:bg-red-500/10 hover:text-red-500",
             isCollapsed && "justify-center"
           )}
         >
-          <LogOut className="h-5 w-5" />
+          <LogOut className="h-5 w-5 transition-transform group-hover:-translate-x-0.5" />
           <span
             className={cn(
               "ml-3 truncate transition-all duration-300",

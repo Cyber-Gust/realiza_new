@@ -18,7 +18,17 @@ import Modal from "@/components/admin/ui/Modal";
 import { useToast } from "@/contexts/ToastContext";
 import Badge from "@/components/admin/ui/Badge";
 import { Input, Select } from "@/components/admin/ui/Form";
+
 import CRMLeadForm from "./CRMLeadForm";
+import CRMLeadDetailDrawer from "./CRMLeadDetailDrawer"; // 🆕 IMPORTAÇÃO DO DRAWER
+
+import {
+  Table,
+  TableHeader,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/admin/ui/Table";
 
 export default function CRMLeadsPanel() {
   const [leads, setLeads] = useState([]);
@@ -26,6 +36,8 @@ export default function CRMLeadsPanel() {
 
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState(null);
+
+  const [openDrawer, setOpenDrawer] = useState(null); // 🆕 drawer ativo
 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -150,7 +162,7 @@ export default function CRMLeadsPanel() {
       <Card className="p-5 bg-panel-card border-border shadow-sm rounded-xl">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
 
-          {/* SEARCH (mantém input nativo por causa do ícone inline) */}
+          {/* SEARCH */}
           <div className="flex items-center gap-2 border border-border rounded-md px-3 py-2 bg-panel-card">
             <Search size={14} className="text-muted-foreground" />
             <input
@@ -163,11 +175,9 @@ export default function CRMLeadsPanel() {
             />
           </div>
 
-          {/* STATUS */}
           <Select
             value={filters.status}
-            onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
-          >
+            onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}>
             <option value="">Todos os status</option>
             {[
               "novo",
@@ -178,13 +188,10 @@ export default function CRMLeadsPanel() {
               "concluido",
               "perdido",
             ].map((s) => (
-              <option key={s} value={s}>
-                {s.replaceAll("_", " ").toUpperCase()}
-              </option>
+              <option key={s} value={s}>{s.replaceAll("_", " ").toUpperCase()}</option>
             ))}
           </Select>
 
-          {/* CORRETOR */}
           <Select
             value={filters.corretor_id}
             onChange={(e) =>
@@ -193,13 +200,10 @@ export default function CRMLeadsPanel() {
           >
             <option value="">Todos os corretores</option>
             {corretores.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome_completo}
-              </option>
+              <option key={c.id} value={c.id}>{c.nome_completo}</option>
             ))}
           </Select>
 
-          {/* ORIGEM */}
           <Input
             placeholder="Filtrar por origem"
             value={filters.origem}
@@ -208,17 +212,11 @@ export default function CRMLeadsPanel() {
             }
           />
 
-          {/* RESET */}
           <Button
             variant="secondary"
             className="flex items-center gap-2"
             onClick={() =>
-              setFilters({
-                search: "",
-                status: "",
-                origem: "",
-                corretor_id: "",
-              })
+              setFilters({ search: "", status: "", origem: "", corretor_id: "" })
             }
           >
             <RefreshCcw size={14} /> Reset
@@ -236,27 +234,39 @@ export default function CRMLeadsPanel() {
           Nenhum lead encontrado com os filtros aplicados.
         </Card>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredLeads.map((lead) => (
-            <Card
-              key={lead.id}
-              className="
-                p-5 bg-panel-card border border-border rounded-xl
-                shadow-sm hover:shadow-[0_6px_22px_rgba(0,0,0,0.06)]
-                hover:border-primary/40 transition-all cursor-pointer
-                space-y-3
-              "
-              onClick={() => {
-                setEditing(lead);
-                setOpenForm(true);
-              }}
-            >
-              <div className="flex justify-between items-start">
-                <h4 className="text-base font-semibold text-foreground tracking-tight">
-                  {lead.nome}
-                </h4>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nome</TableHead>
+              <TableHead>E-mail</TableHead>
+              <TableHead>Telefone</TableHead>
+              <TableHead>Corretor</TableHead>
+              <TableHead>Origem</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
 
-                <div className="flex gap-1">
+          <tbody>
+            {filteredLeads.map((lead) => (
+              <TableRow
+                key={lead.id}
+                className="cursor-pointer hover:bg-muted/20 transition"
+                onClick={() => setOpenDrawer(lead.id)} // 🆕 ABRE O DRAWER
+              >
+                <TableCell>{lead.nome}</TableCell>
+                <TableCell className="text-muted-foreground">{lead.email || "-"}</TableCell>
+                <TableCell>{lead.telefone}</TableCell>
+                <TableCell>{lead.profiles?.nome_completo || "Sem corretor"}</TableCell>
+                <TableCell>{lead.origem || "Manual"}</TableCell>
+                <TableCell>
+                  <Badge status={lead.status} className="capitalize">{lead.status}</Badge>
+                </TableCell>
+
+                {/* AÇÕES */}
+                <TableCell className="text-right flex justify-end gap-2">
+
+                  {/* EDITAR */}
                   <Button
                     size="icon"
                     variant="ghost"
@@ -269,6 +279,7 @@ export default function CRMLeadsPanel() {
                     <Edit size={16} />
                   </Button>
 
+                  {/* DELETE */}
                   <Button
                     size="icon"
                     variant="ghost"
@@ -279,29 +290,15 @@ export default function CRMLeadsPanel() {
                   >
                     <Trash2 size={16} className="text-red-500" />
                   </Button>
-                </div>
-              </div>
 
-              <p className="text-sm text-muted-foreground">{lead.email || "-"}</p>
-              <p className="text-sm text-muted-foreground">{lead.telefone || "-"}</p>
-
-              <p className="text-xs text-muted-foreground italic">
-                {lead.profiles?.nome_completo || "Sem corretor atribuído"}
-              </p>
-
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">
-                  Origem: {lead.origem || "Manual"}
-                </span>
-
-                <Badge status={lead.status} className="text-[11px] px-2 py-[2px] capitalize" />
-              </div>
-            </Card>
-          ))}
-        </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </tbody>
+        </Table>
       )}
 
-      {/* MODAL — FORM */}
+      {/* FORMULARIO */}
       <Modal
         isOpen={openForm}
         onClose={() => {
@@ -320,7 +317,7 @@ export default function CRMLeadsPanel() {
         />
       </Modal>
 
-      {/* MODAL — CONFIRM DELETE */}
+      {/* CONFIRMAR DELETE */}
       <Modal
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
@@ -329,13 +326,11 @@ export default function CRMLeadsPanel() {
         {deleteTarget && (
           <div className="space-y-5">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="text-red-500 mt-1 shrink-0" />
+              <AlertTriangle className="text-red-500 mt-1" />
               <div>
                 <p>
-                  Tem certeza que deseja remover o lead{" "}
-                  <strong>{deleteTarget.nome}</strong>?
+                  Remover o lead <strong>{deleteTarget.nome}</strong>?
                 </p>
-
                 <p className="text-sm text-muted-foreground mt-1">
                   Origem: {deleteTarget.origem || "Manual"}
                 </p>
@@ -343,11 +338,7 @@ export default function CRMLeadsPanel() {
             </div>
 
             <div className="flex gap-2 pt-2">
-              <Button
-                variant="secondary"
-                className="w-1/2"
-                onClick={() => setDeleteTarget(null)}
-              >
+              <Button variant="secondary" className="w-1/2" onClick={() => setDeleteTarget(null)}>
                 Cancelar
               </Button>
 
@@ -357,18 +348,30 @@ export default function CRMLeadsPanel() {
                 disabled={deleting}
               >
                 {deleting ? (
-                  <span className="flex items-center gap-2">
-                    <Loader2 size={14} className="animate-spin" />
-                    Removendo...
-                  </span>
+                  <>
+                    <Loader2 size={14} className="animate-spin" /> Removendo...
+                  </>
                 ) : (
-                  "Confirmar Remoção"
+                  "Confirmar"
                 )}
               </Button>
             </div>
           </div>
         )}
       </Modal>
+
+      {/* 🆕 DRAWER DE DETALHES */}
+      {openDrawer && (
+        <CRMLeadDetailDrawer
+          leadId={openDrawer}
+          onClose={() => setOpenDrawer(null)}
+          onEdit={(lead) => {
+            setEditing(lead);
+            setOpenDrawer(null);
+            setOpenForm(true);
+          }}
+        />
+      )}
     </div>
   );
 }

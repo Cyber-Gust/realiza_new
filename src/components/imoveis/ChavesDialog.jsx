@@ -15,12 +15,16 @@ export default function ChavesDialog({ imovelId, open, onClose }) {
   const [loading, setLoading] = useState(false);
   const [historico, setHistorico] = useState([]);
 
-  // 🔹 Buscar localização atual
+  /* =========================================================
+     🔹 Buscar localização atual
+  ========================================================== */
   const loadChave = async () => {
     if (!imovelId) return;
+
     try {
-      const res = await fetch(`/api/imoveis/${imovelId}/chaves`);
+      const res = await fetch(`/api/imoveis/${imovelId}?action=chaves`);
       const json = await res.json();
+
       if (!res.ok) throw new Error(json.error || "Erro ao buscar chaves");
 
       setLocalizacao(json.data?.chaves_localizacao || "Não informado");
@@ -29,13 +33,18 @@ export default function ChavesDialog({ imovelId, open, onClose }) {
     }
   };
 
-  // 🔹 Buscar histórico
+  /* =========================================================
+     🔹 Buscar histórico
+  ========================================================== */
   const loadHistorico = async () => {
     if (!imovelId) return;
+
     try {
-      const res = await fetch(`/api/imoveis/${imovelId}/chaves/historico`);
+      const res = await fetch(`/api/imoveis/${imovelId}?action=chaves_historico`);
       const json = await res.json();
+
       if (!res.ok) throw new Error(json.error || "Erro ao buscar histórico");
+
       setHistorico(json.data || []);
     } catch (err) {
       error("Erro", err.message);
@@ -49,15 +58,19 @@ export default function ChavesDialog({ imovelId, open, onClose }) {
     }
   }, [open, imovelId]);
 
-  // 🔹 Atualizar status + salvar histórico
+  /* =========================================================
+     🔹 Atualizar localização + registrar no histórico
+     (a API exige PUT, não POST!)
+  ========================================================== */
   const atualizarLocal = async () => {
     if (!novoLocal) return error("Atenção", "Informe o novo local!");
     if (!imovelId) return error("Atenção", "ID do imóvel não encontrado!");
 
     setLoading(true);
+
     try {
-      const res = await fetch(`/api/imoveis/${imovelId}/chaves`, {
-        method: "POST",
+      const res = await fetch(`/api/imoveis/${imovelId}?action=chaves`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           localizacao: novoLocal,
@@ -73,8 +86,9 @@ export default function ChavesDialog({ imovelId, open, onClose }) {
 
       setNovoLocal("");
       setObservacao("");
-      loadChave();
-      loadHistorico();
+
+      await loadChave();
+      await loadHistorico();
     } catch (err) {
       error("Erro", err.message);
     } finally {
@@ -94,20 +108,19 @@ export default function ChavesDialog({ imovelId, open, onClose }) {
       }
     >
       <div className="space-y-4">
-
         <p className="text-sm text-muted-foreground">
           <strong>Localização atual:</strong>{" "}
           <span className="font-medium text-foreground">{localizacao}</span>
         </p>
 
         <Input
-          placeholder="Nova localização (ex: com corretor João / em visita)"
+          placeholder="Nova localização"
           value={novoLocal}
           onChange={(e) => setNovoLocal(e.target.value)}
         />
 
         <Textarea
-          placeholder="Observação opcional (ex: entrega para visita agendada)"
+          placeholder="Observação opcional"
           value={observacao}
           onChange={(e) => setObservacao(e.target.value)}
           rows={2}
@@ -122,16 +135,13 @@ export default function ChavesDialog({ imovelId, open, onClose }) {
                 <li key={h.id} className="border-b pb-1 border-border">
                   <div className="flex flex-col">
                     <span>
-                      <strong>{h.profiles?.nome_completo || "Usuário"}</strong> —{" "}
-                      {h.acao}
+                      <strong>{h.profiles?.nome_completo || "Usuário"}</strong> — {h.acao}
                     </span>
 
                     <span className="text-xs text-foreground">{h.localizacao}</span>
 
                     {h.observacao && (
-                      <span className="text-xs italic text-muted-foreground">
-                        {h.observacao}
-                      </span>
+                      <span className="text-xs italic text-muted-foreground">{h.observacao}</span>
                     )}
 
                     <span className="text-[10px] text-muted-foreground mt-1">

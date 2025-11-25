@@ -2,31 +2,25 @@
 
 import { useState, useCallback, useEffect, useMemo } from "react";
 
-import {
-  Input,
-  Label,
-} from "@/components/admin/ui/Form";
-
+import { Input, Label, Select, Textarea } from "@/components/admin/ui/Form";
 import { Switch } from "@/components/admin/ui/Switch";
-
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "@/components/admin/ui/Card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/admin/ui/Card";
 
 export default function ImovelForm({ data = {}, onChange }) {
-  const [form, setForm] = useState(data);
+  const [form, setForm] = useState({ ...data });
   const [proprietarios, setProprietarios] = useState([]);
   const [corretores, setCorretores] = useState([]);
 
-  // 🔄 Sincroniza com o parent
+  /* ============================================================
+     🔄 Sync com o parent (edição ou criação)
+  ============================================================ */
   useEffect(() => {
     onChange?.(form);
   }, [form, onChange]);
 
-  // 🔍 Carrega PROPRIETÁRIOS
+  /* ============================================================
+     📌 Carregar PROPRIETÁRIOS
+  ============================================================ */
   useEffect(() => {
     let alive = true;
 
@@ -36,28 +30,26 @@ export default function ImovelForm({ data = {}, onChange }) {
         const { data } = await res.json();
         if (!alive) return;
 
-        if (Array.isArray(data)) {
-          setProprietarios(
-            data.map((d) => ({
-              label: d.nome || d.email || "Sem nome",
-              value: String(d.id ?? ""),
-            }))
-          );
-        } else {
-          setProprietarios([]);
-        }
+        setProprietarios(
+          Array.isArray(data)
+            ? data.map((d) => ({
+                label: d.nome || d.email || "Sem nome",
+                value: String(d.id),
+              }))
+            : []
+        );
       } catch (e) {
         console.error("Erro ao carregar proprietários:", e);
         setProprietarios([]);
       }
     })();
 
-    return () => {
-      alive = false;
-    };
+    return () => (alive = false);
   }, []);
 
-  // 🔍 Carrega CORRETORES / ADM
+  /* ============================================================
+     📌 Carregar CORRETORES
+  ============================================================ */
   useEffect(() => {
     let alive = true;
 
@@ -67,46 +59,55 @@ export default function ImovelForm({ data = {}, onChange }) {
         const json = await res.json();
         if (!alive) return;
 
-        if (Array.isArray(json)) {
-          setCorretores(
-            json.map((d) => ({
-              label: d.nome_completo || d.email || "Sem nome",
-              value: String(d.id ?? ""),
-            }))
-          );
-        } else {
-          setCorretores([]);
-        }
+        setCorretores(
+          Array.isArray(json)
+            ? json.map((d) => ({
+                label: d.nome_completo || d.email || "Sem nome",
+                value: String(d.id),
+              }))
+            : []
+        );
       } catch (e) {
         console.error("Erro ao carregar corretores:", e);
       }
     })();
 
-    return () => {
-      alive = false;
-    };
+    return () => (alive = false);
   }, []);
 
-  // 🔧 Manipula mudanças
+  /* ============================================================
+     🔧 Change Handler — limpo, genérico e resiliente
+  ============================================================ */
   const handleChange = useCallback((key, value) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => {
+      let next = { ...prev, [key]: value };
 
-    if (key === "disponibilidade") {
-      let reset = {};
-      if (value === "venda")
-        reset = { preco_locacao: null, valor_condominio: null, valor_iptu: null };
+      // Regras da disponibilidade
+      if (key === "disponibilidade") {
+        if (value === "venda") {
+          next = {
+            ...next,
+            preco_locacao: null,
+            valor_condominio: null,
+            valor_iptu: null,
+          };
+        }
 
-      if (value === "locacao")
-        reset = { preco_venda: null };
+        if (value === "locacao") {
+          next = {
+            ...next,
+            preco_venda: null,
+          };
+        }
+      }
 
-      setForm((prev) => ({
-        ...prev,
-        [key]: value,
-        ...reset,
-      }));
-    }
+      return next;
+    });
   }, []);
 
+  /* ============================================================
+     OPTIONS
+  ============================================================ */
   const tipoOptions = useMemo(
     () => [
       { label: "Casa", value: "casa" },
@@ -138,6 +139,18 @@ export default function ImovelForm({ data = {}, onChange }) {
     []
   );
 
+  const categoriaOptions = [
+    "Para Alugar",
+    "Vitrine dos Sonhos",
+    "Realize Essence",
+    "Imóveis no Geral",
+    "Imóveis na Planta",
+    "Casa em Condomínio",
+  ];
+
+  /* ============================================================
+     RENDER
+  ============================================================ */
   return (
     <Card className="space-y-6">
       <CardHeader>
@@ -145,14 +158,25 @@ export default function ImovelForm({ data = {}, onChange }) {
       </CardHeader>
 
       <CardContent className="space-y-6">
-
-        {/* Título e codigo_ref */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Título + Código + Slug */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <Label>Título</Label>
             <Input
               value={form.titulo || ""}
-              onChange={(e) => handleChange("titulo", e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                handleChange("titulo", value);
+
+                // auto-slug no mesmo fluxo do input
+                if (!data.id) {
+                  const slug = value
+                    .toLowerCase()
+                    .replace(/\s+/g, "-")
+                    .replace(/[^\w-]+/g, "");
+                  handleChange("slug", slug);
+                }
+              }}
             />
           </div>
 
@@ -163,6 +187,23 @@ export default function ImovelForm({ data = {}, onChange }) {
               onChange={(e) => handleChange("codigo_ref", e.target.value)}
             />
           </div>
+
+          <div>
+            <Label>Slug</Label>
+            <Input
+              value={form.slug || ""}
+              onChange={(e) => handleChange("slug", e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Título curto */}
+        <div>
+          <Label>Título Curto</Label>
+          <Input
+            value={form.titulo_curto || ""}
+            onChange={(e) => handleChange("titulo_curto", e.target.value)}
+          />
         </div>
 
         {/* Descrição */}
@@ -219,7 +260,7 @@ export default function ImovelForm({ data = {}, onChange }) {
           </div>
 
           <div>
-            <Label>Estado (UF)</Label>
+            <Label>UF</Label>
             <Input
               maxLength={2}
               value={form.endereco_estado || ""}
@@ -230,111 +271,131 @@ export default function ImovelForm({ data = {}, onChange }) {
           </div>
         </div>
 
-        {/* Proprietário, corretor, tipo */}
+        {/* Proprietário / Corretor / Tipo */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-          <div className="flex flex-col gap-1">
+          <div>
             <Label>Proprietário</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+            <Select
+              
               value={form.proprietario_id ?? ""}
               onChange={(e) => handleChange("proprietario_id", e.target.value)}
             >
-              <option value="" disabled hidden>Selecione...</option>
-              {proprietarios.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              <option value="" hidden>Selecione...</option>
+              {proprietarios.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
               ))}
-            </select>
+            </Select>
           </div>
 
-          <div className="flex flex-col gap-1">
+          <div>
             <Label>Corretor Responsável</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+            <Select
+              
               value={form.corretor_id ?? ""}
               onChange={(e) => handleChange("corretor_id", e.target.value)}
             >
-              <option value="" disabled hidden>Selecione...</option>
-              {corretores.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              <option value="" hidden>Selecione...</option>
+              {corretores.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
               ))}
-            </select>
+            </Select>
           </div>
 
-          <div className="flex flex-col gap-1">
+          <div>
             <Label>Tipo</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+            <Select
+              
               value={form.tipo ?? ""}
               onChange={(e) => handleChange("tipo", e.target.value)}
             >
-              <option value="" disabled hidden>Selecione...</option>
-              {tipoOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              <option value="" hidden>Selecione...</option>
+              {tipoOptions.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
 
-        {/* Status / disponibilidade / switches */}
+        {/* Status / disponibilidade / flags */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-          <div className="flex flex-col gap-1">
+          <div>
             <Label>Status</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+            <Select
+              
               value={form.status ?? "disponivel"}
               onChange={(e) => handleChange("status", e.target.value)}
             >
-              {statusOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              {statusOptions.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
               ))}
-            </select>
+            </Select>
           </div>
 
-          <div className="flex flex-col gap-1">
+          <div>
             <Label>Disponibilidade</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+            <Select
+              
               value={form.disponibilidade ?? "venda"}
               onChange={(e) => handleChange("disponibilidade", e.target.value)}
             >
-              {disponibilidadeOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              {disponibilidadeOptions.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
               ))}
-            </select>
+            </Select>
           </div>
 
-          <div className="flex gap-6 items-center justify-center md:justify-start">
+          <div className="flex flex-wrap gap-6 items-center">
             <div className="flex items-center gap-2">
-              <Switch
-                checked={!!form.mobiliado}
-                onCheckedChange={(v) => handleChange("mobiliado", v)}
-              />
-              <Label className="text-sm">Mobiliado</Label>
+              <Switch checked={!!form.mobiliado} onCheckedChange={(v) => handleChange("mobiliado", v)} />
+              <Label>Mobiliado</Label>
             </div>
-
             <div className="flex items-center gap-2">
-              <Switch
-                checked={!!form.pet_friendly}
-                onCheckedChange={(v) => handleChange("pet_friendly", v)}
-              />
-              <Label className="text-sm">Pet Friendly</Label>
+              <Switch checked={!!form.pet_friendly} onCheckedChange={(v) => handleChange("pet_friendly", v)} />
+              <Label>Pet Friendly</Label>
             </div>
           </div>
         </div>
 
-        {/* Preços */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Flags extras */}
+        <div className="flex flex-wrap gap-6">
+          <div className="flex items-center gap-2">
+            <Switch checked={!!form.piscina} onCheckedChange={(v) => handleChange("piscina", v)} />
+            <Label>Piscina</Label>
+          </div>
 
+          <div className="flex items-center gap-2">
+            <Switch checked={!!form.elevador} onCheckedChange={(v) => handleChange("elevador", v)} />
+            <Label>Elevador</Label>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Switch checked={!!form.area_gourmet} onCheckedChange={(v) => handleChange("area_gourmet", v)} />
+            <Label>Área Gourmet</Label>
+          </div>
+        </div>
+
+        {/* PREÇOS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {(form.disponibilidade === "venda" ||
             form.disponibilidade === "ambos") && (
             <div>
               <Label>Preço de Venda (R$)</Label>
               <Input
                 type="number"
-                value={form.preco_venda || ""}
-                onChange={(e) => handleChange("preco_venda", e.target.value)}
+                value={form.preco_venda ?? ""}
+                onChange={(e) =>
+                  handleChange("preco_venda", Number(e.target.value))
+                }
               />
             </div>
           )}
@@ -345,47 +406,45 @@ export default function ImovelForm({ data = {}, onChange }) {
               <Label>Preço de Locação (R$)</Label>
               <Input
                 type="number"
-                value={form.preco_locacao || ""}
-                onChange={(e) => handleChange("preco_locacao", e.target.value)}
+                value={form.preco_locacao ?? ""}
+                onChange={(e) =>
+                  handleChange("preco_locacao", Number(e.target.value))
+                }
               />
             </div>
           )}
 
-          {(form.disponibilidade === "locacao" ||
-            form.disponibilidade === "ambos") && (
-            <div>
-              <Label>Valor de Condomínio (R$)</Label>
-              <Input
-                type="number"
-                value={form.valor_condominio || ""}
-                onChange={(e) => handleChange("valor_condominio", e.target.value)}
-              />
-            </div>
-          )}
+          <div>
+            <Label>Valor de Condomínio (R$)</Label>
+            <Input
+              type="number"
+              value={form.valor_condominio ?? ""}
+              onChange={(e) =>
+                handleChange("valor_condominio", Number(e.target.value))
+              }
+            />
+          </div>
+
+          <div>
+            <Label>Valor IPTU (R$)</Label>
+            <Input
+              type="number"
+              value={form.valor_iptu ?? ""}
+              onChange={(e) =>
+                handleChange("valor_iptu", Number(e.target.value))
+              }
+            />
+          </div>
         </div>
 
-        {(form.disponibilidade === "locacao" ||
-          form.disponibilidade === "ambos") && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label>Valor de IPTU (R$)</Label>
-              <Input
-                type="number"
-                value={form.valor_iptu || ""}
-                onChange={(e) => handleChange("valor_iptu", e.target.value)}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Área, quartos, banheiros */}
+        {/* Área / Dormitórios */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <Label>Área Total (m²)</Label>
             <Input
               type="number"
-              value={form.area_total || ""}
-              onChange={(e) => handleChange("area_total", e.target.value)}
+              value={form.area_total ?? ""}
+              onChange={(e) => handleChange("area_total", Number(e.target.value))}
             />
           </div>
 
@@ -393,8 +452,17 @@ export default function ImovelForm({ data = {}, onChange }) {
             <Label>Quartos</Label>
             <Input
               type="number"
-              value={form.quartos || ""}
-              onChange={(e) => handleChange("quartos", e.target.value)}
+              value={form.quartos ?? ""}
+              onChange={(e) => handleChange("quartos", Number(e.target.value))}
+            />
+          </div>
+
+          <div>
+            <Label>Suítes</Label>
+            <Input
+              type="number"
+              value={form.suites ?? ""}
+              onChange={(e) => handleChange("suites", Number(e.target.value))}
             />
           </div>
 
@@ -402,22 +470,89 @@ export default function ImovelForm({ data = {}, onChange }) {
             <Label>Banheiros</Label>
             <Input
               type="number"
-              value={form.banheiros || ""}
-              onChange={(e) => handleChange("banheiros", e.target.value)}
+              value={form.banheiros ?? ""}
+              onChange={(e) => handleChange("banheiros", Number(e.target.value))}
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label>Vagas de Garagem</Label>
-            <Input
-              type="number"
-              value={form.vagas_garagem || ""}
-              onChange={(e) => handleChange("vagas_garagem", e.target.value)}
-            />
-          </div>
+        {/* Garagem */}
+        <div>
+          <Label>Vagas de Garagem</Label>
+          <Input
+            type="number"
+            value={form.vagas_garagem ?? ""}
+            onChange={(e) => handleChange("vagas_garagem", Number(e.target.value))}
+          />
         </div>
+
+        {/* Condominio nome */}
+        <div>
+          <Label>Nome do Condomínio (opcional)</Label>
+          <Input
+            value={form.condominio || ""}
+            onChange={(e) => handleChange("condominio", e.target.value)}
+          />
+        </div>
+
+        {/* Chaves */}
+        <div>
+          <Label>Localização da Chave (interno)</Label>
+          <Input
+            value={form.chaves_localizacao || ""}
+            onChange={(e) => handleChange("chaves_localizacao", e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-2">
+        <Label>Categorias</Label>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {categoriaOptions.map((cat) => {
+            const normalized = cat.toLowerCase();
+
+            return (
+              <label
+                key={cat}
+                className="
+                  flex items-center gap-3 cursor-pointer select-none
+                  p-2 rounded-xl transition-all
+                  hover:bg-gray-100
+                "
+              >
+                <input
+                  type="checkbox"
+                  className="
+                    peer h-5 w-5 cursor-pointer appearance-none rounded
+                    border border-gray-400 transition-all
+                    checked:bg-accent checked:border-accent
+                    checked:before:block checked:before:content-['✔']
+                    checked:before:text-white checked:before:text-sm
+                    checked:before:flex checked:before:items-center checked:before:justify-center
+                    hover:border-accent
+                  "
+                  checked={form.categorias?.includes(normalized) || false}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+
+                    let next = form.categorias ? [...form.categorias] : [];
+
+                    if (checked) {
+                      next.push(normalized);
+                    } else {
+                      next = next.filter((c) => c !== normalized);
+                    }
+
+                    handleChange("categorias", next);
+                  }}
+                />
+
+                <span className="text-gray-800 dark:text-white">{cat}</span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
       </CardContent>
     </Card>
   );

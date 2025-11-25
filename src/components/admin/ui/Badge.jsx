@@ -48,6 +48,12 @@ encerrado: "bg-rose-300 text-rose-900 border-rose-400 dark:bg-rose-700 dark:text
   concluida: "bg-green-300 text-green-900 border-green-400 dark:bg-green-700 dark:text-green-100 dark:border-green-500",
   cancelada: "bg-red-200 text-red-900 border-red-300 dark:bg-red-700 dark:text-red-100 dark:border-red-500",
 
+  // --- STATUS PROPOSTA ---
+  pendente: "bg-amber-200 text-amber-800 border-amber-300 dark:bg-amber-700 dark:text-amber-100 dark:border-amber-500",
+  aceita: "bg-green-300 text-green-900 border-green-400 dark:bg-green-700 dark:text-green-100 dark:border-green-500",
+  recusada: "bg-rose-200 text-rose-800 border-rose-300 dark:bg-rose-700 dark:text-rose-100 dark:border-rose-500",
+  contraproposta: "bg-indigo-200 text-indigo-800 border-indigo-300 dark:bg-indigo-700 dark:text-indigo-100 dark:border-indigo-500",
+
   // --- LABELS GENÉRICOS ---
   admin: "bg-purple-300 text-purple-900 border-purple-400 dark:bg-purple-700 dark:text-purple-100 dark:border-purple-500",
   corretor: "bg-cyan-300 text-cyan-900 border-cyan-400 dark:bg-cyan-700 dark:text-cyan-100 dark:border-cyan-500",
@@ -55,6 +61,14 @@ encerrado: "bg-rose-300 text-rose-900 border-rose-400 dark:bg-rose-700 dark:text
   inquilino: "bg-amber-300 text-amber-900 border-amber-400 dark:bg-amber-700 dark:text-amber-100 dark:border-amber-500",
   cliente: "bg-pink-300 text-pink-900 border-pink-400 dark:bg-pink-700 dark:text-pink-100 dark:border-pink-500",
 
+  // --- EVENTOS CRM ---
+  visita_presencial: "bg-emerald-200 text-emerald-900 border-emerald-300 dark:bg-emerald-700 dark:text-emerald-100 dark:border-emerald-500",
+  visita_virtual: "bg-sky-200 text-sky-900 border-sky-300 dark:bg-sky-700 dark:text-sky-100 dark:border-sky-500",
+  reuniao: "bg-violet-200 text-violet-900 border-violet-300 dark:bg-violet-700 dark:text-violet-100 dark:border-violet-500",
+  follow_up: "bg-amber-200 text-amber-900 border-amber-300 dark:bg-amber-700 dark:text-amber-100 dark:border-amber-500",
+  administrativo: "bg-blue-200 text-blue-900 border-blue-300 dark:bg-blue-700 dark:text-blue-100 dark:border-blue-500",
+  tecnico: "bg-rose-200 text-rose-900 border-rose-300 dark:bg-rose-700 dark:text-rose-100 dark:border-rose-500",
+  outro: "bg-slate-200 text-slate-900 border-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:border-slate-500",
   // Fallback
   default: "bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-700 dark:text-blue-100 dark:border-blue-500",
 };

@@ -1,20 +1,13 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@supabase/ssr";
-import AdminClientLayout from "./AdminClientLayout"; // 👈 importa o seu layout client
+import AdminClientLayout from "./AdminClientLayout"; 
 
-/**
- * 🔒 Layout de segurança do painel admin
- * - Verifica sessão e role via Supabase
- * - Roda no servidor (SSR)
- * - Encapsula o layout client-side com sidebar e header
- */
 export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }) {
   const cookieStore = await cookies();
 
-  // 🔹 Cria o client SSR (com cookies válidos)
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -25,7 +18,6 @@ export default async function AdminLayout({ children }) {
     }
   );
 
-  // 🔹 Busca usuário autenticado
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -34,17 +26,22 @@ export default async function AdminLayout({ children }) {
     redirect("/login");
   }
 
-  // 🔹 Verifica o papel (role)
+  // 🔹 CORREÇÃO 1: Traga todos os dados, não só a role
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("*") // Mudado de "role" para "*" (ou liste: role, nome_completo, avatar_url)
     .eq("id", user.id)
     .single();
 
   if (!profile || profile.role !== "admin") {
-    redirect("/"); // bloqueia acesso de não-admins
+    redirect("/"); 
   }
 
-  // 🔹 Retorna o layout client-side com o painel
-  return <AdminClientLayout>{children}</AdminClientLayout>;
+  // 🔹 CORREÇÃO 2: Passe o user e profile para o componente filho
+  return (
+    // 👇 OBRIGATÓRIO passar as props aqui para o Client Layout receber
+    <AdminClientLayout user={user} profile={profile}>
+        {children}
+    </AdminClientLayout>
+  );
 }

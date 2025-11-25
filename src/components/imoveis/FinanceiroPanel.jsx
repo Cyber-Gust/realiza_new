@@ -18,6 +18,7 @@ import VacanciaWidget from "@/components/imoveis/VacanciaWidget";
 
 import { formatCurrency } from "@/utils/formatters";
 import { createClient } from "@/lib/supabase/client";
+import { Input, Label, Select } from "../admin/ui/Form";
 
 export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
   const { success, error } = useToast();
@@ -36,14 +37,16 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
     [imovel]
   );
 
-  // 🔄 Busca histórico
+  /* ============================================================
+      🔹 BUSCAR HISTÓRICO (GET action=precos)
+  ============================================================ */
   const fetchHistorico = useCallback(async () => {
+    if (!imovel?.id) return;
+
     try {
-      const r = await fetch(`/api/imoveis/${imovel.id}/preco`, {
+      const r = await fetch(`/api/imoveis/${imovel.id}?action=precos`, {
         cache: "no-store",
       });
-
-      if (r.status === 404) return setHistorico([]);
 
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Falha ao carregar histórico");
@@ -55,30 +58,37 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
   }, [imovel?.id]);
 
   useEffect(() => {
-    if (imovel?.id) fetchHistorico();
-  }, [imovel?.id, fetchHistorico]);
+    fetchHistorico();
+  }, [fetchHistorico]);
 
-  // 🔹 Registrar ajuste
+  /* ============================================================
+      🔹 REGISTRAR AJUSTE (PUT action=precos_add)
+  ============================================================ */
   const registrarAjuste = async () => {
     try {
       if (!ajuste.valor || Number(ajuste.valor) <= 0)
         return error("Atenção", "Informe um valor válido");
 
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
       if (!user)
         return error("Autenticação", "Sessão expirada. Faça login novamente.");
 
-      const r = await fetch(`/api/imoveis/${imovel.id}/preco`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tipo: ajuste.tipo,
-          valor: Number(ajuste.valor),
-          usuario_id: user.id,
-        }),
-      });
+      const r = await fetch(
+        `/api/imoveis/${imovel.id}?action=precos_add`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tipo: ajuste.tipo,
+            valor: Number(ajuste.valor),
+            usuario_id: user.id,
+          }),
+        }
+      );
 
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Falha ao registrar ajuste");
@@ -94,20 +104,22 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
 
       onUpdateImovel?.(novo);
 
-      await fetchHistorico();
+      fetchHistorico();
     } catch (e) {
       error("Erro", e.message);
     }
   };
 
-  // 🔁 Atualização de disponibilidade
+  /* ============================================================
+      🔹 ATUALIZAR DISPONIBILIDADE
+         (PUT /api/imoveis/:id)
+  ============================================================ */
   const atualizarDisponibilidade = async (novaDisponibilidade) => {
     try {
-      const r = await fetch(`/api/imoveis/update`, {
+      const r = await fetch(`/api/imoveis/${imovel.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: imovel.id,
           disponibilidade: novaDisponibilidade,
         }),
       });
@@ -126,9 +138,11 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
     }
   };
 
+  /* ============================================================
+      🔹 RENDER
+  ============================================================ */
   return (
     <div className="grid md:grid-cols-2 gap-4">
-
       {/* 💰 PREÇOS */}
       <Card className="space-y-2">
         <CardHeader>
@@ -154,17 +168,18 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
 
           {/* Disponibilidade */}
           <div className="flex flex-col gap-1">
-            <label className="text-sm text-muted-foreground">Disponibilidade</label>
+            <label className="text-sm text-muted-foreground">
+              Disponibilidade
+            </label>
 
-            <select
-              className="flex h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+            <Select
               value={imovel.disponibilidade ?? "venda"}
               onChange={(e) => atualizarDisponibilidade(e.target.value)}
             >
               <option value="venda">Venda</option>
               <option value="locacao">Locação</option>
               <option value="ambos">Ambos</option>
-            </select>
+            </Select>
           </div>
 
           <Button className="mt-4" onClick={() => setOpenModal(true)}>
@@ -183,7 +198,9 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
           <div className="flex justify-between">
             <p className="text-sm text-muted-foreground">Condomínio</p>
             <p className="text-base font-medium">
-              {precoAtual.condominio ? formatCurrency(precoAtual.condominio) : "-"}
+              {precoAtual.condominio
+                ? formatCurrency(precoAtual.condominio)
+                : "-"}
             </p>
           </div>
 
@@ -209,7 +226,7 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
         </CardContent>
       </Card>
 
-      {/* 🪟 MODAL DE AJUSTE */}
+      {/* 🪟 MODAL */}
       <Modal
         isOpen={openModal}
         onClose={() => setOpenModal(false)}
@@ -219,42 +236,40 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
             <Button variant="secondary" onClick={() => setOpenModal(false)}>
               Cancelar
             </Button>
+
             <Button onClick={registrarAjuste}>Salvar</Button>
           </div>
         }
       >
         <div className="grid grid-cols-1 gap-4 mt-2">
-
           {/* Tipo */}
           <div className="flex flex-col gap-1">
             <label className="text-sm text-muted-foreground">Tipo</label>
 
-            <select
+            <Select
               value={ajuste.tipo}
               onChange={(e) =>
                 setAjuste((p) => ({ ...p, tipo: e.target.value }))
               }
-              className="flex h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
             >
               <option value="venda">Venda</option>
               <option value="locacao">Locação</option>
-            </select>
+            </Select>
           </div>
 
           {/* Valor */}
           <div className="flex flex-col gap-1">
-            <label className="text-sm text-muted-foreground">
+            <Label className="text-sm rounded-xl text-muted-foreground">
               Novo Valor (R$)
-            </label>
+            </Label>
 
-            <input
+            <Input
               type="number"
               min={0}
               value={ajuste.valor}
               onChange={(e) =>
                 setAjuste((p) => ({ ...p, valor: e.target.value }))
               }
-              className="flex h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
             />
           </div>
         </div>

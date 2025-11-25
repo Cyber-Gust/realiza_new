@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/admin/ui/Button";
-import { Input, Textarea, Select, Label, FormError } from "@/components/admin/ui/Form";
+import { Input, Textarea, Select, Label } from "@/components/admin/ui/Form";
 import { useToast } from "@/contexts/ToastContext";
-import { cn } from "@/lib/utils";
 
 export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
   const [form, setForm] = useState({
@@ -14,12 +13,28 @@ export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
     origem: lead?.origem || "",
     status: lead?.status || "novo",
     corretor_id: lead?.corretor_id || "",
-    perfil_busca_json: lead?.perfil_busca_json || {},
+
+    /* 🆕 Novos campos */
+    interesse_tipo: lead?.interesse_tipo || "",
+    interesse_disponibilidade: lead?.interesse_disponibilidade || "",
+    faixa_preco_min: lead?.faixa_preco_min || "",
+    faixa_preco_max: lead?.faixa_preco_max || "",
+    quartos: lead?.quartos || "",
+    banheiros: lead?.banheiros || "",
+    suites: lead?.suites || "",
+    vagas: lead?.vagas || "",
+    cidade_preferida: lead?.cidade_preferida || "",
+    bairro_preferido: lead?.bairro_preferido || "",
+    pet_friendly: lead?.pet_friendly ?? "",
+    mobiliado: lead?.mobiliado ?? "",
+    condominio_max: lead?.condominio_max || "",
+    urgencia: lead?.urgencia || "",
+    motivo_busca: lead?.motivo_busca || "",
+    observacoes: lead?.observacoes || "",
   });
 
   const [loading, setLoading] = useState(false);
   const [corretores, setCorretores] = useState([]);
-  const [jsonError, setJsonError] = useState(false);
 
   const toast = useToast();
 
@@ -27,7 +42,7 @@ export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
     setForm((prev) => ({ ...prev, [field]: value }));
 
   /* ============================================================
-     Corretores
+     Carrega Corretores
   ============================================================ */
   useEffect(() => {
     const loadCorretores = async () => {
@@ -49,7 +64,7 @@ export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
   }, []);
 
   /* ============================================================
-     Payload Cleaner
+     Limpa Payload
   ============================================================ */
   const cleanPayload = (obj) => {
     const cleaned = {};
@@ -63,11 +78,9 @@ export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
      Submit
   ============================================================ */
   const handleSubmit = async () => {
-    if (!form.nome || !form.telefone)
+    if (!form.nome || !form.telefone) {
       return toast.error("Erro", "Nome e telefone são obrigatórios!");
-
-    if (jsonError)
-      return toast.error("Erro", "Corrija o JSON antes de salvar!");
+    }
 
     setLoading(true);
 
@@ -75,12 +88,11 @@ export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
       const isEdit = !!lead?.id;
 
       const payload = cleanPayload({
-        type: "leads",
         ...form,
         ...(isEdit ? { id: lead.id } : {}),
       });
 
-      const url = isEdit ? "/api/perfis/update" : "/api/perfis/create";
+      const url = "/api/crm/leads";
       const method = isEdit ? "PUT" : "POST";
 
       const res = await fetch(url, {
@@ -110,12 +122,10 @@ export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
      Render
   ============================================================ */
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
 
-      {/* GRID */}
+      {/* Informações básicas */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-        {/* Nome */}
         <div>
           <Label>Nome</Label>
           <Input
@@ -124,7 +134,6 @@ export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
           />
         </div>
 
-        {/* Telefone */}
         <div>
           <Label>Telefone</Label>
           <Input
@@ -133,17 +142,15 @@ export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
           />
         </div>
 
-        {/* Email */}
         <div>
           <Label>Email</Label>
           <Input
-            type="email"
             value={form.email}
+            type="email"
             onChange={(e) => handleChange("email", e.target.value)}
           />
         </div>
 
-        {/* Origem */}
         <div>
           <Label>Origem</Label>
           <Input
@@ -152,7 +159,6 @@ export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
           />
         </div>
 
-        {/* Status */}
         <div>
           <Label>Status</Label>
           <Select
@@ -175,7 +181,6 @@ export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
           </Select>
         </div>
 
-        {/* Corretor */}
         <div>
           <Label>Corretor Responsável</Label>
           <Select
@@ -192,34 +197,188 @@ export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
         </div>
       </div>
 
-      {/* Perfil JSON */}
-      <div>
-        <Label>Perfil de busca (JSON)</Label>
-        <Textarea
-          rows={6}
-          className={cn(
-            "font-mono text-xs resize-none bg-panel-card",
-            jsonError ? "border-red-500" : "border-border"
-          )}
-          value={JSON.stringify(form.perfil_busca_json, null, 2)}
-          onChange={(e) => {
-            try {
-              const parsed = JSON.parse(e.target.value);
-              setJsonError(false);
-              handleChange("perfil_busca_json", parsed);
-            } catch {
-              setJsonError(true);
-            }
-          }}
-        />
+      {/* Perfil estruturado */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-        {jsonError && <FormError message="JSON inválido." />}
+        <div>
+          <Label>Tipo do imóvel desejado</Label>
+          <Select
+            value={form.interesse_tipo || ""}
+            onChange={(e) => handleChange("interesse_tipo", e.target.value)}
+          >
+            <option value="">Selecione</option>
+            <option value="apartamento">Apartamento</option>
+            <option value="casa">Casa</option>
+            <option value="terreno">Terreno</option>
+            <option value="comercial">Comercial</option>
+            <option value="rural">Rural</option>
+          </Select>
+        </div>
+
+        <div>
+          <Label>Disponibilidade</Label>
+          <Select
+            value={form.interesse_disponibilidade || ""}
+            onChange={(e) =>
+              handleChange("interesse_disponibilidade", e.target.value)
+            }
+          >
+            <option value="">Selecione</option>
+            <option value="venda">Venda</option>
+            <option value="locacao">Locação</option>
+            <option value="ambos">Ambos</option>
+          </Select>
+        </div>
+
+        <div>
+          <Label>Preço Mínimo</Label>
+          <Input
+            type="number"
+            value={form.faixa_preco_min}
+            onChange={(e) =>
+              handleChange("faixa_preco_min", Number(e.target.value))
+            }
+          />
+        </div>
+
+        <div>
+          <Label>Preço Máximo</Label>
+          <Input
+            type="number"
+            value={form.faixa_preco_max}
+            onChange={(e) =>
+              handleChange("faixa_preco_max", Number(e.target.value))
+            }
+          />
+        </div>
+
+        <div>
+          <Label>Quartos</Label>
+          <Input
+            type="number"
+            value={form.quartos}
+            onChange={(e) => handleChange("quartos", Number(e.target.value))}
+          />
+        </div>
+
+        <div>
+          <Label>Banheiros</Label>
+          <Input
+            type="number"
+            value={form.banheiros}
+            onChange={(e) => handleChange("banheiros", Number(e.target.value))}
+          />
+        </div>
+
+        <div>
+          <Label>Suítes</Label>
+          <Input
+            type="number"
+            value={form.suites}
+            onChange={(e) => handleChange("suites", Number(e.target.value))}
+          />
+        </div>
+
+        <div>
+          <Label>Vagas</Label>
+          <Input
+            type="number"
+            value={form.vagas}
+            onChange={(e) => handleChange("vagas", Number(e.target.value))}
+          />
+        </div>
+
+        <div>
+          <Label>Cidade preferida</Label>
+          <Input
+            value={form.cidade_preferida}
+            onChange={(e) => handleChange("cidade_preferida", e.target.value)}
+          />
+        </div>
+
+        <div>
+          <Label>Bairro preferido</Label>
+          <Input
+            value={form.bairro_preferido}
+            onChange={(e) => handleChange("bairro_preferido", e.target.value)}
+          />
+        </div>
+
+        <div>
+          <Label>Pet Friendly</Label>
+          <Select
+            value={form.pet_friendly}
+            onChange={(e) =>
+              handleChange("pet_friendly", e.target.value === "true")
+            }
+          >
+            <option value="">Selecione</option>
+            <option value="true">Sim</option>
+            <option value="false">Não</option>
+          </Select>
+        </div>
+
+        <div>
+          <Label>Mobiliado</Label>
+          <Select
+            value={form.mobiliado}
+            onChange={(e) =>
+              handleChange("mobiliado", e.target.value === "true")
+            }
+          >
+            <option value="">Selecione</option>
+            <option value="true">Sim</option>
+            <option value="false">Não</option>
+          </Select>
+        </div>
+
+        <div>
+          <Label>Condomínio Máximo</Label>
+          <Input
+            type="number"
+            value={form.condominio_max}
+            onChange={(e) =>
+              handleChange("condominio_max", Number(e.target.value))
+            }
+          />
+        </div>
+
+        <div>
+          <Label>Urgência</Label>
+          <Select
+            value={form.urgencia}
+            onChange={(e) => handleChange("urgencia", e.target.value)}
+          >
+            <option value="">Selecione</option>
+            <option value="baixa">Baixa</option>
+            <option value="media">Média</option>
+            <option value="alta">Alta</option>
+          </Select>
+        </div>
       </div>
 
-      {/* Botão */}
+      {/* Observações */}
+      <div>
+        <Label>Motivo da busca</Label>
+        <Input
+          value={form.motivo_busca}
+          onChange={(e) => handleChange("motivo_busca", e.target.value)}
+        />
+      </div>
+
+      <div>
+        <Label>Observações</Label>
+        <Textarea
+          rows={4}
+          value={form.observacoes}
+          onChange={(e) => handleChange("observacoes", e.target.value)}
+        />
+      </div>
+
+      {/* BOTÃO */}
       <Button
         className="w-full mt-6 h-11 text-sm"
-        disabled={loading || jsonError}
+        disabled={loading}
         onClick={handleSubmit}
       >
         {loading

@@ -1,0 +1,75 @@
+/* calendar.css */
+
+/* Sincronizando com suas variáveis do globals.css */
+.fc {
+  /* Usa a cor da borda do seu tema */
+  --fc-border-color: hsl(var(--border) / 0.5); 
+  
+  /* Usa a cor do card do seu tema */
+  --fc-page-bg-color: hsl(var(--panel-card));
+  
+  /* O "Hoje" agora usa o seu VERDE (Accent) com transparência */
+  --fc-today-bg-color: hsl(var(--accent) / 0.08) !important;
+  
+  --fc-neutral-bg-color: hsl(var(--muted));
+  font-family: inherit;
+}
+
+/* Remove a borda grossa externa para podermos usar rounded no container */
+.fc-theme-standard .fc-scrollgrid {
+  border: none !important;
+}
+
+/* Cabeçalhos (DOM, SEG...) */
+.fc-col-header-cell-cushion {
+  text-transform: uppercase;
+  font-size: 0.70rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: hsl(var(--muted-foreground));
+  padding-top: 1.2rem !important;
+  padding-bottom: 0.8rem !important;
+  text-decoration: none !important; 
+}
+
+/* Arredonda o highlight de seleção ao passar o mouse */
+.fc-highlight {
+  background: hsl(var(--accent) / 0.1) !important;
+}
+
+/* Ajuste fino nas células */
+.fc-daygrid-day-frame {
+  padding: 4px;
+}
+
+/* Número do dia */
+.fc-daygrid-day-top {
+  flex-direction: row;
+  justify-content: center;
+  padding-top: 4px;
+}
+
+.fc-daygrid-day-number {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: hsl(var(--foreground) / 0.6);
+  text-decoration: none !important;
+  border-radius: 999px; /* Bolinha no hover se quiser customizar depois */
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Se for o dia atual, destaca o número com seu verde */
+.fc-day-today .fc-daygrid-day-number {
+  color: hsl(var(--accent));
+  font-weight: 800;
+}
+
+/* Remove bordas duplas chatas */
+.fc-theme-standard td, 
+.fc-theme-standard th {
+  border-color: hsl(var(--border) / 0.6);
+}

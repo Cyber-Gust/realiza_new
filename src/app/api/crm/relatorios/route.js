@@ -3,20 +3,33 @@ import { createServiceClient } from "@/lib/supabase/server";
 
 /* ============================================================
    📌 GET /api/crm/relatorios
-   Consolida KPIs, funil, visitas, propostas, origens e ranking.
-   ============================================================ */
+   ——— Versão Avançada
+   Filtros inteligentes + KPIs expandidos + Contratos
+============================================================ */
 export async function GET(req) {
   const supabase = createServiceClient();
   const { searchParams } = new URL(req.url);
 
+  /* ============================================================
+     📍 Coleta de filtros da URL
+  ============================================================ */
   const inicio = searchParams.get("inicio");
   const fim = searchParams.get("fim");
   const corretor_id = searchParams.get("corretor_id");
   const origem = searchParams.get("origem");
 
+  const status_lead = searchParams.get("status_lead");
+  const interesse_tipo = searchParams.get("interesse_tipo");
+  const interesse_disponibilidade = searchParams.get("interesse_disponibilidade");
+  const cidade = searchParams.get("cidade");
+
+  const status_proposta = searchParams.get("status_proposta");
+
+  const imovel_status = searchParams.get("imovel_status");
+
   try {
     /* ============================================================
-       🔎 HELPERS DE FILTRO
+       🔧 Helper para aplicar filtro de data
     ============================================================ */
     const filterByDate = (query, field) => {
       if (inicio) query = query.gte(field, inicio);
@@ -27,11 +40,17 @@ export async function GET(req) {
     /* ============================================================
        📌 1. LEADS
     ============================================================ */
-    let leadsQuery = supabase.from("leads").select("*", { count: "exact" });
+    let leadsQuery = supabase.from("leads").select("*");
 
     leadsQuery = filterByDate(leadsQuery, "created_at");
-    if (corretor_id) leadsQuery = leadsQuery.eq("corretor_id", corretor_id);
-    if (origem) leadsQuery = leadsQuery.eq("origem", origem);
+
+    if (corretor_id) leadsQuery.eq("corretor_id", corretor_id);
+    if (origem) leadsQuery.eq("origem", origem);
+    if (status_lead) leadsQuery.eq("status", status_lead);
+    if (interesse_tipo) leadsQuery.eq("interesse_tipo", interesse_tipo);
+    if (interesse_disponibilidade)
+      leadsQuery.eq("interesse_disponibilidade", interesse_disponibilidade);
+    if (cidade) leadsQuery.ilike("cidade_preferida", `%${cidade}%`);
 
     const { data: leads, error: leadsErr } = await leadsQuery;
     if (leadsErr) throw leadsErr;
@@ -42,13 +61,15 @@ export async function GET(req) {
     let propostasQuery = supabase.from("propostas").select("*");
 
     propostasQuery = filterByDate(propostasQuery, "created_at");
-    if (corretor_id) propostasQuery = propostasQuery.eq("corretor_id", corretor_id);
+
+    if (corretor_id) propostasQuery.eq("corretor_id", corretor_id);
+    if (status_proposta) propostasQuery.eq("status", status_proposta);
 
     const { data: propostas, error: propErr } = await propostasQuery;
     if (propErr) throw propErr;
 
     /* ============================================================
-       📌 3. VISITAS (agenda_eventos)
+       📌 3. VISITAS
     ============================================================ */
     let visitasQuery = supabase
       .from("agenda_eventos")
@@ -56,10 +77,34 @@ export async function GET(req) {
       .ilike("tipo", "%visita%");
 
     visitasQuery = filterByDate(visitasQuery, "data_inicio");
-    if (corretor_id) visitasQuery = visitasQuery.eq("profile_id", corretor_id);
+
+    if (corretor_id) visitasQuery.eq("profile_id", corretor_id);
 
     const { data: visitas, error: visitasErr } = await visitasQuery;
     if (visitasErr) throw visitasErr;
+
+    /* ============================================================
+       📌 4. CONTRATOS (NOVO!)
+    ============================================================ */
+    let contratosQuery = supabase.from("contratos").select("*");
+
+    contratosQuery = filterByDate(contratosQuery, "created_at");
+
+    if (corretor_id) {
+      // contratos → imóvel → corretor
+      contratosQuery = contratosQuery.eq("corretor_id", corretor_id);
+    }
+
+    if (imovel_status) {
+      // join indireto, mas Supabase permite filter via subquery
+      contratosQuery = contratosQuery.contains("imoveis.status", imovel_status);
+    }
+
+    const { data: contratos, error: contratosErr } = await contratosQuery;
+    if (contratosErr) {
+      // caso o contains falhe, ignora o filtro
+      console.warn("⚠️ Falha ao filtrar contratos por imóvel. Seguindo sem filtro.");
+    }
 
     /* ============================================================
        📊 FUNIL DE LEADS
@@ -78,7 +123,7 @@ export async function GET(req) {
     }, {});
 
     /* ============================================================
-       📍 ORIGENS (contagem)
+       📍 ORIGENS
     ============================================================ */
     const origens = leads.reduce((acc, l) => {
       if (!l.origem) return acc;
@@ -88,7 +133,7 @@ export async function GET(req) {
     }, {});
 
     /* ============================================================
-       ⭐ TOP CORRETORES (por número de leads)
+       ⭐ RANKING CORRETORES
     ============================================================ */
     const ranking = {};
     leads.forEach((l) => {
@@ -116,7 +161,7 @@ export async function GET(req) {
     }
 
     /* ============================================================
-       📈 TAXA DE CONVERSÃO
+       📈 TAXA DE CONVERSÃO LEAD → PROPOSTA
     ============================================================ */
     const totalLeads = leads.length;
     const totalPropostas = propostas.length;
@@ -124,6 +169,29 @@ export async function GET(req) {
     const taxaConversao =
       totalLeads > 0
         ? Number(((totalPropostas / totalLeads) * 100).toFixed(1))
+        : 0;
+
+    /* ============================================================
+       🔥 NOVO: Ticket Médio das Propostas
+    ============================================================ */
+    const ticketMedioPropostas =
+      propostas.length > 0
+        ? Number(
+            (
+              propostas.reduce((s, p) => s + Number(p.valor_proposta), 0) /
+              propostas.length
+            ).toFixed(2)
+          )
+        : 0;
+
+    /* ============================================================
+       🔥 NOVO: Conversão Final (Lead → Contrato)
+    ============================================================ */
+    const totalContratos = contratos?.length || 0;
+
+    const conversaoFinal =
+      totalLeads > 0
+        ? Number(((totalContratos / totalLeads) * 100).toFixed(1))
         : 0;
 
     /* ============================================================
@@ -149,16 +217,34 @@ export async function GET(req) {
     const tempoMedioConversao = count > 0 ? Math.round(somaDias / count) : 0;
 
     /* ============================================================
-       🚀 RESPOSTA FINAL
+       🔥 NOVO: FUNIL COMPLETO (Lead → Visita → Proposta → Contrato)
+    ============================================================ */
+    const funilCompleto = {
+      leads: totalLeads,
+      visitas: visitas.length,
+      propostas: totalPropostas,
+      contratos: totalContratos,
+    };
+
+    /* ============================================================
+       🚀 RESPOSTA
     ============================================================ */
     return NextResponse.json({
       data: {
         totalLeads,
         totalPropostas,
         totalVisitas: visitas.length,
+        totalContratos,
+
         taxaConversao,
+        conversaoFinal,
+
+        ticketMedioPropostas,
         tempoMedioConversao,
+
         funilLeads,
+        funilCompleto,
+
         propostasStatus,
         origens,
         topCorretores,

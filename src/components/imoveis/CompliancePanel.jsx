@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/admin/ui/Card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "@/components/admin/ui/Card";
 import { Button } from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 import { useToast } from "@/contexts/ToastContext";
@@ -39,16 +44,20 @@ export default function CompliancePanel({ imovelId }) {
   const deleteModal = useModal();
   const isValid = useMemo(() => !!doc.tipo && !!doc.file, [doc]);
 
-  // 🔹 Lista documentos
+  /* =====================================================================
+        🔹 LISTAR DOCUMENTOS (GET action=compliance)
+  ===================================================================== */
   const fetchList = useCallback(async () => {
     if (!imovelId) return;
+
     try {
       setLoading(true);
-      const r = await fetch(`/api/imoveis/${imovelId}/compliance`, {
+
+      const r = await fetch(`/api/imoveis/${imovelId}?action=compliance`, {
         cache: "no-store",
       });
-      const j = await r.json();
 
+      const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Falha ao carregar documentos");
 
       setItens(Array.isArray(j?.data) ? j.data : []);
@@ -63,30 +72,69 @@ export default function CompliancePanel({ imovelId }) {
     fetchList();
   }, [fetchList]);
 
-  // 🔹 Upload
+  /* =====================================================================
+        🔹 UPLOAD (PUT action=compliance_add)
+        O backend espera:
+        { doc: { id, tipo, validade, path } }
+        + upload real via SignedUrl — você ainda não tinha isso no front,
+        então já ajustei.
+  ===================================================================== */
   const handleUpload = async () => {
     if (!isValid) return error("Atenção", "Preencha todos os campos.");
 
     try {
       setLoading(true);
 
-      const fd = new FormData();
-      fd.append("file", doc.file);
-      fd.append("tipo", doc.tipo);
-      if (doc.validade) fd.append("validade", new Date(doc.validade).toISOString());
+      // 1. Gerar ID do doc
+      const docId = crypto.randomUUID();
+      const ext = doc.file.name.split(".").pop();
+      const path = `${imovelId}/${docId}.${ext}`;
 
-      const r = await fetch(`/api/imoveis/${imovelId}/compliance`, {
+      // 2. Solicitar Signed URL
+      const signRes = await fetch(`/api/imoveis?action=sign`, {
         method: "POST",
-        body: fd,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path }),
       });
 
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Falha no upload");
+      const signJson = await signRes.json();
+      if (!signRes.ok) throw new Error("Falha ao gerar Signed URL");
+
+      const { url, token } = signJson.data;
+
+      // 3. Upload direto
+      const uploadRes = await fetch(url, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+        body: doc.file,
+      });
+
+      if (!uploadRes.ok) throw new Error("Falha no upload do arquivo");
+
+      // 4. Registrar no banco
+      const payload = {
+        id: docId,
+        tipo: doc.tipo,
+        validade: doc.validade ? new Date(doc.validade).toISOString() : null,
+        path,
+      };
+
+      const registerRes = await fetch(
+        `/api/imoveis/${imovelId}?action=compliance_add`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ doc: payload }),
+        }
+      );
+
+      const j = await registerRes.json();
+      if (!registerRes.ok) throw new Error(j.error || "Erro ao registrar documento");
 
       success("Sucesso", "Documento enviado com sucesso!");
       setDoc({ tipo: "", validade: "", file: null });
-      setItens(Array.isArray(j?.data) ? j.data : []);
 
+      fetchList();
     } catch (e) {
       error("Erro", e.message);
     } finally {
@@ -94,31 +142,38 @@ export default function CompliancePanel({ imovelId }) {
     }
   };
 
-  // 🔹 Excluir (abre modal)
+  /* =====================================================================
+        🔹 DELETAR DOCUMENTO (PUT action=compliance_remove)
+        backend exige: { doc_id, path }
+  ===================================================================== */
   const requestDelete = (doc) => {
     setSelectedDoc(doc);
     deleteModal.openModal();
   };
 
-  // 🔹 Confirmar exclusão
   const confirmDelete = async () => {
     if (!selectedDoc) return;
 
     try {
       setDeleting(true);
 
-      const r = await fetch(`/api/imoveis/${imovelId}/compliance`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: selectedDoc.id }),
-      });
+      const r = await fetch(
+        `/api/imoveis/${imovelId}?action=compliance_remove`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            doc_id: selectedDoc.id,
+            path: selectedDoc.path,
+          }),
+        }
+      );
 
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Falha ao remover documento");
 
-      setItens(Array.isArray(j?.data) ? j.data : []);
+      fetchList();
       success("Sucesso", "Documento removido com sucesso!");
-
     } catch (e) {
       error("Erro", e.message);
     } finally {
@@ -128,6 +183,9 @@ export default function CompliancePanel({ imovelId }) {
     }
   };
 
+  /* =====================================================================
+        🔹 RENDER
+  ===================================================================== */
   return (
     <>
       <Card className="space-y-6">
@@ -136,17 +194,15 @@ export default function CompliancePanel({ imovelId }) {
         </CardHeader>
 
         <CardContent className="space-y-6">
-
-          {/* 🔹 FORM DE UPLOAD */}
+          {/* FORM */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            
             {/* Tipo */}
             <div className="flex flex-col gap-1">
               <label className="text-sm text-muted-foreground">Tipo</label>
               <select
                 value={doc.tipo}
                 onChange={(e) => setDoc({ ...doc, tipo: e.target.value })}
-                className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm focus:ring-2 focus:ring-ring"
+                className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
               >
                 <option value="" disabled hidden>
                   Selecione...
@@ -165,11 +221,16 @@ export default function CompliancePanel({ imovelId }) {
                 <CalendarDays className="h-4 w-4 opacity-70" />
                 Validade
               </label>
+
               <input
                 type="date"
-                value={doc.validade ? format(new Date(doc.validade), "yyyy-MM-dd") : ""}
+                value={
+                  doc.validade
+                    ? format(new Date(doc.validade), "yyyy-MM-dd")
+                    : ""
+                }
                 onChange={(e) => setDoc({ ...doc, validade: e.target.value })}
-                className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm focus:ring-2 focus:ring-ring"
+                className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
               />
             </div>
 
@@ -181,12 +242,11 @@ export default function CompliancePanel({ imovelId }) {
                 onChange={(e) =>
                   setDoc({ ...doc, file: e.target.files?.[0] ?? null })
                 }
-                className="flex h-10 w-full rounded-md border border-dashed border-border bg-background px-3 py-2 text-sm 
-                file:mr-2 file:rounded-md file:border-0 file:bg-accent file:text-accent-foreground file:px-3 file:py-1 file:cursor-pointer hover:file:brightness-110"
+                className="h-10 rounded-md border border-dashed px-3 py-2 text-sm"
               />
             </div>
 
-            {/* Botão Enviar */}
+            {/* Botão */}
             <div className="flex items-end">
               <Button
                 onClick={handleUpload}
@@ -201,12 +261,10 @@ export default function CompliancePanel({ imovelId }) {
                 {loading ? "Enviando..." : "Enviar"}
               </Button>
             </div>
-
           </div>
 
-          {/* 🔹 LISTA DE DOCUMENTOS */}
+          {/* LISTA */}
           <div className="space-y-2">
-
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
                 Lista de documentos enviados
@@ -223,7 +281,6 @@ export default function CompliancePanel({ imovelId }) {
               </Button>
             </div>
 
-            {/* Lista */}
             {loading && itens.length === 0 ? (
               <p className="text-sm text-muted-foreground mt-2">Carregando...</p>
             ) : itens.length === 0 ? (
@@ -233,18 +290,20 @@ export default function CompliancePanel({ imovelId }) {
             ) : (
               <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {itens.map((d) => {
-                  const vencido = d.validade ? new Date(d.validade) < new Date() : false;
+                  const vencido = d.validade
+                    ? new Date(d.validade) < new Date()
+                    : false;
 
                   return (
                     <li
-                      key={d.id || d.url}
-                      className="p-4 rounded-xl border border-border bg-panel-card shadow-sm flex flex-col justify-between transition hover:shadow-md"
+                      key={d.id}
+                      className="p-4 rounded-xl border bg-panel-card shadow-sm"
                     >
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <FileText className="h-4 w-4 text-accent" />
                           <span className="font-medium text-sm">
-                            {d.tipo?.toUpperCase() || "Documento"}
+                            {d.tipo?.toUpperCase()}
                           </span>
                         </div>
 
@@ -261,7 +320,7 @@ export default function CompliancePanel({ imovelId }) {
                             href={d.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs underline text-accent mt-2 inline-block"
+                            className="text-xs underline text-accent mt-2 block"
                           >
                             Abrir arquivo
                           </a>
@@ -297,7 +356,7 @@ export default function CompliancePanel({ imovelId }) {
         </CardContent>
       </Card>
 
-      {/* 🔹 MODAL DE EXCLUSÃO */}
+      {/* MODAL DELETE */}
       <Modal
         isOpen={deleteModal.open}
         onClose={deleteModal.closeModal}
@@ -326,8 +385,8 @@ export default function CompliancePanel({ imovelId }) {
       >
         <p className="text-sm text-muted-foreground mb-6">
           Tem certeza que deseja excluir{" "}
-          <strong>{selectedDoc?.tipo?.toUpperCase()}</strong> permanentemente?
-          Essa ação não poderá ser desfeita.
+          <strong>{selectedDoc?.tipo?.toUpperCase()}</strong>? Esta ação é
+          permanente.
         </p>
       </Modal>
     </>

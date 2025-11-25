@@ -65,7 +65,7 @@ export default function CRMAgendaForm({ onSaved, onClose, evento = null }) {
       setLoading(true);
 
       const method = evento ? "PATCH" : "POST";
-      const url = evento ? "/api/crm/agenda/update" : "/api/crm/agenda";
+      const url = "/api/crm/agenda";
 
       const cleanTipo = form.tipo
         .trim()
@@ -104,7 +104,7 @@ export default function CRMAgendaForm({ onSaved, onClose, evento = null }) {
      UI
   ============================================================ */
   return (
-    <Card className="p-6 space-y-6 bg-panel-card shadow-md border-border/50">
+    <div>
 
       <div className="grid grid-cols-1 gap-4">
 
@@ -267,6 +267,6 @@ export default function CRMAgendaForm({ onSaved, onClose, evento = null }) {
           "Salvar Evento"
         )}
       </Button>
-    </Card>
+    </div>
   );
 }

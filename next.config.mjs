@@ -23,15 +23,34 @@ const nextConfig = {
   reactStrictMode: true,
   images: {
     remotePatterns: [
-      // Seu padrão existente do Supabase
-      {
-        protocol: "https",
-        hostname: supabaseHostname,
-      },
-      // 👇 Adicione este objeto para o loremflickr
+      // Configuração existente do Supabase
+      ...(supabaseHostname
+        ? [
+            {
+              protocol: "https",
+              hostname: supabaseHostname,
+            },
+          ]
+        : []),
+      
+      // Configuração existente do LoremFlickr
       {
         protocol: "https",
         hostname: "loremflickr.com",
+      },
+
+      // 👇 NOVOS DOMÍNIOS DE AVATAR ADICIONADOS
+      {
+        protocol: "https",
+        hostname: "avatar.iran.liara.run",
+      },
+      {
+        protocol: "https",
+        hostname: "i.pravatar.cc",
+      },
+      {
+        protocol: "https",
+        hostname: "ui-avatars.com",
       },
     ],
   },

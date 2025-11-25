@@ -19,7 +19,7 @@ export default function NovoImovelPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/imoveis/create", {
+      const res = await fetch("/api/imoveis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),

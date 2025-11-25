@@ -7,39 +7,34 @@ import {
   CartesianGrid,
   XAxis,
   YAxis,
-  Tooltip
+  Tooltip,
 } from "recharts";
-
 import { useMemo } from "react";
 import { formatCurrency } from "@/utils/formatters";
 
 export default function PrecoHistoricoChart({ data = [] }) {
   const formatted = useMemo(() => {
-    return (data || []).map((e) => {
-      // Normaliza valor (compatível com antigo "xxx → 12345")
-      const parsed =
-        typeof e.valor === "number"
-          ? e.valor
-          : parseFloat(
-              String(e.descricao || "")
-                .split("→")[1]?.trim() ||
-                e.valor_atual ||
-                0
+    return (data || []).map((item) => {
+      const valor =
+        typeof item.valor === "number"
+          ? item.valor
+          : Number(
+              String(item.descricao || "")
+                .split("→")[1]
+                ?.trim() || item.valor_atual || 0
             );
 
       return {
-        data: new Date(e.created_at).toLocaleDateString("pt-BR"),
-        valor: Number.isFinite(parsed) ? parsed : 0,
-        tipo: e.tipo || "ajuste_preco",
+        data: new Date(item.created_at).toLocaleDateString("pt-BR"),
+        valor: Number.isFinite(valor) ? valor : 0,
+        tipo: item.tipo || "ajuste_preco",
       };
     });
   }, [data]);
 
   if (!formatted.length) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Sem histórico de preço.
-      </p>
+      <p className="text-sm text-muted-foreground">Sem histórico de preço.</p>
     );
   }
 
@@ -51,18 +46,10 @@ export default function PrecoHistoricoChart({ data = [] }) {
           margin={{ top: 10, right: 16, left: 40, bottom: 0 }}
         >
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="data" interval="preserveStartEnd" tickMargin={6} />
-          <YAxis
-            width={80}
-            tickFormatter={(v) => formatCurrency(v)}
-          />
-          <Tooltip formatter={(value) => formatCurrency(value)} />
-          <Line
-            type="monotone"
-            dataKey="valor"
-            strokeWidth={2}
-            dot={false}
-          />
+          <XAxis dataKey="data" tickMargin={6} />
+          <YAxis tickFormatter={formatCurrency} width={80} />
+          <Tooltip formatter={(v) => formatCurrency(v)} />
+          <Line type="monotone" dataKey="valor" strokeWidth={2} dot={false} />
         </LineChart>
       </ResponsiveContainer>
     </div>

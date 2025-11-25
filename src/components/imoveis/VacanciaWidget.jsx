@@ -16,16 +16,17 @@ export default function VacanciaWidget({ imovelId }) {
     (async () => {
       try {
         const r = await fetch(
-          `/api/imoveis/${imovelId}/financeiro?vacancia=1`,
+          `/api/imoveis/${imovelId}?action=financeiro&vacancia=1`,
           { cache: "no-store" }
         );
+
         const j = await r.json();
         if (!alive) return;
 
         if (r.ok) {
           setState({
-            dias: j?.dias ?? 0,
-            data_fim: j?.ultimo_contrato?.data_fim ?? null,
+            dias: j?.vacancia?.dias ?? 0,
+            data_fim: j?.vacancia?.ultimo_contrato?.data_fim ?? null,
             loading: false
           });
         } else {
@@ -48,7 +49,7 @@ export default function VacanciaWidget({ imovelId }) {
 
   const dias = state.dias ?? 0;
 
-  // 🔥 Converte risco → status válido no Badge.jsx
+  // 🔥 Mapa de risco → Badge
   const statusMap = {
     green: "disponivel",
     amber: "reservado",

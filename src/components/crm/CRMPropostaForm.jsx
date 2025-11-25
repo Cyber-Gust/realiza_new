@@ -1,7 +1,12 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 
-import { Input, Textarea, Select, Label, FormError } from "@/components/admin/ui/Form";
+import {
+  Input,
+  Textarea,
+  Select,
+  Label,
+} from "@/components/admin/ui/Form";
 import { Button } from "@/components/admin/ui/Button";
 import { useToast } from "@/contexts/ToastContext";
 
@@ -20,13 +25,9 @@ const BRL = (v) =>
 const unBRL = (v) =>
   Number(String(v || "0").replace(/\./g, "").replace(",", ".")) || 0;
 
-const GARANTIA_OPTIONS = [
-  "Fiador",
-  "Seguro Fiança",
-  "Caução",
-  "Carta Fiança",
-  "Outros",
-];
+const GARANTIA_OPTIONS = ["Fiador", "Seguro Fiança", "Caução", "Carta Fiança", "Outros"];
+const ORIGEM_OPTIONS = ["Presencial", "WhatsApp", "Telefone", "Instagram"];
+const TIPO_PAGAMENTO_OPTIONS = ["À Vista", "Financiamento", "Parcelado Direto", "Aluguel"];
 
 const STATUS_OPTIONS = [
   { value: "pendente", label: "Pendente" },
@@ -41,11 +42,18 @@ export default function CRMPropostaForm({ onSaved, onClose, proposta = null }) {
   const [form, setForm] = useState({
     imovel_id: proposta?.imovel_id || "",
     lead_id: proposta?.lead_id || "",
+    persona_id: proposta?.persona_id || "",
     corretor_id: proposta?.corretor_id || "",
-    valor_proposta: proposta?.valor_proposta || "",
+    valor_proposta: proposta ? String(proposta.valor_proposta * 100) : "",
     condicao_garantia: proposta?.condicao_garantia || "",
     observacoes: proposta?.observacoes || "",
     status: proposta?.status || "pendente",
+
+    origem_proposta: proposta?.origem_proposta || "",
+    tipo_pagamento: proposta?.tipo_pagamento || "",
+    entrada: proposta ? String((proposta.entrada || 0) * 100) : "",
+    parcelas: proposta?.parcelas || "",
+    data_validade: proposta?.data_validade?.split("T")[0] || "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -53,38 +61,30 @@ export default function CRMPropostaForm({ onSaved, onClose, proposta = null }) {
 
   const [imoveis, setImoveis] = useState([]);
   const [leads, setLeads] = useState([]);
+  const [personas, setPersonas] = useState([]);
   const [corretores, setCorretores] = useState([]);
 
   const setValue = (field, value) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
   /* ============================================================
-     Load lists
+     LOAD LISTS via /crm/propostas?bootstrap=1
   ============================================================ */
   useEffect(() => {
     const loadLists = async () => {
       try {
         setLoadingData(true);
 
-        const [imoveisRes, leadsRes, corretoresRes] = await Promise.all([
-          fetch("/api/imoveis/list", { cache: "no-store" }),
-          fetch("/api/perfis/list?type=leads", { cache: "no-store" }),
-          fetch("/api/perfis/list?type=equipe", { cache: "no-store" }),
-        ]);
+        const res = await fetch("/api/crm/propostas?bootstrap=1");
+        const json = await res.json();
 
-        const [imoveisJson, leadsJson, corretoresJson] = await Promise.all([
-          imoveisRes.json(),
-          leadsRes.json(),
-          corretoresRes.json(),
-        ]);
+        if (!json.boot) throw new Error("Resposta inválida");
 
-        if (!imoveisRes.ok) throw new Error(imoveisJson.error);
-        if (!leadsRes.ok) throw new Error(leadsJson.error);
-        if (!corretoresRes.ok) throw new Error(corretoresJson.error);
+        setImoveis(json.boot.imoveis);
+        setLeads(json.boot.leads);
+        setPersonas(json.boot.personas);
+        setCorretores(json.boot.corretores);
 
-        setImoveis(imoveisJson.data || []);
-        setLeads(leadsJson.data || []);
-        setCorretores(corretoresJson.data || []);
       } catch (err) {
         toast.error("Erro ao carregar listas: " + err.message);
       } finally {
@@ -93,30 +93,46 @@ export default function CRMPropostaForm({ onSaved, onClose, proposta = null }) {
     };
 
     loadLists();
-  }, [toast]);
+  }, []);
 
   /* ============================================================
-     Máscara (BRL)
+     Mascara BRL
   ============================================================ */
   const valorMasked = useMemo(
     () => (form.valor_proposta ? BRL(form.valor_proposta) : ""),
     [form.valor_proposta]
   );
 
+  const entradaMasked = useMemo(
+    () => (form.entrada ? BRL(form.entrada) : ""),
+    [form.entrada]
+  );
+
   /* ============================================================
-     Submit
+     SUBMIT
   ============================================================ */
   const handleSubmit = async () => {
     try {
       setLoading(true);
 
-      if (!form.imovel_id || !form.lead_id || !form.corretor_id)
-        throw new Error("Selecione imóvel, lead e corretor.");
+      if (!form.imovel_id) throw new Error("Selecione o imóvel.");
+      if (!form.corretor_id) throw new Error("Selecione o corretor.");
 
-      const valor = unBRL(form.valor_proposta);
-      if (valor <= 0) throw new Error("Valor da proposta inválido.");
+      // lead OR persona
+      if (!form.persona_id && !form.lead_id)
+        throw new Error("Selecione um lead OU uma pessoa.");
 
-      const payload = { ...form, valor_proposta: valor };
+      if (form.persona_id && form.lead_id)
+        throw new Error("Escolha apenas lead OU pessoa — não ambos.");
+
+      const payload = {
+        ...form,
+        valor_proposta: unBRL(BRL(form.valor_proposta)),
+        entrada: form.entrada ? unBRL(BRL(form.entrada)) : null,
+        parcelas: form.parcelas ? Number(form.parcelas) : null,
+        data_validade: form.data_validade || null,
+      };
+
       const method = proposta ? "PATCH" : "POST";
 
       const res = await fetch("/api/crm/propostas", {
@@ -130,9 +146,7 @@ export default function CRMPropostaForm({ onSaved, onClose, proposta = null }) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
-      toast.success(
-        `Proposta ${proposta ? "atualizada" : "criada"} com sucesso!`
-      );
+      toast.success(`Proposta ${proposta ? "atualizada" : "criada"} com sucesso!`);
 
       onSaved?.();
       onClose?.();
@@ -143,13 +157,10 @@ export default function CRMPropostaForm({ onSaved, onClose, proposta = null }) {
     }
   };
 
-  /* ============================================================
-     Loading das listas
-  ============================================================ */
   if (loadingData)
     return (
       <p className="text-center text-sm text-muted-foreground py-4">
-        Carregando listas...
+        Carregando dados...
       </p>
     );
 
@@ -169,7 +180,7 @@ export default function CRMPropostaForm({ onSaved, onClose, proposta = null }) {
           <option value="">Selecione</option>
           {imoveis.map((i) => (
             <option key={i.id} value={i.id}>
-              {i.titulo || i.endereco_bairro || `Imóvel ${i.id}`}
+              {i.titulo || i.endereco_bairro}
             </option>
           ))}
         </Select>
@@ -177,15 +188,33 @@ export default function CRMPropostaForm({ onSaved, onClose, proposta = null }) {
 
       {/* LEAD */}
       <div>
-        <Label>Lead</Label>
+        <Label>Lead (opcional)</Label>
         <Select
           value={form.lead_id}
+          disabled={!!form.persona_id}
           onChange={(e) => setValue("lead_id", e.target.value)}
         >
           <option value="">Selecione</option>
           {leads.map((l) => (
             <option key={l.id} value={l.id}>
-              {l.nome || l.telefone}
+              {l.nome}
+            </option>
+          ))}
+        </Select>
+      </div>
+
+      {/* PERSONA */}
+      <div>
+        <Label>Pessoa</Label>
+        <Select
+          value={form.persona_id}
+          disabled={!!form.lead_id}
+          onChange={(e) => setValue("persona_id", e.target.value)}
+        >
+          <option value="">Selecione</option>
+          {personas.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.nome}
             </option>
           ))}
         </Select>
@@ -214,7 +243,59 @@ export default function CRMPropostaForm({ onSaved, onClose, proposta = null }) {
           inputMode="numeric"
           placeholder="0,00"
           value={valorMasked}
-          onChange={(e) => setValue("valor_proposta", e.target.value)}
+          onChange={(e) => {
+            const onlyDigits = e.target.value.replace(/\D/g, "");
+            setValue("valor_proposta", onlyDigits);
+          }}
+        />
+      </div>
+
+      {/* TIPO PAGAMENTO */}
+      <div>
+        <Label>Tipo de Pagamento</Label>
+        <Select
+          value={form.tipo_pagamento}
+          onChange={(e) => setValue("tipo_pagamento", e.target.value)}
+        >
+          <option value="">Selecione</option>
+          {TIPO_PAGAMENTO_OPTIONS.map((t) => (
+            <option key={t}>{t}</option>
+          ))}
+        </Select>
+      </div>
+
+      {/* ENTRADA */}
+      <div>
+        <Label>Entrada (R$)</Label>
+        <Input
+          inputMode="numeric"
+          placeholder="0,00"
+          value={entradaMasked}
+          onChange={(e) => {
+            const onlyDigits = e.target.value.replace(/\D/g, "");
+            setValue("entrada", onlyDigits);
+          }}
+        />
+      </div>
+
+      {/* PARCELAS */}
+      <div>
+        <Label>Parcelas</Label>
+        <Input
+          type="number"
+          min="1"
+          value={form.parcelas}
+          onChange={(e) => setValue("parcelas", e.target.value)}
+        />
+      </div>
+
+      {/* DATA VALIDADE */}
+      <div>
+        <Label>Data de Validade</Label>
+        <Input
+          type="date"
+          value={form.data_validade}
+          onChange={(e) => setValue("data_validade", e.target.value)}
         />
       </div>
 
@@ -228,6 +309,20 @@ export default function CRMPropostaForm({ onSaved, onClose, proposta = null }) {
           <option value="">Selecione</option>
           {GARANTIA_OPTIONS.map((g) => (
             <option key={g}>{g}</option>
+          ))}
+        </Select>
+      </div>
+
+      {/* ORIGEM */}
+      <div>
+        <Label>Origem da Proposta</Label>
+        <Select
+          value={form.origem_proposta}
+          onChange={(e) => setValue("origem_proposta", e.target.value)}
+        >
+          <option value="">Selecione</option>
+          {ORIGEM_OPTIONS.map((o) => (
+            <option key={o}>{o}</option>
           ))}
         </Select>
       </div>
@@ -254,7 +349,6 @@ export default function CRMPropostaForm({ onSaved, onClose, proposta = null }) {
           rows={4}
           value={form.observacoes}
           onChange={(e) => setValue("observacoes", e.target.value)}
-          className="bg-panel-card"
           placeholder="Observações adicionais..."
         />
       </div>
@@ -264,12 +358,9 @@ export default function CRMPropostaForm({ onSaved, onClose, proposta = null }) {
         disabled={loading}
         onClick={handleSubmit}
       >
-        {loading
-          ? "Salvando..."
-          : proposta
-          ? "Atualizar Proposta"
-          : "Salvar Proposta"}
+        {loading ? "Salvando..." : proposta ? "Atualizar Proposta" : "Salvar Proposta"}
       </Button>
+
     </div>
   );
 }

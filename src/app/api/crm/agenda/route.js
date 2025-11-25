@@ -201,3 +201,48 @@ export async function POST(req) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+export async function PATCH(req) {
+  const supabase = await createClient();
+  const service = createServiceClient();
+
+  try {
+    const body = await req.json();
+
+    if (!body.id) {
+      return NextResponse.json(
+        { error: "ID do evento é obrigatório." },
+        { status: 400 }
+      );
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "Usuário não autenticado." },
+        { status: 401 }
+      );
+    }
+
+    const { data, error } = await service
+      .from("agenda_eventos")
+      .update(body)
+      .eq("id", body.id)
+      .eq("profile_id", user.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return NextResponse.json({
+      message: "Evento atualizado com sucesso!",
+      data,
+    });
+  } catch (err) {
+    console.error("❌ PATCH /crm/agenda:", err.message);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}

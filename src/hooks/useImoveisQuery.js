@@ -1,11 +1,6 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
 
-/**
- * Hook especializado para carregar imóveis via API (Service Role)
- * - Usa /api/imoveis/list para bypassar RLS
- * - Suporta filtros dinâmicos (tipo, status, cidade, preço)
- */
 export function useImoveisQuery(initialFilters = {}) {
   const [filters, setFilters] = useState({
     tipo: "all",
@@ -13,6 +8,7 @@ export function useImoveisQuery(initialFilters = {}) {
     cidade: "",
     preco_min: "",
     preco_max: "",
+    disponibilidade: "all",
     ...initialFilters,
   });
 
@@ -20,33 +16,34 @@ export function useImoveisQuery(initialFilters = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // 🔹 Monta query string dos filtros
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
-    if (filters.tipo && filters.tipo !== "all") params.append("tipo", filters.tipo);
-    if (filters.status && filters.status !== "all") params.append("status", filters.status);
+
+    if (filters.tipo !== "all") params.append("tipo", filters.tipo);
+    if (filters.status !== "all") params.append("status", filters.status);
+    if (filters.disponibilidade !== "all")
+      params.append("disponibilidade", filters.disponibilidade);
     if (filters.cidade) params.append("cidade", filters.cidade.trim());
     if (filters.preco_min) params.append("preco_min", filters.preco_min);
     if (filters.preco_max) params.append("preco_max", filters.preco_max);
+
     return params.toString();
   }, [filters]);
 
-  // 🔸 Faz fetch via API (usa ServiceRole no servidor)
   useEffect(() => {
     const load = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        const res = await fetch(`/api/imoveis/list?${queryString}`, {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-        });
+        // ROTA CORRETA DO BACKEND
+        const res = await fetch(`/api/imoveis?${queryString}`);
 
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "Erro ao carregar imóveis");
 
         setData(json.data || []);
+        return json;
       } catch (err) {
         console.error("❌ Erro ao carregar imóveis:", err);
         setError(err);
@@ -64,10 +61,11 @@ export function useImoveisQuery(initialFilters = {}) {
 
   return {
     imoveis: data,
-    total: data.length,
     loading,
     error,
     applyFilters,
     filters,
+    // COUNT REAL DO BANCO:
+    total: data.length,
   };
 }

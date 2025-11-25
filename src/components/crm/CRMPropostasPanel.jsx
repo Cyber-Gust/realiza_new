@@ -6,6 +6,17 @@ import { Button } from "@/components/admin/ui/Button";
 import { Card } from "@/components/admin/ui/Card";
 import Modal from "@/components/admin/ui/Modal";
 import { useToast } from "@/contexts/ToastContext";
+import { Select } from "@/components/admin/ui/Form";
+import CRMPropostaDetailDrawer from "./CRMPropostaDetailDrawer";
+import Badge from "@/components/admin/ui/Badge";
+
+import {
+  Table,
+  TableHeader,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/admin/ui/Table";
 
 import {
   FileText,
@@ -19,6 +30,7 @@ import {
   BadgeCheck,
   X,
   AlertTriangle,
+  Edit,
 } from "lucide-react";
 
 import CRMPropostaForm from "./CRMPropostaForm";
@@ -30,29 +42,6 @@ const money = (v) =>
   `R$ ${Number(v || 0).toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
   })}`;
-
-/* ============================================================
-   Status Badge
-============================================================ */
-const StatusBadge = ({ status }) => {
-  const map = {
-    pendente: "bg-amber-100 text-amber-800 border border-amber-300",
-    aceita: "bg-emerald-100 text-emerald-800 border border-emerald-300",
-    recusada: "bg-rose-100 text-rose-800 border border-rose-300",
-    contraproposta: "bg-indigo-100 text-indigo-800 border border-indigo-300",
-  };
-
-  return (
-    <span
-      className={`
-        inline-flex items-center px-2 py-[2px] rounded-md text-xs font-medium capitalize
-        ${map[status] || "bg-muted text-foreground border border-border"}
-      `}
-    >
-      {status}
-    </span>
-  );
-};
 
 /* ============================================================
    CRMPropostasPanel — versão enterprise
@@ -68,10 +57,11 @@ export default function CRMPropostasPanel() {
 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [openDrawer, setOpenDrawer] = useState(null);
 
   const [imoveis, setImoveis] = useState([]);
   const [corretores, setCorretores] = useState([]);
-
+  
   const [filters, setFilters] = useState({
     q: "",
     status: "",
@@ -268,27 +258,25 @@ export default function CRMPropostasPanel() {
           </div>
 
           {/* Status */}
-          <select
+          <Select
             value={filters.status}
             onChange={(e) =>
               setFilters((f) => ({ ...f, status: e.target.value, page: 1 }))
             }
-            className="w-full border border-border rounded-md p-2 text-sm bg-panel-card"
           >
             <option value="">Status (todos)</option>
             <option value="pendente">Pendente</option>
             <option value="aceita">Aceita</option>
             <option value="recusada">Recusada</option>
             <option value="contraproposta">Contraproposta</option>
-          </select>
+          </Select>
 
           {/* Corretor */}
-          <select
+          <Select
             value={filters.corretor_id}
             onChange={(e) =>
               setFilters((f) => ({ ...f, corretor_id: e.target.value, page: 1 }))
             }
-            className="w-full border border-border rounded-md p-2 text-sm bg-panel-card"
           >
             <option value="">Corretor (todos)</option>
             {corretores.map((c) => (
@@ -296,15 +284,14 @@ export default function CRMPropostasPanel() {
                 {c.nome_completo}
               </option>
             ))}
-          </select>
+          </Select>
 
           {/* Imóvel */}
-          <select
+          <Select
             value={filters.imovel_id}
             onChange={(e) =>
               setFilters((f) => ({ ...f, imovel_id: e.target.value, page: 1 }))
             }
-            className="w-full border border-border rounded-md p-2 text-sm bg-panel-card"
           >
             <option value="">Imóvel (todos)</option>
             {imoveis.map((im) => (
@@ -312,31 +299,29 @@ export default function CRMPropostasPanel() {
                 {im.titulo}
               </option>
             ))}
-          </select>
+          </Select>
 
           {/* Ordenação */}
-          <select
+          <Select
             value={filters.orderBy}
             onChange={(e) =>
               setFilters((f) => ({ ...f, orderBy: e.target.value }))
             }
-            className="w-full border border-border rounded-md p-2 text-sm bg-panel-card"
           >
             <option value="created_at">Ordenar por: Data</option>
             <option value="valor_proposta">Ordenar por: Valor</option>
             <option value="status">Ordenar por: Status</option>
-          </select>
+          </Select>
 
-          <select
+          <Select
             value={filters.orderDir}
             onChange={(e) =>
               setFilters((f) => ({ ...f, orderDir: e.target.value }))
             }
-            className="w-full border border-border rounded-md p-2 text-sm bg-panel-card"
           >
             <option value="desc">Desc</option>
             <option value="asc">Asc</option>
-          </select>
+          </Select>
         </div>
 
         <div className="flex justify-end mt-3">
@@ -350,83 +335,101 @@ export default function CRMPropostasPanel() {
         </div>
       </Card>
 
-      {/* LISTA */}
+      {/* LISTAGEM */}
       {loading ? (
-        <div className="flex justify-center items-center py-10 text-muted-foreground">
+        <div className="flex justify-center items-center py-14 text-muted-foreground">
           <Loader2 className="animate-spin mr-2" /> Carregando...
         </div>
       ) : propostas.length === 0 ? (
-        <Card className="p-5 text-center text-muted-foreground bg-panel-card border-border rounded-xl">
+        <Card className="p-6 text-center text-muted-foreground bg-panel-card border-border rounded-xl">
           Nenhuma proposta encontrada.
         </Card>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {propostas.map((p) => (
-            <Card
-              key={p.id}
-              className="
-                p-5 space-y-3 border border-border rounded-xl
-                bg-panel-card shadow-sm hover:shadow-md transition
-              "
-            >
-              {/* Header */}
-              <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="font-semibold text-foreground">
-                    {p.leads?.nome || "Lead não identificado"}
-                  </h4>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Lead</TableHead>
+              <TableHead>Imóvel</TableHead>
+              <TableHead>Corretor</TableHead>
+              <TableHead>Valor</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
 
-                  <p className="text-sm text-muted-foreground flex items-center gap-1">
-                    <Home size={14} /> {p.imoveis?.titulo || "-"}
-                  </p>
-                </div>
-
-                <StatusBadge status={p.status} />
-              </div>
-
-              <p className="text-lg font-bold text-primary">
-                {money(p.valor_proposta)}
-              </p>
-
-              <p className="text-xs text-muted-foreground italic">
-                Corretor: {p.profiles?.nome_completo || "-"}
-              </p>
-
-              <div className="grid grid-cols-2 gap-2 pt-3">
-                <Button
-                  variant="outline"
-                  onClick={() => handleEdit(p)}
-                  className="flex items-center gap-2"
-                >
-                  <Pencil size={14} /> Editar
-                </Button>
-
-                <Button
-                  variant="destructive"
-                  onClick={() => confirmDelete(p)}
-                  className="flex items-center gap-2"
-                >
-                  <Trash2 size={14} /> Excluir
-                </Button>
-
-                <Button
-                  className="flex items-center gap-2"
-                  onClick={() => patchStatus(p.id, "aceita")}
-                >
-                  <BadgeCheck size={14} /> Aceitar
-                </Button>
-
-              <Button
-                variant="secondary"
-                onClick={() => patchStatus(p.id, "recusada")}
-                className="flex items-center gap-2"
+          <tbody>
+            {propostas.map((p) => (
+              <TableRow
+                key={p.id}
+                className="cursor-pointer hover:bg-muted/20 transition"
+                onClick={() => setOpenDrawer(p.id)}
               >
-                <X size={14} /> Recusar
-              </Button>
-            </div>
-          </Card>
-        ))}
-      </div>
+                <TableCell>{p.lead?.nome || p.persona?.nome || "-"}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {p.imovel?.titulo || "-"}
+                </TableCell>
+                <TableCell>{p.corretor?.nome_completo || "Sem corretor"}</TableCell>
+                <TableCell>{money(p.valor_proposta)}</TableCell>
+                <TableCell>
+                  <Badge status={p.status} />
+                </TableCell>
+
+                {/* AÇÕES */}
+                <TableCell className="text-right flex justify-end gap-2">
+
+                  {/* EDITAR */}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit(p);
+                    }}
+                  >
+                    <Edit size={16} />
+                  </Button>
+
+                  {/* ACEITAR */}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      patchStatus(p.id, "aceita");
+                    }}
+                  >
+                    <BadgeCheck size={16} className="text-emerald-600" />
+                  </Button>
+
+                  {/* RECUSAR */}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      patchStatus(p.id, "recusada");
+                    }}
+                  >
+                    <X size={16} className="text-rose-600" />
+                  </Button>
+
+                  {/* DELETE */}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      confirmDelete(p);
+                    }}
+                  >
+                    <Trash2 size={16} className="text-red-500" />
+                  </Button>
+
+                </TableCell>
+              </TableRow>
+            ))}
+          </tbody>
+        </Table>
       )}
 
       {/* PAGINAÇÃO */}
@@ -520,6 +523,17 @@ export default function CRMPropostasPanel() {
           </div>
         )}
       </Modal>
+      {openDrawer && (
+        <CRMPropostaDetailDrawer
+          propostaId={openDrawer}
+          onClose={() => setOpenDrawer(null)}
+          onEdit={(p) => {
+            setEditing(p);
+            setOpenDrawer(null);
+            setOpenForm(true);
+          }}
+        />
+      )}
     </div>
   );
 }
