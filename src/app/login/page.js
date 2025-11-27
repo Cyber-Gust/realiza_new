@@ -33,7 +33,7 @@ export default function LoginPage() {
       }
 
       // ✅ Redireciona via reload completo para acionar o middleware SSR
-      window.location.href = "/"
+      window.location.href = "/dashboard"
       
     } catch (err) {
       setError(err.message)
