@@ -1,4 +1,4 @@
-//src/app/api/perfis/delete
+// src/app/api/perfis/delete/route.js
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -8,31 +8,30 @@ export async function DELETE(req) {
   try {
     const { id, type } = await req.json();
 
-    if (!id || !type)
+    if (!id || !type) {
       return NextResponse.json(
         { error: "ID e tipo são obrigatórios." },
         { status: 400 }
       );
-
-    let table;
-    switch (type) {
-      case "equipe":
-        table = "profiles";
-        break;
-      case "personas":
-        table = "personas";
-        break;
-      case "leads":
-        table = "leads";
-        break;
-      default:
-        return NextResponse.json(
-          { error: `Tipo de perfil inválido: ${type}` },
-          { status: 400 }
-        );
     }
 
-    // 🔒 Proteção para perfis admin
+    /* ==========================================================
+       Seleção da tabela corretamente mapeada
+       ========================================================== */
+    let table = null;
+
+    if (type === "equipe") table = "profiles";
+    else if (type === "personas" || type === "clientes") table = "personas";
+    else {
+      return NextResponse.json(
+        { error: `Tipo inválido: ${type}.` },
+        { status: 400 }
+      );
+    }
+
+    /* ==========================================================
+       Proteção reforçada → ADMIN não pode ser excluído
+       ========================================================== */
     if (type === "equipe") {
       const { data: perfil, error: fetchError } = await supabase
         .from("profiles")
@@ -42,35 +41,52 @@ export async function DELETE(req) {
 
       if (fetchError) throw fetchError;
 
-      if (perfil?.role === "admin") {
+      if (!perfil) {
+        return NextResponse.json(
+          { error: "Perfil não encontrado." },
+          { status: 404 }
+        );
+      }
+
+      if (perfil.role === "admin") {
         return NextResponse.json(
           {
             error:
-              "Perfis de administrador não podem ser removidos. O próprio admin poderá se remover em suas configurações pessoais.",
+              "Perfis de administrador não podem ser removidos pelo painel.",
           },
           { status: 403 }
         );
       }
     }
 
-    // 🔹 Remove da tabela correspondente
-    const { error: deleteError } = await supabase.from(table).delete().eq("id", id);
+    /* ==========================================================
+       Remoção da tabela
+       ========================================================== */
+    const { error: deleteError } = await supabase
+      .from(table)
+      .delete()
+      .eq("id", id);
+
     if (deleteError) throw deleteError;
 
-    // 🔹 Se for equipe, remove também da auth.users
+    /* ==========================================================
+       Remover usuário da AUTH caso seja Equipe
+       ========================================================== */
     if (type === "equipe") {
       const { error: authError } = await supabase.auth.admin.deleteUser(id);
+
+      // Nunca quebrar o DELETE se o Auth falhar.
       if (authError) {
-        console.warn("Erro ao remover da auth:", authError.message);
+        console.warn("⚠️ Erro ao remover da Auth:", authError.message);
       }
     }
 
     return NextResponse.json({
-      message: "Perfil removido com sucesso!",
+      message: "Removido com sucesso!",
       success: true,
     });
   } catch (err) {
-    console.error("Erro ao remover perfil:", err);
+    console.error("❌ Erro ao remover perfil:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

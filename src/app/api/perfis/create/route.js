@@ -1,6 +1,31 @@
-//src/app/api/perfis/create
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+
+/**
+ * Converte "" → null
+ * Mantém arrays intactos
+ */
+function sanitizePayload(payload) {
+  const cleaned = {};
+
+  for (const key in payload) {
+    const value = payload[key];
+
+    if (value === "") {
+      cleaned[key] = null;
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      cleaned[key] = value;
+      continue;
+    }
+
+    cleaned[key] = value;
+  }
+
+  return cleaned;
+}
 
 export async function POST(req) {
   const supabase = createServiceClient();
@@ -8,69 +33,91 @@ export async function POST(req) {
   try {
     const body = await req.json();
     const { type, ...rest } = body;
-    let data, error;
+
+    // Sanitizar dados de entrada
+    let payload = sanitizePayload(rest);
+
+    let data;
 
     // ======================================================
-    // 👥 EQUIPE (admins + corretores)
+    // 👥 CRIAÇÃO DE EQUIPE (corretor / admin)
     // ======================================================
     if (type === "equipe") {
-      const {
-        nome_completo,
-        email,
-        cpf_cnpj,
-        role,
-        telefone,
-        creci,
-        dados_bancarios_json,
-      } = rest;
+      const { nome_completo, email, cpf_cnpj, role } = payload;
 
-      if (!email || !nome_completo)
+      if (!email || !nome_completo) {
         return NextResponse.json(
           { error: "Nome e e-mail são obrigatórios." },
           { status: 400 }
         );
+      }
 
-      // 🔒 Evita criar admins diretamente pelo painel
       if (role === "admin") {
         return NextResponse.json(
-          { error: "Perfis de administrador só podem ser criados manualmente na configuração inicial." },
+          {
+            error:
+              "Perfis de administrador só podem ser criados manualmente na configuração inicial.",
+          },
           { status: 403 }
         );
       }
 
+      // Senha padrão = CPF numérico
       const senhaInicial = (cpf_cnpj || "").replace(/\D/g, "") || "123456";
 
-      // 🔍 Verifica se já existe usuário com o mesmo e-mail
-      const { data: userList, error: listError } =
-        await supabase.auth.admin.listUsers();
-      if (listError) throw listError;
-
-      const existing = userList?.users?.find(
-        (u) => u.email?.toLowerCase() === email?.toLowerCase()
-      );
-
       let userId;
-      if (existing) {
-        userId = existing.id;
-        console.log("⚠️ Usuário já existia, reaproveitando ID:", userId);
-      } else {
-        const { data: authData, error: authError } =
-          await supabase.auth.admin.createUser({
-            email,
-            password: senhaInicial,
-            email_confirm: true,
-            user_metadata: { nome_completo, cpf_cnpj, role },
-          });
-        if (authError) throw new Error(authError.message);
-        userId = authData?.user?.id;
+
+      // ======================================================
+      // 🚀 CRIA DIRETO O USUÁRIO NO AUTH
+      // (sem checar antes — se der conflito, tratamos o erro)
+      // ======================================================
+      const { data: authData, error: authError } =
+        await supabase.auth.admin.createUser({
+          email,
+          password: senhaInicial,
+          email_confirm: true,
+          user_metadata: {
+            nome_completo,
+            cpf_cnpj,
+            role,
+          },
+        });
+
+      if (authError) {
+        const msg = (authError.message || "").toLowerCase();
+
+        // E-mail duplicado
+        if (
+          msg.includes("exists") ||
+          msg.includes("already") ||
+          msg.includes("duplicate")
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "Já existe um usuário com este e-mail. Não é possível criar outro.",
+            },
+            { status: 409 }
+          );
+        }
+
+        // Outro erro real
+        throw new Error(authError.message);
       }
 
-      // 🧱 Upsert no perfil (garante sincronização)
-      const parsedDados =
-        typeof dados_bancarios_json === "string" &&
-        dados_bancarios_json.trim() !== ""
-          ? JSON.parse(dados_bancarios_json)
-          : dados_bancarios_json || {};
+      userId = authData?.user?.id;
+      if (!userId) throw new Error("Falha ao obter ID do usuário criado.");
+
+      // ======================================================
+      // 🧱 CRIA PERFIL NO `profiles`
+      // ======================================================
+
+      // Remove campos inválidos
+      delete payload.id;
+      delete payload.dados_bancarios_json;
+      delete payload.endereco_json;
+
+      payload.updated_at = new Date().toISOString();
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
@@ -78,16 +125,9 @@ export async function POST(req) {
           [
             {
               id: userId,
-              nome_completo,
-              email,
-              cpf_cnpj,
-              telefone,
-              creci,
+              ...payload,
               role: role || "corretor",
-              dados_bancarios_json: parsedDados,
               avatar_url: "/placeholder-avatar.png",
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
             },
           ],
           { onConflict: "id" }
@@ -96,89 +136,49 @@ export async function POST(req) {
         .single();
 
       if (profileError) throw profileError;
+
       data = profileData;
     }
 
     // ======================================================
-    // 🏡 PERSONAS (proprietário, inquilino, cliente)
+    // 🏡 PERSONAS (proprietário / inquilino / cliente)
     // ======================================================
     else if (type === "personas") {
-      const {
-        nome,
-        email,
-        telefone,
-        cpf_cnpj,
-        tipo,
-        endereco_json,
-        observacoes,
-      } = rest;
+      if (!payload.nome) {
+        return NextResponse.json(
+          { error: "Nome é obrigatório." },
+          { status: 400 }
+        );
+      }
 
-      const parsedEndereco =
-        typeof endereco_json === "string" && endereco_json.trim() !== ""
-          ? JSON.parse(endereco_json)
-          : endereco_json || {};
+      // Cliente usa tipo "cliente" no FE, mas não existe na tabela → convertemos
+      if (payload.tipo === "cliente") {
+        payload.tipo = "proprietario";
+      } else {
+        payload.tipo = payload.tipo || "proprietario";
+      }
+
+      // ID não pode vir em insert
+      delete payload.id;
+
+      payload.created_at = new Date().toISOString();
+      payload.updated_at = new Date().toISOString();
 
       const { data: personaData, error: personaError } = await supabase
         .from("personas")
-        .insert([
-          {
-            nome,
-            email,
-            telefone,
-            cpf_cnpj,
-            tipo: tipo || "proprietario",
-            endereco_json: parsedEndereco,
-            observacoes: observacoes || "",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-        ])
+        .insert([payload])
         .select()
         .single();
 
       if (personaError) throw personaError;
+
       data = personaData;
     }
 
-    // ======================================================
-    // 💬 LEADS
-    // ======================================================
-    else if (type === "leads") {
-      const { nome, email, telefone, status, origem, perfil_busca_json } = rest;
-
-      const parsedBusca =
-        typeof perfil_busca_json === "string" &&
-        perfil_busca_json.trim() !== ""
-          ? JSON.parse(perfil_busca_json)
-          : perfil_busca_json || {};
-
-      const { data: leadData, error: leadError } = await supabase
-        .from("leads")
-        .insert([
-          {
-            nome,
-            email,
-            telefone,
-            status: status || "novo",
-            origem: origem || "não especificada",
-            perfil_busca_json: parsedBusca,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-        ])
-        .select()
-        .single();
-
-      if (leadError) throw leadError;
-      data = leadData;
-    }
-
-    // ======================================================
-    // ❌ Tipo inválido
-    // ======================================================
+    // Tipo inválido
     else {
       return NextResponse.json(
-        { error: "Tipo de cadastro inválido" },
+        { error: "Tipo de cadastro inválido." },
         { status: 400 }
       );
     }
@@ -187,8 +187,9 @@ export async function POST(req) {
       message: "Cadastro criado com sucesso!",
       data,
     });
+
   } catch (err) {
-    console.error("❌ Erro create:", err.message);
+    console.error("❌ Erro create:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

@@ -7,23 +7,35 @@ import {
   CardTitle,
   CardContent,
 } from "@/components/admin/ui/Card";
+
 import { Button } from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
-import { useToast } from "@/contexts/ToastContext";
+import { Input, Select } from "@/components/admin/ui/Form";
+import Badge from "@/components/admin/ui/Badge";
+import {
+  Table,
+  TableRow,
+  TableCell,
+  TableHead,
+  TableHeader,
+} from "@/components/admin/ui/Table";
 
+import { useToast } from "@/contexts/ToastContext";
 import useModal from "@/hooks/useModal";
 
 import {
   Upload,
   RefreshCw,
   Trash2,
-  FileText,
   CalendarDays,
   Loader2,
+  Edit,
+  Link2,
 } from "lucide-react";
 
-import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+
+import ComplianceDocDrawer from "./ComplianceDocDrawer";
 
 const DOC_TIPOS = [
   { label: "Laudo", value: "laudo" },
@@ -33,119 +45,113 @@ const DOC_TIPOS = [
 ];
 
 export default function CompliancePanel({ imovelId }) {
-  const { success, error } = useToast();
+  const toast = useToast();
 
-  const [doc, setDoc] = useState({ tipo: "", validade: "", file: null });
-  const [loading, setLoading] = useState(false);
+  const [doc, setDoc] = useState({
+    tipo: "",
+    validade: "",
+    file: null,
+  });
+
+  const isValid = useMemo(() => !!doc.tipo && !!doc.file, [doc.tipo, doc.file]);
+
   const [itens, setItens] = useState([]);
-  const [deleting, setDeleting] = useState(false);
-  const [selectedDoc, setSelectedDoc] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const deleteModal = useModal();
-  const isValid = useMemo(() => !!doc.tipo && !!doc.file, [doc]);
+  const [selectedDoc, setSelectedDoc] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
-  /* =====================================================================
-        🔹 LISTAR DOCUMENTOS (GET action=compliance)
-  ===================================================================== */
+  const [openDrawer, setOpenDrawer] = useState(null);
+
+  const [editDoc, setEditDoc] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const fetchList = useCallback(async () => {
     if (!imovelId) return;
 
     try {
       setLoading(true);
-
-      const r = await fetch(`/api/imoveis/${imovelId}?action=compliance`, {
+      const r = await fetch(`/api/imoveis/${imovelId}/compliance`, {
         cache: "no-store",
       });
 
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Falha ao carregar documentos");
+      if (!r.ok) throw new Error(j.error || "Erro ao listar documentos");
 
-      setItens(Array.isArray(j?.data) ? j.data : []);
-    } catch (e) {
-      error("Erro", e.message);
+      setItens(Array.isArray(j.data) ? j.data : []);
+    } catch (err) {
+      toast.error("Erro", err.message || "Falha ao carregar documentos.");
     } finally {
       setLoading(false);
     }
-  }, [imovelId, error]);
+  }, [imovelId, toast]);
 
   useEffect(() => {
     fetchList();
   }, [fetchList]);
 
-  /* =====================================================================
-        🔹 UPLOAD (PUT action=compliance_add)
-        O backend espera:
-        { doc: { id, tipo, validade, path } }
-        + upload real via SignedUrl — você ainda não tinha isso no front,
-        então já ajustei.
-  ===================================================================== */
   const handleUpload = async () => {
-    if (!isValid) return error("Atenção", "Preencha todos os campos.");
+    if (!isValid) {
+      toast.error("Atenção", "Preencha todos os campos.");
+      return;
+    }
 
     try {
       setLoading(true);
 
-      // 1. Gerar ID do doc
       const docId = crypto.randomUUID();
       const ext = doc.file.name.split(".").pop();
       const path = `${imovelId}/${docId}.${ext}`;
 
-      // 2. Solicitar Signed URL
-      const signRes = await fetch(`/api/imoveis?action=sign`, {
+      const sign = await fetch(`/api/imoveis?action=sign_compliance`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ path }),
       });
 
-      const signJson = await signRes.json();
-      if (!signRes.ok) throw new Error("Falha ao gerar Signed URL");
+      const signedJson = await sign.json();
+      if (!sign.ok) throw new Error(signedJson.error || "Erro ao gerar Signed URL");
 
-      const { url, token } = signJson.data;
+      const { url } = signedJson.data;
 
-      // 3. Upload direto
-      const uploadRes = await fetch(url, {
+      const up = await fetch(url, {
         method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
         body: doc.file,
       });
 
-      if (!uploadRes.ok) throw new Error("Falha no upload do arquivo");
+      if (!up.ok) throw new Error("Falha ao enviar arquivo");
 
-      // 4. Registrar no banco
+      const validadeIso = doc.validade
+        ? new Date(`${doc.validade}T00:00:00`).toISOString()
+        : null;
+
       const payload = {
         id: docId,
         tipo: doc.tipo,
-        validade: doc.validade ? new Date(doc.validade).toISOString() : null,
+        validade: validadeIso,
         path,
       };
 
-      const registerRes = await fetch(
-        `/api/imoveis/${imovelId}?action=compliance_add`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ doc: payload }),
-        }
-      );
+      const res = await fetch(`/api/imoveis/${imovelId}/compliance`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ doc: payload }),
+      });
 
-      const j = await registerRes.json();
-      if (!registerRes.ok) throw new Error(j.error || "Erro ao registrar documento");
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "Erro ao salvar documento");
 
-      success("Sucesso", "Documento enviado com sucesso!");
+      toast.success("Sucesso", "Documento enviado!");
       setDoc({ tipo: "", validade: "", file: null });
-
       fetchList();
-    } catch (e) {
-      error("Erro", e.message);
+    } catch (err) {
+      toast.error("Erro", err.message || "Falha ao enviar documento.");
     } finally {
       setLoading(false);
     }
   };
 
-  /* =====================================================================
-        🔹 DELETAR DOCUMENTO (PUT action=compliance_remove)
-        backend exige: { doc_id, path }
-  ===================================================================== */
   const requestDelete = (doc) => {
     setSelectedDoc(doc);
     deleteModal.openModal();
@@ -157,25 +163,22 @@ export default function CompliancePanel({ imovelId }) {
     try {
       setDeleting(true);
 
-      const r = await fetch(
-        `/api/imoveis/${imovelId}?action=compliance_remove`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            doc_id: selectedDoc.id,
-            path: selectedDoc.path,
-          }),
-        }
-      );
+      const r = await fetch(`/api/imoveis/${imovelId}/compliance`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          doc_id: selectedDoc.id,
+          path: selectedDoc.path,
+        }),
+      });
 
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Falha ao remover documento");
+      if (!r.ok) throw new Error(j.error || "Erro ao remover documento");
 
+      toast.success("Sucesso", "Documento removido!");
       fetchList();
-      success("Sucesso", "Documento removido com sucesso!");
-    } catch (e) {
-      error("Erro", e.message);
+    } catch (err) {
+      toast.error("Erro", err.message || "Falha ao remover documento.");
     } finally {
       setDeleting(false);
       deleteModal.closeModal();
@@ -183,91 +186,96 @@ export default function CompliancePanel({ imovelId }) {
     }
   };
 
-  /* =====================================================================
-        🔹 RENDER
-  ===================================================================== */
+  const handleSaveEdit = async () => {
+    if (!editDoc) return;
+
+    try {
+      setSavingEdit(true);
+
+      let validadeIso = null;
+      if (editDoc.validade) {
+        const raw = editDoc.validade;
+        const base = raw.includes("T") ? raw : `${raw}T00:00:00`;
+        validadeIso = new Date(base).toISOString();
+      }
+
+      const payload = {
+        ...editDoc,
+        validade: validadeIso,
+      };
+
+      const res = await fetch(`/api/imoveis/${imovelId}/compliance`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ doc: payload }),
+      });
+
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "Erro ao salvar validade");
+
+      toast.success("Validade atualizada!");
+      setEditDoc(null);
+      fetchList();
+    } catch (err) {
+      toast.error("Erro ao salvar", err.message || "Falha ao atualizar validade.");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   return (
     <>
       <Card className="space-y-6">
         <CardHeader>
-          <CardTitle>📑 Documentos de Compliance</CardTitle>
+          <CardTitle>Documentos de Compliance</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {/* FORM */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Tipo */}
-            <div className="flex flex-col gap-1">
-              <label className="text-sm text-muted-foreground">Tipo</label>
-              <select
-                value={doc.tipo}
-                onChange={(e) => setDoc({ ...doc, tipo: e.target.value })}
-                className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
-              >
-                <option value="" disabled hidden>
-                  Selecione...
+            <Select
+              value={doc.tipo}
+              onChange={(e) => setDoc({ ...doc, tipo: e.target.value })}
+            >
+              <option value="">Selecione o tipo</option>
+              {DOC_TIPOS.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
                 </option>
-                {DOC_TIPOS.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+              ))}
+            </Select>
 
-            {/* Validade */}
-            <div className="flex flex-col gap-1">
-              <label className="text-sm text-muted-foreground flex items-center gap-1">
-                <CalendarDays className="h-4 w-4 opacity-70" />
-                Validade
-              </label>
+            <Input
+              type="date"
+              value={doc.validade || ""}
+              onChange={(e) => setDoc({ ...doc, validade: e.target.value })}
+              iconLeft={<CalendarDays className="h-4 w-4 opacity-60" />}
+            />
 
-              <input
-                type="date"
-                value={
-                  doc.validade
-                    ? format(new Date(doc.validade), "yyyy-MM-dd")
-                    : ""
-                }
-                onChange={(e) => setDoc({ ...doc, validade: e.target.value })}
-                className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
-              />
-            </div>
+            <Input
+              type="file"
+              onChange={(e) =>
+                setDoc({ ...doc, file: e.target.files?.[0] ?? null })
+              }
+            />
 
-            {/* Arquivo */}
-            <div className="flex flex-col gap-1">
-              <label className="text-sm text-muted-foreground">Arquivo</label>
-              <input
-                type="file"
-                onChange={(e) =>
-                  setDoc({ ...doc, file: e.target.files?.[0] ?? null })
-                }
-                className="h-10 rounded-md border border-dashed px-3 py-2 text-sm"
-              />
-            </div>
-
-            {/* Botão */}
-            <div className="flex items-end">
-              <Button
-                onClick={handleUpload}
-                disabled={!isValid || loading}
-                className="w-full flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <Loader2 className="animate-spin h-4 w-4" />
-                ) : (
-                  <Upload size={16} />
-                )}
-                {loading ? "Enviando..." : "Enviar"}
-              </Button>
-            </div>
+            <Button
+              onClick={handleUpload}
+              disabled={!isValid || loading}
+              className="flex items-center gap-2"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload size={16} />
+              )}
+              {loading ? "Enviando…" : "Enviar"}
+            </Button>
           </div>
 
-          {/* LISTA */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-3">
               <p className="text-sm text-muted-foreground">
-                Lista de documentos enviados
+                Documentos anexados
               </p>
 
               <Button
@@ -282,81 +290,100 @@ export default function CompliancePanel({ imovelId }) {
             </div>
 
             {loading && itens.length === 0 ? (
-              <p className="text-sm text-muted-foreground mt-2">Carregando...</p>
+              <p className="text-sm text-muted-foreground">Carregando...</p>
             ) : itens.length === 0 ? (
-              <p className="text-sm text-muted-foreground mt-2">
-                Nenhum documento cadastrado ainda.
+              <p className="text-sm text-muted-foreground">
+                Nenhum documento cadastrado.
               </p>
             ) : (
-              <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {itens.map((d) => {
-                  const vencido = d.validade
-                    ? new Date(d.validade) < new Date()
-                    : false;
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Validade</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Arquivo</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
 
-                  return (
-                    <li
-                      key={d.id}
-                      className="p-4 rounded-xl border bg-panel-card shadow-sm"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <FileText className="h-4 w-4 text-accent" />
-                          <span className="font-medium text-sm">
-                            {d.tipo?.toUpperCase()}
-                          </span>
-                        </div>
+                <tbody>
+                  {itens.map((d) => {
+                    const vencido =
+                      d.validade && new Date(d.validade) < new Date();
 
-                        <span className="text-xs text-muted-foreground">
+                    return (
+                      <TableRow
+                        key={d.id}
+                        className="cursor-pointer hover:bg-muted/20"
+                        onClick={() => setOpenDrawer(d)}
+                      >
+                        <TableCell>
+                          <Badge status={d.tipo}>{d.tipo?.toUpperCase()}</Badge>
+                        </TableCell>
+
+                        <TableCell>
                           {d.validade
-                            ? `Validade: ${new Date(
-                                d.validade
-                              ).toLocaleDateString("pt-BR")}`
-                            : "Sem validade"}
-                        </span>
+                            ? new Date(d.validade).toLocaleDateString("pt-BR")
+                            : "—"}
+                        </TableCell>
 
-                        {d.url && (
-                          <a
-                            href={d.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs underline text-accent mt-2 block"
-                          >
-                            Abrir arquivo
-                          </a>
-                        )}
-                      </div>
+                        <TableCell>
+                          <Badge status={vencido ? "vencido" : "valido"}>
+                            {vencido ? "Vencido" : "Válido"}
+                          </Badge>
+                        </TableCell>
 
-                      <div className="flex items-center justify-between mt-3">
-                        <span
-                          className={cn(
-                            "text-xs px-2 py-1 rounded-full border font-medium",
-                            vencido
-                              ? "border-red-300 text-red-700 bg-red-50"
-                              : "border-emerald-300 text-emerald-700 bg-emerald-50"
+                        <TableCell>
+                          {d.url && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(d.url, "_blank");
+                              }}
+                              className="text-accent text-sm font-medium hover:text-accent/80 flex items-center gap-1"
+                            >
+                              <Link2 size={14} className="opacity-80" />
+                              Abrir
+                            </button>
                           )}
-                        >
-                          {vencido ? "Vencido" : "Válido"}
-                        </span>
+                        </TableCell>
 
-                        <Button
-                          size="sm"
-                          className="flex items-center gap-1 text-red-600 hover:text-red-700"
-                          onClick={() => requestDelete(d)}
-                        >
-                          <Trash2 size={14} /> Remover
-                        </Button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditDoc(d);
+                              }}
+                            >
+                              <Edit size={16} />
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                requestDelete(d);
+                              }}
+                            >
+                              <Trash2 size={16} className="text-red-500" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </tbody>
+              </Table>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {/* MODAL DELETE */}
       <Modal
         isOpen={deleteModal.open}
         onClose={deleteModal.closeModal}
@@ -383,12 +410,65 @@ export default function CompliancePanel({ imovelId }) {
           </div>
         }
       >
-        <p className="text-sm text-muted-foreground mb-6">
+        <p className="text-sm text-muted-foreground">
           Tem certeza que deseja excluir{" "}
           <strong>{selectedDoc?.tipo?.toUpperCase()}</strong>? Esta ação é
           permanente.
         </p>
       </Modal>
+
+      <Modal
+        isOpen={!!editDoc}
+        onClose={() => setEditDoc(null)}
+        title="Editar validade"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setEditDoc(null)}>
+              Cancelar
+            </Button>
+
+            <Button onClick={handleSaveEdit} disabled={savingEdit}>
+              {savingEdit ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Salvar"
+              )}
+            </Button>
+          </div>
+        }
+      >
+        {editDoc && (
+          <div className="space-y-3">
+            <p className="text-sm">{editDoc.tipo.toUpperCase()}</p>
+
+            <Input
+              type="date"
+              value={editDoc.validade ? editDoc.validade.slice(0, 10) : ""}
+              onChange={(e) =>
+                setEditDoc({
+                  ...editDoc,
+                  validade: e.target.value,
+                })
+              }
+            />
+          </div>
+        )}
+      </Modal>
+
+      {openDrawer && (
+        <ComplianceDocDrawer
+          doc={openDrawer}
+          onClose={() => setOpenDrawer(null)}
+          onEdit={(doc) => {
+            setEditDoc(doc);
+            setOpenDrawer(null);
+          }}
+          onDelete={(doc) => {
+            requestDelete(doc);
+            setOpenDrawer(null);
+          }}
+        />
+      )}
     </>
   );
 }

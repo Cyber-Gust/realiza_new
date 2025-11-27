@@ -84,7 +84,7 @@ export default function CRMPropostasPanel() {
   const loadLists = useCallback(async () => {
     try {
       const [imRes, corrRes] = await Promise.all([
-        fetch("/api/imoveis/list", { cache: "no-store" }),
+        fetch("/api/imoveis", { cache: "no-store" }),
         fetch("/api/perfis/list?type=equipe", { cache: "no-store" }),
       ]);
 

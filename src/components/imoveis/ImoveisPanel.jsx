@@ -5,6 +5,13 @@ import { Input, Label, Select } from "@/components/admin/ui/Form";
 import { Button } from "@/components/admin/ui/Button";
 import { Card } from "@/components/admin/ui/Card";
 import { Search, Plus } from "lucide-react";
+import {
+  Table,
+  TableHeader,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/admin/ui/Table";
 import Badge from "@/components/admin/ui/Badge";
 import KPI from "@/components/admin/ui/KPIWidget";
 
@@ -169,56 +176,64 @@ function ImoveisTable({ data = [], onSelect }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-panel-card shadow-sm">
-      <table className="w-full text-sm text-left border-collapse">
-        <thead className="bg-muted/60 text-muted-foreground sticky top-0 z-10">
-          <tr>
-            <th className="px-4 py-3">Código</th>
-            <th className="px-4 py-3">Título</th>
-            <th className="px-4 py-3">Tipo</th>
-            <th className="px-4 py-3">Cidade</th>
-            <th className="px-4 py-3">Venda (R$)</th>
-            <th className="px-4 py-3">Locação (R$)</th>
-            <th className="px-4 py-3">Status</th>
-            <th className="px-4 py-3 text-right">Ações</th>
-          </tr>
-        </thead>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Código</TableHead>
+          <TableHead>Título</TableHead>
+          <TableHead>Tipo</TableHead>
+          <TableHead>Cidade</TableHead>
+          <TableHead>Venda (R$)</TableHead>
+          <TableHead>Locação (R$)</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead className="text-right">Ações</TableHead>
+        </TableRow>
+      </TableHeader>
 
-        <tbody>
-          {data.map((i) => (
-            <tr key={i.id} className="border-t border-border hover:bg-muted/20 transition-colors">
-              <td className="px-4 py-3">{i.codigo_ref || "-"}</td>
-              <td className="px-4 py-3 truncate max-w-[200px]">{i.titulo || "-"}</td>
-              <td className="px-4 py-3 capitalize">{i.tipo}</td>
-              <td className="px-4 py-3">{i.endereco_cidade}</td>
+      <tbody>
+        {data.map((i) => (
+          <TableRow key={i.id}>
+            <TableCell>{i.codigo_ref || "-"}</TableCell>
 
-              <td className="px-4 py-3">
-                {i.preco_venda ? `R$ ${Number(i.preco_venda).toLocaleString("pt-BR")}` : "—"}
-              </td>
+            <TableCell className="truncate max-w-[200px]">
+              {i.titulo || "-"}
+            </TableCell>
 
-              <td className="px-4 py-3">
-                {i.preco_locacao ? `R$ ${Number(i.preco_locacao).toLocaleString("pt-BR")}` : "—"}
-              </td>
+            <TableCell className="capitalize">{i.tipo}</TableCell>
 
-              <td className="px-4 py-3">
-                <Badge status={i.status} />
-              </td>
+            <TableCell>{i.endereco_cidade}</TableCell>
 
-              <td className="px-4 py-3 text-right">
-                <Button
-                  size="sm"
-                  onClick={() =>
-                    onSelect ? onSelect(i) : router.push(`/admin/imoveis/${i.id}`)
-                  }
-                >
-                  Ver Detalhes
-                </Button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+            <TableCell>
+              {i.preco_venda
+                ? `R$ ${Number(i.preco_venda).toLocaleString("pt-BR")}`
+                : "—"}
+            </TableCell>
+
+            <TableCell>
+              {i.preco_locacao
+                ? `R$ ${Number(i.preco_locacao).toLocaleString("pt-BR")}`
+                : "—"}
+            </TableCell>
+
+            <TableCell>
+              <Badge status={i.status} />
+            </TableCell>
+
+            <TableCell className="text-right">
+              <Button
+                size="sm"
+                onClick={() =>
+                  onSelect ? onSelect(i) : router.push(`/admin/imoveis/${i.id}`)
+                }
+                className="rounded-lg shadow-sm"
+              >
+                Ver Detalhes
+              </Button>
+            </TableCell>
+          </TableRow>
+        ))}
+      </tbody>
+    </Table>
   );
 }
 

@@ -2,37 +2,35 @@
 
 import { useEffect, useState, useMemo } from "react";
 import {
-  UserCog,
+  User2,
   Plus,
   Loader2,
   Edit,
-  Trash2,
   Search,
   RefreshCcw,
 } from "lucide-react";
 
-import Image from "next/image"
-
 import { Button } from "@/components/admin/ui/Button";
 import { Card } from "@/components/admin/ui/Card";
 import Modal from "@/components/admin/ui/Modal";
+import Badge from "@/components/admin/ui/Badge";
 
-import { Input, Select } from "@/components/admin/ui/Form";
+import { Input } from "@/components/admin/ui/Form";
 import { Table, TableHead, TableHeader, TableRow, TableCell } from "@/components/admin/ui/Table";
 
 import { useToast } from "@/contexts/ToastContext";
 
-import PerfilFormEquipe from "./PerfilFormEquipe";
-import PerfisEquipeDrawer from "./PerfisEquipeDrawer"; // 🆕 Detalhes e edição profunda
-import Badge from "../admin/ui/Badge";
+import PerfilFormCliente from "./PerfilFormCliente";
+import PerfisClienteDrawer from "./PerfisClienteDrawer"; // 🆕 vamos criar depois
+import Image from "next/image";
 
-export default function PerfisEquipePanel() {
+export default function PerfisClientesPanel() {
   const toast = useToast();
 
-  const [profiles, setProfiles] = useState([]);
+  const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Form modal
+  // Modal form
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState(null);
 
@@ -42,7 +40,7 @@ export default function PerfisEquipePanel() {
   // Filtros
   const [filters, setFilters] = useState({
     search: "",
-    role: "",
+    origem: "",
   });
 
   const getImageSrc = (foto) => {
@@ -58,20 +56,26 @@ export default function PerfisEquipePanel() {
     return "/" + foto;
   };
 
+  /* ========================================================================
+     LOAD CLIENTES
+  ======================================================================== */
   const load = async () => {
     try {
       setLoading(true);
 
-      const res = await fetch("/api/perfis/list?type=equipe", {
+      const res = await fetch("/api/perfis/list?type=clientes", {
         cache: "no-store",
       });
 
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
-      setProfiles(json.data || []);
+      // filtra só clientes
+      const data = json.data || [];
+
+      setClientes(data);
     } catch (err) {
-      toast.error("Erro ao carregar equipe: " + err.message);
+      toast.error("Erro ao carregar clientes: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -82,28 +86,31 @@ export default function PerfisEquipePanel() {
   }, []);
 
   /* ========================================================================
-     FILTRAGEM
+     FILTERED LIST
   ======================================================================== */
   const filtered = useMemo(() => {
-    return profiles.filter((p) => {
-      if (filters.role && p.role !== filters.role) return false;
+    return clientes.filter((p) => {
+      if (filters.origem && !p.origem?.toLowerCase().includes(filters.origem.toLowerCase())) {
+        return false;
+      }
 
       if (filters.search) {
         const s = filters.search.toLowerCase();
-
         if (
           !(
-            p.nome_completo?.toLowerCase().includes(s) ||
+            p.nome?.toLowerCase().includes(s) ||
             p.email?.toLowerCase().includes(s) ||
-            p.telefone?.toLowerCase().includes(s)
+            p.telefone?.toLowerCase().includes(s) ||
+            p.cpf_cnpj?.toLowerCase().includes(s)
           )
-        )
+        ) {
           return false;
+        }
       }
 
       return true;
     });
-  }, [profiles, filters]);
+  }, [clientes, filters]);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-200">
@@ -111,25 +118,23 @@ export default function PerfisEquipePanel() {
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between gap-3 md:items-center">
         <h3 className="text-xl font-semibold flex items-center gap-2 text-foreground tracking-tight">
-          <UserCog size={20} /> Equipe cadastrada
+          <User2 size={20} /> Clientes cadastrados
         </h3>
 
-        <Button
-          onClick={() => setOpenForm(true)}
-          className="flex items-center gap-2"
-        >
-          <Plus size={16} /> Novo membro
+        <Button onClick={() => setOpenForm(true)} className="flex items-center gap-2">
+          <Plus size={16} /> Novo Cliente
         </Button>
       </div>
 
       {/* FILTROS */}
       <Card className="p-5 bg-panel-card border-border shadow-sm rounded-xl">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+
           {/* SEARCH */}
           <div className="flex items-center gap-2 border border-border rounded-md px-3 py-2 bg-panel-card">
             <Search size={14} className="text-muted-foreground" />
             <input
-              placeholder="Buscar por nome, email ou telefone…"
+              placeholder="Buscar nome, email, telefone ou CPF..."
               value={filters.search}
               onChange={(e) =>
                 setFilters((f) => ({ ...f, search: e.target.value }))
@@ -138,23 +143,21 @@ export default function PerfisEquipePanel() {
             />
           </div>
 
-          {/* ROLE */}
-          <Select
-            value={filters.role}
+          {/* ORIGEM */}
+          <Input
+            placeholder="Filtrar por origem"
+            value={filters.origem}
             onChange={(e) =>
-              setFilters((f) => ({ ...f, role: e.target.value }))
+              setFilters((f) => ({ ...f, origem: e.target.value }))
             }
-          >
-            <option value="">Todos os cargos</option>
-            <option value="admin">Admin</option>
-            <option value="corretor">Corretor</option>
-          </Select>
+          />
 
+          {/* RESET */}
           <div className="flex items-center">
             <Button
               variant="secondary"
               className="w-full flex items-center gap-2"
-              onClick={() => setFilters({ search: "", role: "" })}
+              onClick={() => setFilters({ search: "", origem: "" })}
             >
               <RefreshCcw size={14} /> Reset
             </Button>
@@ -169,63 +172,63 @@ export default function PerfisEquipePanel() {
         </div>
       ) : filtered.length === 0 ? (
         <Card className="p-6 text-center text-muted-foreground bg-panel-card border-border rounded-xl">
-          Nenhum membro encontrado com os filtros aplicados.
+          Nenhum cliente encontrado.
         </Card>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Membro</TableHead>
+              <TableHead>Contato</TableHead>
               <TableHead>E-mail</TableHead>
               <TableHead>Telefone</TableHead>
-              <TableHead>Cargo</TableHead>
+              <TableHead>Origem</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
 
           <tbody>
-            {filtered.map((p) => (
+            {filtered.map((c) => (
               <TableRow
-                key={p.id}
+                key={c.id}
                 className="cursor-pointer hover:bg-muted/20 transition"
-                onClick={() => setOpenDrawer(p.id)}
+                onClick={() => setOpenDrawer(c.id)}
               >
                 {/* FOTO + NOME */}
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <div className="relative w-9 h-9">
                       <Image
-                        src={getImageSrc(p.avatar_url)}
-                        alt={p.nome || p.nome_completo}
+                        src={getImageSrc(c.foto)}
+                        alt={c.nome}
                         fill
                         className="rounded-full object-cover border border-border"
                         sizes="36px"
                       />
                     </div>
-                    <span>{p.nome || p.nome_completo}</span>
+                    <span>{c.nome}</span>
                   </div>
                 </TableCell>
 
                 <TableCell className="text-muted-foreground">
-                  {p.email}
+                  {c.email || "-"}
                 </TableCell>
 
-                <TableCell>{p.telefone || "-"}</TableCell>
+                <TableCell>{c.telefone || "-"}</TableCell>
 
-                {/* BADGE DO CARGO */}
+                {/* BADGE DE ORIGEM */}
                 <TableCell>
-                  <Badge status={p.role} />
+                  <Badge status={c.origem || "Manual"} />
                 </TableCell>
 
-                {/* AÇÕES */}
                 <TableCell className="text-right flex justify-end gap-2">
 
+                  {/* EDITAR */}
                   <Button
                     size="icon"
                     variant="ghost"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setEditing(p);
+                      setEditing(c);
                       setOpenForm(true);
                     }}
                   >
@@ -246,9 +249,9 @@ export default function PerfisEquipePanel() {
           setOpenForm(false);
           setEditing(null);
         }}
-        title={editing ? "Editar membro da equipe" : "Novo membro da equipe"}
+        title={editing ? "Editar Cliente" : "Novo Cliente"}
       >
-        <PerfilFormEquipe
+        <PerfilFormCliente
           modo={editing ? "edit" : "create"}
           dadosIniciais={editing || {}}
           onSuccess={() => {
@@ -261,11 +264,11 @@ export default function PerfisEquipePanel() {
 
       {/* DRAWER */}
       {openDrawer && (
-        <PerfisEquipeDrawer
-          profileId={openDrawer}
+        <PerfisClienteDrawer
+          clienteId={openDrawer}
           onClose={() => setOpenDrawer(null)}
-          onEdit={(p) => {
-            setEditing(p);
+          onEdit={(c) => {
+            setEditing(c);
             setOpenDrawer(null);
             setOpenForm(true);
           }}

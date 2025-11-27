@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/admin/ui/
 // Painéis
 import PerfisEquipePanel from "@/components/perfis/PerfisEquipePanel";
 import PerfisPersonasPanel from "@/components/perfis/PerfisPersonasPanel";
-import PerfisLeadsPanel from "@/components/perfis/PerfisLeadsPanel";
+import PerfisClientesPanel from "@/components/perfis/PerfisClientesPanel";
 
 export default function PerfisPage() {
   const [tab, setTab] = useState("equipe");
@@ -17,14 +17,14 @@ export default function PerfisPage() {
   return (
     <div className="space-y-6">
 
-      {/* ⭐ HEADER NATIVO (sem PageHeader) */}
+      {/* ⭐ HEADER NATIVO */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">
             Perfis do Sistema
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Gerencie usuários da equipe, proprietários, inquilinos e leads.
+            Gerencie membros da equipe, proprietários, inquilinos e clientes.
           </p>
         </div>
       </div>
@@ -33,22 +33,16 @@ export default function PerfisPage() {
       <Tabs value={tab} onValueChange={setTab} className="w-full">
         <TabsList className="bg-muted p-1 flex gap-2">
 
-          <TabsTrigger
-            value="equipe"
-          >
-          Equipe
+          <TabsTrigger value="equipe">
+            Equipe
           </TabsTrigger>
 
-          <TabsTrigger
-            value="personas"
-          >
-          Proprietários & Inquilinos
+          <TabsTrigger value="personas">
+            Proprietários & Inquilinos
           </TabsTrigger>
 
-          <TabsTrigger
-            value="leads"
-          >
-          Leads & Clientes
+          <TabsTrigger value="clientes">
+            Clientes
           </TabsTrigger>
 
         </TabsList>
@@ -68,9 +62,9 @@ export default function PerfisPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="leads">
+          <TabsContent value="clientes">
             <Card className="p-6 space-y-4">
-              <PerfisLeadsPanel />
+              <PerfisClientesPanel />
             </Card>
           </TabsContent>
 

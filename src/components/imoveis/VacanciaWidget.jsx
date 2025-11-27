@@ -6,8 +6,9 @@ import Badge from "@/components/admin/ui/Badge";
 export default function VacanciaWidget({ imovelId }) {
   const [state, setState] = useState({
     dias: null,
-    data_fim: null,
-    loading: true
+    status: null,
+    ultimo_contrato: null,
+    loading: true,
   });
 
   useEffect(() => {
@@ -15,60 +16,59 @@ export default function VacanciaWidget({ imovelId }) {
 
     (async () => {
       try {
-        const r = await fetch(
-          `/api/imoveis/${imovelId}?action=financeiro&vacancia=1`,
-          { cache: "no-store" }
-        );
+        const r = await fetch(`/api/imoveis/${imovelId}/vacancia`, {
+          cache: "no-store",
+        });
 
         const j = await r.json();
         if (!alive) return;
 
-        if (r.ok) {
-          setState({
-            dias: j?.vacancia?.dias ?? 0,
-            data_fim: j?.vacancia?.ultimo_contrato?.data_fim ?? null,
-            loading: false
-          });
-        } else {
-          setState({ dias: 0, data_fim: null, loading: false });
-        }
+        setState({
+          dias: j?.vacancia?.dias ?? null,
+          status: j?.vacancia?.status ?? null,
+          ultimo_contrato: j?.vacancia?.ultimo_contrato ?? null,
+          loading: false,
+        });
       } catch {
         if (!alive) return;
-        setState({ dias: 0, data_fim: null, loading: false });
+        setState({ dias: null, status: "erro", ultimo_contrato: null, loading: false });
       }
     })();
 
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false };
   }, [imovelId]);
 
-  if (state.loading) {
-    return <p className="text-sm text-muted-foreground">Calculando...</p>;
-  }
+  if (state.loading) return <p className="text-sm text-muted-foreground">Calculando...</p>;
 
-  const dias = state.dias ?? 0;
+  const { dias, status, ultimo_contrato } = state;
 
-  // 🔥 Mapa de risco → Badge
-  const statusMap = {
-    green: "disponivel",
-    amber: "reservado",
-    red: "perdido"
+  // Map para Badge
+  const badgeMap = {
+    sem_contrato: "sem_contrato",
+    contrato_ativo: "contrato_ativo",
+
+    em_vacancia:
+      dias > 30
+        ? "vacancia_grave"
+        : dias > 7
+          ? "vacancia_moderada"
+          : "vacancia_leve",
+
+    erro: "perdido",
   };
-
-  const risk =
-    dias > 30 ? "red" : dias > 7 ? "amber" : "green";
 
   return (
     <div className="flex items-center gap-3">
-      <Badge status={statusMap[risk]}>
-        {dias} dias sem contrato ativo
+      <Badge status={badgeMap[status]}>
+        {status === "sem_contrato" && "Sem contrato cadastrado"}
+        {status === "contrato_ativo" && "Contrato ativo"}
+        {status === "em_vacancia" && `${dias} dias sem contrato ativo`}
+        {status === "erro" && "Erro ao calcular"}
       </Badge>
 
-      {state.data_fim && (
+      {ultimo_contrato?.data_fim && (
         <span className="text-xs text-muted-foreground">
-          Último contrato até{" "}
-          {new Date(state.data_fim).toLocaleDateString("pt-BR")}
+          Último contrato até {new Date(ultimo_contrato.data_fim).toLocaleDateString("pt-BR")}
         </span>
       )}
     </div>

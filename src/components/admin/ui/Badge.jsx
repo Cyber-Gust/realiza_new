@@ -39,6 +39,30 @@ encerrado: "bg-rose-300 text-rose-900 border-rose-400 dark:bg-rose-700 dark:text
   pagamento_iptu: "bg-yellow-300 text-yellow-900 border-yellow-400 dark:bg-yellow-700 dark:text-yellow-100 dark:border-yellow-500",
   pagamento_condominio: "bg-cyan-300 text-cyan-900 border-cyan-400 dark:bg-cyan-700 dark:text-cyan-100 dark:border-cyan-500",
 
+  // --- VACÂNCIA (NOVOS STATUS) ---
+  sem_contrato: "bg-slate-200 text-slate-800 border-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:border-slate-500",
+  contrato_ativo: "bg-emerald-200 text-emerald-800 border-emerald-300 dark:bg-emerald-700 dark:text-emerald-100 dark:border-emerald-500",
+  em_vacancia: "bg-rose-200 text-rose-800 border-rose-300 dark:bg-rose-700 dark:text-rose-100 dark:border-rose-500",
+  vacancia_leve: "bg-emerald-200 text-emerald-800 border-emerald-300 dark:bg-emerald-700 dark:text-emerald-100 dark:border-emerald-500",
+  vacancia_moderada: "bg-amber-200 text-amber-800 border-amber-300 dark:bg-amber-700 dark:text-amber-100 dark:border-amber-500",
+  vacancia_grave: "bg-red-200 text-red-800 border-red-300 dark:bg-red-700 dark:text-red-100 dark:border-red-500",
+
+// --- STATUS COMPLIANCE ---
+  valido: "bg-emerald-200 text-emerald-800 border-emerald-300 dark:bg-emerald-700 dark:text-emerald-100 dark:border-emerald-500",
+  vencido: "bg-red-200 text-red-800 border-red-300 dark:bg-red-700 dark:text-red-100 dark:border-red-500",
+
+  // Tipos de documento (Compliance)
+  laudo: "bg-sky-200 text-sky-900 border-sky-300 dark:bg-sky-700 dark:text-sky-100 dark:border-sky-500",
+  art: "bg-indigo-200 text-indigo-900 border-indigo-300 dark:bg-indigo-700 dark:text-indigo-100 dark:border-indigo-500",
+  avcb: "bg-rose-200 text-rose-900 border-rose-300 dark:bg-rose-700 dark:text-rose-100 dark:border-rose-500",
+  habite_se: "bg-amber-200 text-amber-900 border-amber-300 dark:bg-amber-700 dark:text-amber-100 dark:border-amber-500",
+ 
+  // --- STATUS CONTRATO (NOVO ENUM) ---
+  ativo: "bg-emerald-200 text-emerald-800 border-emerald-300 dark:bg-emerald-700 dark:text-emerald-100 dark:border-emerald-500",
+  encerrado: "bg-rose-300 text-rose-900 border-rose-400 dark:bg-rose-700 dark:text-rose-100 dark:border-rose-500",
+  renovado: "bg-lime-300 text-lime-900 border-lime-400 dark:bg-lime-700 dark:text-lime-100 dark:border-lime-500",
+  rescindido: "bg-red-300 text-red-900 border-red-400 dark:bg-red-700 dark:text-red-100 dark:border-red-500",
+
   // --- STATUS OS (MANUTENÇÃO) ---
   aberta: "bg-blue-200 text-blue-900 border-blue-300 dark:bg-blue-700 dark:text-blue-100 dark:border-blue-500",
   orcamento: "bg-purple-200 text-purple-900 border-purple-300 dark:bg-purple-700 dark:text-purple-100 dark:border-purple-500",

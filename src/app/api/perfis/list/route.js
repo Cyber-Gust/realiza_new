@@ -3,27 +3,30 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
 /**
- * 🔹 Lista perfis, personas e leads
- * Suporta query params: ?type=equipe|personas|leads&id=<uuid>
+ * Listagem unificada:
+ * 🔹 /api/perfis/list?type=equipe
+ * 🔹 /api/perfis/list?type=personas
+ * 🔹 /api/perfis/list?type=clientes
+ * 🔹 /api/perfis/list?type=equipe&id=UUID
  */
 export async function GET(req) {
   const supabase = createServiceClient();
   const { searchParams } = new URL(req.url);
+
   const type = searchParams.get("type");
   const id = searchParams.get("id");
 
   try {
     let data = [];
 
-    switch (type) {
-      // ==================================================
-      // 👥 EQUIPE (admins + corretores)
-      // ==================================================
-      case "equipe": {
-        let query = supabase
-          .from("profiles")
-          .select(
-            `
+    /* ============================================================
+        👥 EQUIPE — tabela profiles
+    ============================================================ */
+    if (type === "equipe") {
+      let query = supabase
+        .from("profiles")
+        .select(
+          `
             id,
             nome_completo,
             email,
@@ -31,146 +34,158 @@ export async function GET(req) {
             cpf_cnpj,
             role,
             creci,
-            dados_bancarios_json,
             avatar_url,
+            slug,
+            resumo,
+            detalhes,
+            bio_publica,
+            linkedin,
+            instagram,
+            whatsapp,
+            banco,
+            agencia,
+            conta,
+            tipo_conta,
+            pix,
+            favorecido,
+            endereco_cep,
+            endereco_logradouro,
+            endereco_numero,
+            endereco_bairro,
+            endereco_cidade,
+            endereco_estado,
+            data_nascimento,
+            ativo,
             updated_at
           `
-          )
-          .order("updated_at", { ascending: false });
+        )
+        .order("updated_at", { ascending: false });
 
-        if (id) query = query.eq("id", id);
+      if (id) query = query.eq("id", id);
 
-        const { data: profiles, error: profilesError } = await query;
-        if (profilesError) throw profilesError;
+      const { data: rows, error } = await query;
+      if (error) throw error;
 
-        // 🔹 Carrega metadados do Auth (para sincronizar nomes/telefones)
-        let authUserMap = {};
-        if (id) {
-          const { data: singleAuth } = await supabase.auth.admin.getUserById(id);
-          if (singleAuth?.user) authUserMap[id] = singleAuth.user;
-        } else {
-          const { data: authData } = await supabase.auth.admin.listUsers();
-          authUserMap = Object.fromEntries(
-            authData?.users?.map((u) => [u.id, u]) || []
-          );
-        }
+      data = rows.map((p) => ({
+        ...p,
+        type: "equipe",
+      }));
+    }
 
-        data = profiles.map((p) => {
-          const authUser = authUserMap[p.id];
-          return {
-            id: p.id,
-            type: "equipe",
-            nome_completo:
-              p.nome_completo || authUser?.user_metadata?.nome_completo || "-",
-            email: p.email || authUser?.email || "-",
-            telefone: p.telefone || authUser?.user_metadata?.telefone || "-",
-            cpf_cnpj: p.cpf_cnpj || authUser?.user_metadata?.cpf_cnpj || "-",
-            creci: p.creci || authUser?.user_metadata?.creci || "-",
-            role: p.role || authUser?.user_metadata?.role || "corretor",
-            dados_bancarios_json: p.dados_bancarios_json || {},
-            avatar_url: p.avatar_url || "/placeholder-avatar.png",
-            updated_at: p.updated_at,
-          };
-        });
-        break;
-      }
-
-      // ==================================================
-      // 🏡 PERSONAS (proprietário, inquilino, cliente)
-      // ==================================================
-      case "personas": {
-        let query = supabase
-          .from("personas")
-          .select(
-            `
+    /* ============================================================
+        🏡 PERSONAS — proprietários + inquilinos
+    ============================================================ */
+    else if (type === "personas") {
+      let query = supabase
+        .from("personas")
+        .select(
+          `
             id,
             nome,
             email,
             telefone,
             cpf_cnpj,
             tipo,
-            endereco_json,
+            endereco_cep,
+            endereco_logradouro,
+            endereco_numero,
+            endereco_bairro,
+            endereco_cidade,
+            endereco_estado,
+            data_nascimento,
+            rg,
+            estado_civil,
+            profissao,
+            origem,
+            tags,
             observacoes,
+            ativo,
             updated_at
           `
-          )
-          .order("updated_at", { ascending: false });
+        )
+        .neq("tipo", "cliente") // exclui clientes daqui
+        .order("updated_at", { ascending: false });
 
-        if (id) query = query.eq("id", id);
+      if (id) query = query.eq("id", id);
 
-        const { data: personas, error: personasError } = await query;
-        if (personasError) throw personasError;
+      const { data: rows, error } = await query;
+      if (error) throw error;
 
-        data = personas.map((p) => ({
-          id: p.id,
-          type: "personas",
-          nome: p.nome,
-          email: p.email,
-          telefone: p.telefone,
-          cpf_cnpj: p.cpf_cnpj,
-          tipo: p.tipo,
-          endereco_json: p.endereco_json || {},
-          observacoes: p.observacoes || "",
-          updated_at: p.updated_at,
-        }));
-        break;
-      }
+      data = rows.map((p) => ({
+        ...p,
+        type: "personas",
+      }));
+    }
 
-      // ==================================================
-      // 💬 LEADS
-      // ==================================================
-      case "leads": {
-        let query = supabase
-          .from("leads")
-          .select(
-            `
+    /* ============================================================
+        👤 CLIENTES — subset da tabela personas
+    ============================================================ */
+    else if (type === "clientes") {
+      let query = supabase
+        .from("personas")
+        .select(
+          `
             id,
             nome,
             email,
             telefone,
-            status,
+            cpf_cnpj,
+            tipo,
+            endereco_cep,
+            endereco_logradouro,
+            endereco_numero,
+            endereco_bairro,
+            endereco_cidade,
+            endereco_estado,
+            data_nascimento,
+            rg,
+            estado_civil,
+            profissao,
             origem,
-            corretor_id,
-            perfil_busca_json,
+            tags,
+            observacoes,
+            ativo,
             updated_at
           `
-          )
-          .order("updated_at", { ascending: false });
+        )
+        .eq("tipo", "cliente")
+        .order("updated_at", { ascending: false });
 
-        if (id) query = query.eq("id", id);
+      if (id) query = query.eq("id", id);
 
-        const { data: leads, error: leadsError } = await query;
-        if (leadsError) throw leadsError;
+      const { data: rows, error } = await query;
+      if (error) throw error;
 
-        data = leads.map((l) => ({
-          id: l.id,
-          type: "leads",
-          nome: l.nome,
-          email: l.email,
-          telefone: l.telefone,
-          status: l.status,
-          origem: l.origem,
-          corretor_id: l.corretor_id,
-          perfil_busca_json: l.perfil_busca_json || {},
-          updated_at: l.updated_at,
-        }));
-        break;
-      }
-
-      default:
-        return NextResponse.json(
-          { error: "Tipo inválido de listagem. Use equipe, personas ou leads." },
-          { status: 400 }
-        );
+      data = rows.map((p) => ({
+        ...p,
+        type: "clientes",
+      }));
     }
 
-    // ✅ Se veio `id`, retorna objeto único
+    /* ============================================================
+        ❌ TIPO INVÁLIDO
+    ============================================================ */
+    else {
+      return NextResponse.json(
+        {
+          error:
+            "Tipo inválido. Use 'equipe', 'personas' ou 'clientes'. Leads agora fazem parte do módulo CRM.",
+        },
+        { status: 400 }
+      );
+    }
+
+    /* ============================================================
+        Se veio um ID → retornar só o objeto
+    ============================================================ */
     if (id) {
-      const single = Array.isArray(data) ? data[0] : data;
-      return NextResponse.json({ data: single || null });
+      const item = Array.isArray(data) ? data[0] : data;
+      return NextResponse.json({ data: item || null });
     }
 
-    // ✅ Se não veio `id`, retorna lista
+    /* ============================================================
+        Resposta normal — lista completa
+    ============================================================ */
     return NextResponse.json({ data });
   } catch (err) {
     console.error("❌ Erro list:", err);

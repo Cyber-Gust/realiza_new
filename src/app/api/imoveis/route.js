@@ -86,6 +86,21 @@ async function handlePOST(req, supabase) {
 
     return { data: { uploadUrl, publicUrl } };
   }
+  // SIGN PARA COMPLIANCE
+  if (action === "sign_compliance") {
+    if (!body.path) throw new Error("Caminho do arquivo não informado.");
+
+    const { data, error } = await supabase.storage
+      .from("documentos_compliance")    // 👈 AQUI O BUCKET CERTO!
+      .createSignedUploadUrl(body.path);
+
+    if (error) throw error;
+
+    const uploadUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/upload/sign/documentos_compliance/${body.path}?token=${data.token}`;
+    const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documentos_compliance/${body.path}`;
+
+    return { data: { url: uploadUrl, publicUrl } };
+  }
 
   // CRIAR IMÓVEL
   const required = ["proprietario_id", "tipo", "codigo_ref", "titulo", "slug"];

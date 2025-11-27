@@ -7,6 +7,7 @@
     "disponibilidade_tipo": ["venda", "locacao", "ambos"],
     "lead_status": ["novo", "qualificado", "visita_agendada", "proposta_feita", "documentacao", "concluido", "perdido"],
     "contrato_tipo": ["locacao", "venda", "administracao"],
+    "contrato_status": ["ativo", "encerrado", "cancelado", "renovado", "rescindido"],
     "transacao_tipo": [
       "receita_aluguel",
       "taxa_adm_imobiliaria",
@@ -48,6 +49,21 @@
     { "name": "participante_id", "type": "uuid", "nullable": true },
     { "name": "local", "type": "text", "nullable": true },
     { "name": "observacoes", "type": "text", "nullable": true }
+  ]
+}
+
+{
+  "table_schema": "public",
+  "table_name": "imoveis_compliance",
+  "row_security": true,
+  "columns": [
+    { "name": "id", "type": "uuid", "nullable": false, "default": "gen_random_uuid()", "constraint": "PRIMARY KEY" },
+    { "name": "imovel_id", "type": "uuid", "nullable": false, "default": null, "constraint": "FOREIGN KEY", "foreign_table": "imoveis", "foreign_column": "id" },
+    { "name": "tipo", "type": "text", "nullable": false },
+    { "name": "validade", "type": "timestamptz", "nullable": true, "default": null },
+    { "name": "path", "type": "text", "nullable": false },
+    { "name": "created_at", "type": "timestamptz", "nullable": true, "default": "now()" },
+    { "name": "updated_at", "type": "timestamptz", "nullable": true, "default": "now()" }
   ]
 }
 
@@ -215,8 +231,20 @@
     { "name": "telefone", "type": "text", "nullable": true },
     { "name": "cpf_cnpj", "type": "text", "nullable": true },
     { "name": "tipo", "type": "persona_tipo", "nullable": false },
-    { "name": "endereco_json", "type": "jsonb", "nullable": true },
+    { "name": "endereco_cep", "type": "text", "nullable": true },
+    { "name": "endereco_logradouro", "type": "text", "nullable": true },
+    { "name": "endereco_numero", "type": "text", "nullable": true },
+    { "name": "endereco_bairro", "type": "text", "nullable": true },
+    { "name": "endereco_cidade", "type": "text", "nullable": true },
+    { "name": "endereco_estado", "type": "text", "nullable": true },
+    { "name": "data_nascimento", "type": "date", "nullable": true },
+    { "name": "rg", "type": "text", "nullable": true },
+    { "name": "estado_civil", "type": "text", "nullable": true },
+    { "name": "profissao", "type": "text", "nullable": true },
+    { "name": "origem", "type": "text", "nullable": true },
+    { "name": "tags", "type": "_text", "nullable": true },
     { "name": "observacoes", "type": "text", "nullable": true },
+    { "name": "ativo", "type": "bool", "nullable": true, "default": "true" },
     { "name": "created_at", "type": "timestamptz", "nullable": true, "default": "now()" },
     { "name": "updated_at", "type": "timestamptz", "nullable": true, "default": "now()" }
   ]
@@ -234,12 +262,29 @@
     { "name": "telefone", "type": "text", "nullable": true },
     { "name": "role", "type": "user_role", "nullable": false, "default": "'cliente'::user_role" },
     { "name": "creci", "type": "text", "nullable": true },
-    { "name": "dados_bancarios_json", "type": "jsonb", "nullable": true },
-    { "name": "updated_at", "type": "timestamptz", "nullable": true, "default": "now()" },
     { "name": "avatar_url", "type": "text", "nullable": true },
     { "name": "slug", "type": "text", "nullable": false, "constraint": "UNIQUE" },
     { "name": "resumo", "type": "text", "nullable": true },
-    { "name": "detalhes", "type": "_text", "nullable": true }
+    { "name": "detalhes", "type": "_text", "nullable": true },
+    { "name": "bio_publica", "type": "text", "nullable": true },
+    { "name": "linkedin", "type": "text", "nullable": true },
+    { "name": "instagram", "type": "text", "nullable": true },
+    { "name": "whatsapp", "type": "text", "nullable": true },
+    { "name": "banco", "type": "text", "nullable": true },
+    { "name": "agencia", "type": "text", "nullable": true },
+    { "name": "conta", "type": "text", "nullable": true },
+    { "name": "tipo_conta", "type": "text", "nullable": true },
+    { "name": "pix", "type": "text", "nullable": true },
+    { "name": "favorecido", "type": "text", "nullable": true },
+    { "name": "endereco_cep", "type": "text", "nullable": true },
+    { "name": "endereco_logradouro", "type": "text", "nullable": true },
+    { "name": "endereco_numero", "type": "text", "nullable": true },
+    { "name": "endereco_bairro", "type": "text", "nullable": true },
+    { "name": "endereco_cidade", "type": "text", "nullable": true },
+    { "name": "endereco_estado", "type": "text", "nullable": true },
+    { "name": "data_nascimento", "type": "date", "nullable": true },
+    { "name": "ativo", "type": "bool", "nullable": true, "default": "true" },
+    { "name": "updated_at", "type": "timestamptz", "nullable": true, "default": "now()" }
   ]
 }
 

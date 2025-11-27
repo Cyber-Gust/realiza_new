@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 
 import { Card } from "@/components/admin/ui/Card";
 
+import { useUser } from "@/contexts/UserContext";
+
 import ImovelForm from "@/components/imoveis/ImovelForm";
 import FinanceiroPanel from "@/components/imoveis/FinanceiroPanel";
 import MidiaPanel from "@/components/imoveis/MidiaPanel";
@@ -20,6 +22,7 @@ import useModal from "@/hooks/useModal";
 import { formatCurrency } from "@/utils/formatters";
 
 export default function ImovelDetailPageClient({ imovelId }) {
+  const { user, profile } = useUser();
   const toast = useToast();
 
   const [imovel, setImovel] = useState(null);
@@ -190,6 +193,7 @@ export default function ImovelDetailPageClient({ imovelId }) {
         imovelId={imovelId}
         open={modalChaves.open}
         onClose={modalChaves.closeModal}
+        userId={user?.id}    // 🔥 Agora SEM ERRO!
       />
     </div>
   );

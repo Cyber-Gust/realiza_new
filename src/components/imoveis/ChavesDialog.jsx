@@ -6,7 +6,7 @@ import { Button } from "@/components/admin/ui/Button";
 import { Input, Textarea } from "@/components/admin/ui/Form";
 import { useToast } from "@/contexts/ToastContext";
 
-export default function ChavesDialog({ imovelId, open, onClose }) {
+export default function ChavesDialog({ imovelId, open, onClose, userId }) {
   const { success, error } = useToast();
 
   const [localizacao, setLocalizacao] = useState("");
@@ -15,80 +15,53 @@ export default function ChavesDialog({ imovelId, open, onClose }) {
   const [loading, setLoading] = useState(false);
   const [historico, setHistorico] = useState([]);
 
-  /* =========================================================
-     🔹 Buscar localização atual
-  ========================================================== */
-  const loadChave = async () => {
+  const loadChaves = async () => {
     if (!imovelId) return;
 
     try {
-      const res = await fetch(`/api/imoveis/${imovelId}?action=chaves`);
+      const res = await fetch(`/api/imoveis/${imovelId}/chaves`);
       const json = await res.json();
 
-      if (!res.ok) throw new Error(json.error || "Erro ao buscar chaves");
+      if (!res.ok) throw new Error(json.error || "Erro ao carregar chaves");
 
-      setLocalizacao(json.data?.chaves_localizacao || "Não informado");
-    } catch (err) {
-      error("Erro", err.message);
-    }
-  };
-
-  /* =========================================================
-     🔹 Buscar histórico
-  ========================================================== */
-  const loadHistorico = async () => {
-    if (!imovelId) return;
-
-    try {
-      const res = await fetch(`/api/imoveis/${imovelId}?action=chaves_historico`);
-      const json = await res.json();
-
-      if (!res.ok) throw new Error(json.error || "Erro ao buscar histórico");
-
-      setHistorico(json.data || []);
+      setLocalizacao(json.localizacao);
+      setHistorico(json.historico);
     } catch (err) {
       error("Erro", err.message);
     }
   };
 
   useEffect(() => {
-    if (open) {
-      loadChave();
-      loadHistorico();
-    }
+    if (open) loadChaves();
   }, [open, imovelId]);
 
-  /* =========================================================
-     🔹 Atualizar localização + registrar no histórico
-     (a API exige PUT, não POST!)
-  ========================================================== */
   const atualizarLocal = async () => {
     if (!novoLocal) return error("Atenção", "Informe o novo local!");
-    if (!imovelId) return error("Atenção", "ID do imóvel não encontrado!");
+    if (!userId) return error("Erro", "Usuário não identificado!");
 
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/imoveis/${imovelId}?action=chaves`, {
+      const res = await fetch(`/api/imoveis/${imovelId}/chaves`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           localizacao: novoLocal,
           observacao,
           acao: "transferencia",
+          usuario_id: userId,
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erro ao atualizar localização");
+      const json = await res.json();
+
+      if (!res.ok) throw new Error(json.error);
 
       success("Sucesso", "Localização atualizada com sucesso!");
-
       setNovoLocal("");
       setObservacao("");
 
-      await loadChave();
-      await loadHistorico();
+      await loadChaves();
     } catch (err) {
       error("Erro", err.message);
     } finally {
@@ -110,7 +83,9 @@ export default function ChavesDialog({ imovelId, open, onClose }) {
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
           <strong>Localização atual:</strong>{" "}
-          <span className="font-medium text-foreground">{localizacao}</span>
+          <span className="font-medium text-foreground">
+            {localizacao}
+          </span>
         </p>
 
         <Input
@@ -130,18 +105,19 @@ export default function ChavesDialog({ imovelId, open, onClose }) {
           <h4 className="text-sm font-semibold mb-2">Histórico recente</h4>
 
           <ul className="text-sm text-muted-foreground space-y-2 max-h-48 overflow-y-auto border-t pt-2">
-            {historico.length > 0 ? (
+            {historico.length ? (
               historico.map((h) => (
                 <li key={h.id} className="border-b pb-1 border-border">
                   <div className="flex flex-col">
                     <span>
-                      <strong>{h.profiles?.nome_completo || "Usuário"}</strong> — {h.acao}
+                      <strong>{h.profiles?.nome_completo}</strong> — {h.acao}
                     </span>
-
-                    <span className="text-xs text-foreground">{h.localizacao}</span>
+                    <span className="text-xs">{h.localizacao}</span>
 
                     {h.observacao && (
-                      <span className="text-xs italic text-muted-foreground">{h.observacao}</span>
+                      <span className="text-xs italic text-muted-foreground">
+                        {h.observacao}
+                      </span>
                     )}
 
                     <span className="text-[10px] text-muted-foreground mt-1">

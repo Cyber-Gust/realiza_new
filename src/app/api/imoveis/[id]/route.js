@@ -288,16 +288,24 @@ export async function PUT(req, context) {
         .eq("id", id)
         .single();
 
-      const list = Array.isArray(current?.documentos_compliance_json)
-        ? [...current.documentos_compliance_json, doc]
-        : [doc];
+      const old = Array.isArray(current?.documentos_compliance_json)
+        ? current.documentos_compliance_json
+        : [];
+
+      const exists = old.some((d) => d.id === doc.id);
+
+      const list = exists
+        ? old.map((d) => (d.id === doc.id ? doc : d))
+        : [...old, doc];
 
       await supabase
         .from("imoveis")
         .update({ documentos_compliance_json: list })
         .eq("id", id);
 
-      return NextResponse.json({ message: "Documento adicionado." });
+      return NextResponse.json({
+        message: exists ? "Documento atualizado." : "Documento adicionado."
+      });
     }
 
     /* ------------------ REMOVE COMPLIANCE ------------------ */

@@ -1,6 +1,32 @@
-//src/app/api/perfis/update
+// src/app/api/perfis/update/route.js
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+
+/**
+ * Converte "" em null
+ * Mantém arrays intactos
+ */
+function sanitizePayload(payload) {
+  const cleaned = {};
+
+  for (const key in payload) {
+    const value = payload[key];
+
+    if (value === "") {
+      cleaned[key] = null;
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      cleaned[key] = value;
+      continue;
+    }
+
+    cleaned[key] = value;
+  }
+
+  return cleaned;
+}
 
 export async function PUT(req) {
   const supabase = createServiceClient();
@@ -10,114 +36,108 @@ export async function PUT(req) {
     const { id, type, role, tipo, ...rest } = body;
 
     if (!id) {
-      return NextResponse.json({ error: "ID obrigatório" }, { status: 400 });
+      return NextResponse.json(
+        { error: "ID obrigatório." },
+        { status: 400 }
+      );
     }
 
-    let data, error;
+    let data;
 
-    // ======================================================
-    // 👥 EQUIPE (admins + corretores)
-    // ======================================================
+    /* ======================================================================
+       👥 EQUIPE — tabela profiles
+       ====================================================================== */
     if (type === "equipe") {
-      // 🔒 Bloqueio preventivo — admin só altera em Configurações
       if (role === "admin") {
         return NextResponse.json(
-          { error: "Perfis de administrador só podem ser alterados nas Configurações" },
+          {
+            error:
+              "Perfis de administrador só podem ser alterados nas Configurações de Conta.",
+          },
           { status: 403 }
         );
       }
 
-      const updatePayload = {
+      let payload = {
         ...rest,
         role,
         updated_at: new Date().toISOString(),
       };
 
-      if (typeof rest.dados_bancarios_json === "string" && rest.dados_bancarios_json.trim() !== "") {
-        try {
-          updatePayload.dados_bancarios_json = JSON.parse(rest.dados_bancarios_json);
-        } catch {
-          throw new Error("Formato inválido de Dados Bancários (use JSON válido)");
-        }
-      }
+      payload = sanitizePayload(payload);
 
-      ({ data, error } = await supabase
+      delete payload.dados_bancarios_json;
+      delete payload.endereco_json;
+
+      const { data: profile, error } = await supabase
         .from("profiles")
-        .update(updatePayload)
+        .update(payload)
         .eq("id", id)
         .select()
-        .single());
+        .single();
+
+      if (error) throw error;
+
+      data = profile;
     }
 
-    // ======================================================
-    // 🏡 PERSONAS (proprietário, inquilino, cliente)
-    // ======================================================
+    /* ======================================================================
+       🏡 PERSONAS (proprietário | inquilino | cliente)
+       tabela personas
+       ====================================================================== */
     else if (type === "personas") {
-      const updatePayload = {
+      let payload = {
         ...rest,
-        tipo,
         updated_at: new Date().toISOString(),
       };
 
-      if (typeof rest.endereco_json === "string" && rest.endereco_json.trim() !== "") {
-        try {
-          updatePayload.endereco_json = JSON.parse(rest.endereco_json);
-        } catch {
-          throw new Error("Formato inválido de Endereço (use JSON válido)");
-        }
+      // ======================================================
+      // 🔥 REGRA MAIS IMPORTANTE:
+      // Se o form enviou tipo="cliente", NÃO alterar o tipo no banco!
+      // ======================================================
+      const isCliente = tipo === "cliente";
+
+      if (isCliente) {
+        // Cliente mantém seu tipo atual no BD. Ignora o campo.
+        delete payload.tipo;
+      } else {
+        // Personas (proprietário / inquilino)
+        payload.tipo = tipo || rest.tipo || "proprietario";
       }
 
-      ({ data, error } = await supabase
+      payload = sanitizePayload(payload);
+
+      delete payload.endereco_json;
+
+      const { data: persona, error } = await supabase
         .from("personas")
-        .update(updatePayload)
+        .update(payload)
         .eq("id", id)
         .select()
-        .single());
+        .single();
+
+      if (error) throw error;
+
+      data = persona;
     }
 
-    // ======================================================
-    // 💬 LEADS
-    // ======================================================
-    else if (type === "leads") {
-      const updatePayload = {
-        ...rest,
-        updated_at: new Date().toISOString(),
-      };
-
-      if (typeof rest.perfil_busca_json === "string" && rest.perfil_busca_json.trim() !== "") {
-        try {
-          updatePayload.perfil_busca_json = JSON.parse(rest.perfil_busca_json);
-        } catch {
-          throw new Error("Formato inválido de Preferências (use JSON válido)");
-        }
-      }
-
-      ({ data, error } = await supabase
-        .from("leads")
-        .update(updatePayload)
-        .eq("id", id)
-        .select()
-        .single());
-    }
-
-    // ======================================================
-    // ❌ Tipo inválido
-    // ======================================================
+    /* ======================================================================
+       ❌ Tipo inválido
+       ====================================================================== */
     else {
       return NextResponse.json(
-        { error: "Tipo de perfil inválido" },
+        { error: "Tipo inválido. Use equipe ou personas." },
         { status: 400 }
       );
     }
-
-    if (error) throw error;
 
     return NextResponse.json({
       message: "Perfil atualizado com sucesso!",
       data,
     });
+
   } catch (err) {
-    console.error("❌ Erro update:", err.message);
+    console.error("❌ Erro update:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

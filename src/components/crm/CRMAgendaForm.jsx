@@ -39,7 +39,7 @@ export default function CRMAgendaForm({ onSaved, onClose, evento = null }) {
         const [leadsRes, personasRes, imoveisRes] = await Promise.all([
           fetch("/api/perfis/list?type=leads"),
           fetch("/api/perfis/list?type=personas"),
-          fetch("/api/imoveis/list"),
+          fetch("/api/imoveis"),
         ]);
 
         const [leadsData, personasData, imoveisData] = await Promise.all([

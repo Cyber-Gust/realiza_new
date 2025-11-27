@@ -528,7 +528,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                     checked:bg-accent checked:border-accent
                     checked:before:block checked:before:content-['✔']
                     checked:before:text-white checked:before:text-sm
-                    checked:before:flex checked:before:items-center checked:before:justify-center
+                    checked:before:items-center checked:before:justify-center
                     hover:border-accent
                   "
                   checked={form.categorias?.includes(normalized) || false}

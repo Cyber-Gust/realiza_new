@@ -2,16 +2,12 @@
 
 import { useState } from "react";
 
-// UI
 import { Button } from "@/components/admin/ui/Button";
-import { Input, Label, Textarea, Select } from "@/components/admin/ui/Form";
+import { Input, Label, Textarea } from "@/components/admin/ui/Form";
 
-// Toast
 import { useToast } from "@/contexts/ToastContext";
 
-const PERSONA_TIPOS = ["proprietario", "inquilino"];
-
-export default function PerfilFormPersonas({
+export default function PerfilFormCliente({
   onSuccess,
   modo = "create",
   dadosIniciais = {},
@@ -22,15 +18,12 @@ export default function PerfilFormPersonas({
   const [form, setForm] = useState({
     id: dadosIniciais.id || null,
 
-    // Dados
+    // Dados pessoais
     nome: dadosIniciais.nome || "",
     email: dadosIniciais.email || "",
     telefone: dadosIniciais.telefone || "",
     cpf_cnpj: dadosIniciais.cpf_cnpj || "",
-    tipo: dadosIniciais.tipo || "proprietario",
-
     data_nascimento: dadosIniciais.data_nascimento || "",
-    rg: dadosIniciais.rg || "",
     estado_civil: dadosIniciais.estado_civil || "",
     profissao: dadosIniciais.profissao || "",
 
@@ -42,19 +35,22 @@ export default function PerfilFormPersonas({
     endereco_cidade: dadosIniciais.endereco_cidade || "",
     endereco_estado: dadosIniciais.endereco_estado || "",
 
-    // Extras CRM
+    // CRM
     origem: dadosIniciais.origem || "",
     tags: dadosIniciais.tags?.join(", ") || "",
     observacoes: dadosIniciais.observacoes || "",
 
     ativo: dadosIniciais.ativo ?? true,
+
+    // Tipo fixo
+    tipo: "cliente",
   });
 
   const [saving, setSaving] = useState(false);
 
   const handleChange = (key, value) => {
     if (readOnly) return;
-    setForm((p) => ({ ...p, [key]: value }));
+    setForm((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleSave = async () => {
@@ -83,7 +79,7 @@ export default function PerfilFormPersonas({
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
-      success(modo === "edit" ? "Cadastro atualizado!" : "Cadastro criado!");
+      success(modo === "edit" ? "Cliente atualizado!" : "Cliente criado!");
       onSuccess?.();
     } catch (err) {
       error("Erro", err.message);
@@ -101,24 +97,8 @@ export default function PerfilFormPersonas({
         <h2 className="text-lg font-semibold">Dados pessoais</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-
           <InputBlock label="Nome" field="nome" form={form} handleChange={handleChange} readOnly={readOnly} />
-
-          <div>
-            <Label>Tipo</Label>
-            <Select
-              value={form.tipo}
-              disabled={readOnly}
-              onChange={(e) => handleChange("tipo", e.target.value)}
-            >
-              {PERSONA_TIPOS.map((t) => (
-                <option key={t}>{t}</option>
-              ))}
-            </Select>
-          </div>
-
           <InputBlock label="Telefone" field="telefone" form={form} handleChange={handleChange} readOnly={readOnly} />
-
           <InputBlock label="E-mail" field="email" form={form} handleChange={handleChange} readOnly={readOnly} />
 
           <InputBlock label="CPF/CNPJ" field="cpf_cnpj" form={form} handleChange={handleChange} readOnly={readOnly} />
@@ -126,13 +106,12 @@ export default function PerfilFormPersonas({
           <InputBlock
             label="Data de nascimento"
             field="data_nascimento"
-            type="date"
             form={form}
+            type="date"
             handleChange={handleChange}
             readOnly={readOnly}
           />
 
-          <InputBlock label="RG" field="rg" form={form} handleChange={handleChange} readOnly={readOnly} />
           <InputBlock label="Estado civil" field="estado_civil" form={form} handleChange={handleChange} readOnly={readOnly} />
           <InputBlock label="Profissão" field="profissao" form={form} handleChange={handleChange} readOnly={readOnly} />
         </div>
