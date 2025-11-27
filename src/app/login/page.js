@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { createClient } from '@supabase/supabase-js'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -13,19 +12,12 @@ export default function LoginPage() {
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  // 👉 Cria o cliente Supabase no client-side
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  )
-
   const handleLogin = async (e) => {
     e.preventDefault()
     setError(null)
     setLoading(true)
 
     try {
-      // 1️⃣ Faz login via API
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -36,32 +28,19 @@ export default function LoginPage() {
 
       const data = await response.json()
 
-      if (!response.ok) throw new Error(data.error)
-
-      // 2️⃣ Pega o usuário recém-logado
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) throw new Error('Falha ao obter usuário')
-
-      // 3️⃣ Busca a role
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-      const role = profile?.role
-
-      // 4️⃣ Redireciona conforme o role existente
-      if (role === 'admin') {
-        window.location.href = '/admin/dashboard'
-      } else if (role === 'corretor') {
-        window.location.href = '/corretor/dashboard'
-      } else {
-        window.location.href = '/' // cliente → home pública
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao fazer login')
       }
+
+      // 🔥 Redirecionamento inteligente baseado na role
+      if (data.role === "admin") {
+        router.push("/admin/dashboard")
+      } else if (data.role === "corretor") {
+        router.push("/corretor/dashboard")
+      } else {
+        router.push("/dashboard") // fallback caso use futuramente
+      }
+
     } catch (err) {
       setError(err.message)
       setLoading(false)
@@ -70,6 +49,7 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex items-center justify-center min-h-screen bg-background">
+      {/* 🖼️ Fundo com imagem e overlay */}
       <div className="absolute inset-0 w-full h-full z-0">
         <Image
           src="/background-login.jpg"
@@ -81,7 +61,9 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-background/50 backdrop-blur-sm"></div>
       </div>
 
+      {/* 💳 Card de login */}
       <div className="relative z-10 w-full max-w-md p-8 space-y-8 bg-primary/80 backdrop-blur-lg rounded-xl shadow-2xl border border-secondary animate-fadeIn">
+        {/* Logo */}
         <div className="flex justify-center">
           <Image
             src="/logo.png"
@@ -92,6 +74,7 @@ export default function LoginPage() {
           />
         </div>
 
+        {/* Formulário */}
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
             <label htmlFor="email" className="text-sm font-medium text-muted">
@@ -104,6 +87,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               className="w-full px-4 py-3 mt-1 rounded-xl border border-secondary/70 text-primary-foreground bg-secondary/40 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-1 transition-all placeholder:text-muted-foreground"
+
               placeholder="seu@email.com"
             />
           </div>
@@ -119,16 +103,19 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               className="w-full px-4 py-3 mt-1 rounded-xl border border-secondary/70 text-primary-foreground bg-secondary/40 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-1 transition-all placeholder:text-muted-foreground"
+
               placeholder="••••••••"
             />
           </div>
 
+          {/* Mensagem de erro */}
           {error && (
             <p className="text-sm text-center text-red-400 bg-red-950/30 py-2 rounded-md border border-red-800/40">
               {error}
             </p>
           )}
 
+          {/* Link "Esqueceu a senha" */}
           <div className="text-sm text-right">
             <Link
               href="/recuperar-senha"
@@ -138,6 +125,7 @@ export default function LoginPage() {
             </Link>
           </div>
 
+          {/* Botão de login */}
           <button
             type="submit"
             disabled={loading}

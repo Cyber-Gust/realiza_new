@@ -1,13 +1,12 @@
-//src/app/api/auth/login/route.js
+// src/app/api/auth/login/route.js
 import { NextResponse } from 'next/server'
-// Importe seu cliente Supabase (lado do SERVIDOR)
 import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request) {
   const { email, password } = await request.json()
-  
   const supabase = await createClient()
-  
+
+  // Login
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -17,7 +16,17 @@ export async function POST(request) {
     return NextResponse.json({ error: error.message }, { status: 401 })
   }
 
-  // Se o login for bem-sucedido, o createClient (server) já 
-  // cuidou de definir o cookie de sessão na resposta.
-  return NextResponse.json({ message: 'Login bem-sucedido!', user: data.user }, { status: 200 })
+  // Busca a role do usuário
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", data.user.id)
+    .maybeSingle()
+
+  const role = profile?.role || "cliente"
+
+  return NextResponse.json(
+    { message: "Login bem-sucedido!", user: data.user, role },
+    { status: 200 }
+  )
 }
