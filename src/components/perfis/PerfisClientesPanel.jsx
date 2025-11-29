@@ -8,6 +8,8 @@ import {
   Edit,
   Search,
   RefreshCcw,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 
 import { Button } from "@/components/admin/ui/Button";
@@ -29,7 +31,8 @@ export default function PerfisClientesPanel() {
 
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
-
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   // Modal form
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -42,6 +45,30 @@ export default function PerfisClientesPanel() {
     search: "",
     origem: "",
   });
+
+  const handleConfirmDelete = async () => {
+    try {
+      setDeleting(true);
+
+      const res = await fetch("/api/perfis/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: deleteTarget.id, type: "clientes" }),
+        credentials: "include",
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+
+      toast.success("Cliente removido com sucesso!");
+      setDeleteTarget(null);
+      load();
+    } catch (err) {
+      toast.error("Erro ao remover: " + err.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const getImageSrc = (foto) => {
     if (!foto || typeof foto !== "string") return "/placeholder-avatar.png";
@@ -235,6 +262,18 @@ export default function PerfisClientesPanel() {
                     <Edit size={16} />
                   </Button>
 
+                  {/* REMOVER */}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteTarget(c);
+                    }}
+                  >
+                    <Trash2 size={16} className="text-red-600" />
+                  </Button>
+
                 </TableCell>
               </TableRow>
             ))}
@@ -261,6 +300,52 @@ export default function PerfisClientesPanel() {
           }}
         />
       </Modal>
+
+      <Modal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Remover Cliente"
+      >
+        {deleteTarget && (
+          <div className="space-y-5">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="text-red-500 mt-1" />
+              <div>
+                <p>
+                  Remover <strong>{deleteTarget.nome}</strong>?
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Origem: {deleteTarget.origem || "Manual"}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="secondary"
+                className="w-1/2"
+                onClick={() => setDeleteTarget(null)}
+              >
+                Cancelar
+              </Button>
+
+              <Button
+                className="w-1/2 bg-red-600 hover:bg-red-700"
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" /> Removendo...
+                  </>
+                ) : (
+                  "Confirmar"
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>  
 
       {/* DRAWER */}
       {openDrawer && (

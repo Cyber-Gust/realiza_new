@@ -11,15 +11,17 @@ import FinanceiroPanel from "@/components/imoveis/FinanceiroPanel";
 import MidiaPanel from "@/components/imoveis/MidiaPanel";
 import CompliancePanel from "@/components/imoveis/CompliancePanel";
 import ChavesDialog from "@/components/imoveis/ChavesDialog";
-
+import { useRouter } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/admin/ui/Tabs";
 import { Button } from "@/components/admin/ui/Button";
 
-import { KeyRound, Save } from "lucide-react";
+import { AlertTriangle, KeyRound, Save, Trash2 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import useModal from "@/hooks/useModal";
 
 import { formatCurrency } from "@/utils/formatters";
+import { BackButton } from "../admin/ui/BackButton";
+import Modal from "../admin/ui/Modal";
 
 export default function ImovelDetailPageClient({ imovelId }) {
   const { user, profile } = useUser();
@@ -28,6 +30,9 @@ export default function ImovelDetailPageClient({ imovelId }) {
   const [imovel, setImovel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const router = useRouter();
 
   const [tab, setTab] = useState("cadastro");
 
@@ -79,6 +84,35 @@ export default function ImovelDetailPageClient({ imovelId }) {
     } finally {
       setSaving(false);
     }
+  };    
+
+  /* ======================================================
+      🔥 REMOVER IMÓVEL
+  ====================================================== */    
+  const removerImovel = async () => {
+    if (!deleteTarget) return;
+
+    try {
+      setDeleting(true);
+
+      const res = await fetch(`/api/imoveis/${imovelId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao remover imóvel");
+
+      toast.success("Imóvel removido com sucesso!");
+
+      // Mandar o usuário de volta pra listagem
+      router.push("/admin/imoveis");
+
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   /* ======================================================
@@ -100,6 +134,8 @@ export default function ImovelDetailPageClient({ imovelId }) {
 
   return (
     <div className="space-y-6">
+
+      <BackButton />
 
       {/* HEADER */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -134,6 +170,16 @@ export default function ImovelDetailPageClient({ imovelId }) {
           >
             <KeyRound size={16} /> Chaves
           </Button>
+
+          <Button
+            onClick={() => setDeleteTarget(imovel)}
+            variant="destructive"
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white"
+          >
+            <Trash2 size={16} />
+            Remover
+          </Button>
+
         </div>
       </div>
 
@@ -195,6 +241,50 @@ export default function ImovelDetailPageClient({ imovelId }) {
         onClose={modalChaves.closeModal}
         userId={user?.id}    // 🔥 Agora SEM ERRO!
       />
+
+      <Modal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Remover Imóvel"
+      >
+        {deleteTarget && (
+          <div className="space-y-5">
+
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="text-red-500 mt-1" />
+              <div>
+                <p>
+                  Tem certeza que deseja remover o imóvel{" "}
+                  <strong>{deleteTarget.titulo}</strong>?
+                </p>
+
+                <p className="text-sm text-muted-foreground mt-1">
+                  Esta operação não pode ser desfeita.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="secondary"
+                className="w-1/2"
+                onClick={() => setDeleteTarget(null)}
+              >
+                Cancelar
+              </Button>
+
+              <Button
+                className="w-1/2 bg-red-600 hover:bg-red-700 text-white"
+                onClick={removerImovel}
+                disabled={deleting}
+              >
+                {deleting ? "Removendo..." : "Confirmar"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
     </div>
   );
 }

@@ -23,8 +23,11 @@ import {
   UserCog,
   BadgeInfo,
   Pencil,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import Image from "next/image";
+import Modal from "../admin/ui/Modal";
 
 export default function PerfisEquipeDrawer({
   profileId,
@@ -34,6 +37,9 @@ export default function PerfisEquipeDrawer({
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const toast = useToast();
 
@@ -46,6 +52,32 @@ export default function PerfisEquipeDrawer({
     return "/" + foto;
   };
 
+  const handleConfirmDelete = async () => {
+    try {
+      setDeleting(true);
+
+      const res = await fetch("/api/perfis/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: deleteTarget.id,
+          type: "equipe"
+        }),
+        credentials: "include",
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+
+      toast.success("Perfil removido com sucesso!");
+      setDeleteTarget(null); // Fecha modal
+      onClose(); // Fecha drawer
+    } catch (err) {
+      toast.error("Erro ao remover: " + err.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
   const fetchProfile = useCallback(async () => {
     try {
       setLoading(true);
@@ -213,16 +245,77 @@ export default function PerfisEquipeDrawer({
               </Card>
             )}
 
-            {/* BOTÃO EDITAR */}
-            <Button
-              className="w-full flex items-center justify-center gap-2"
-              onClick={() => onEdit?.(profile)}
-            >
-              <Pencil size={16} /> Editar Perfil
-            </Button>
+            {/* AÇÕES DE ROLE */}
+            {profile.role !== "admin" && (
+              <div className="flex gap-2">
+
+                {/* REMOVER — só corretor */}
+                {profile.role === "corretor" && (
+                  <Button
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white flex items-center justify-center gap-2"
+                    onClick={() => setDeleteTarget(profile)}
+                  >
+                    <Trash2 size={16} className="text-white" />
+                    Remover
+                  </Button>
+                )}
+
+                {/* EDITAR */}
+                <Button
+                  className="flex-1 flex items-center justify-center gap-2"
+                  onClick={() => onEdit?.(profile)}
+                >
+                  <Pencil size={16} />
+                  Editar
+                </Button>
+
+              </div>
+            )}
           </div>
         )}
       </div>
+      <Modal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Remover Membro da Equipe"
+      >
+        {deleteTarget && (
+          <div className="space-y-5">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="text-red-500 mt-1" />
+              <div>
+                <p>
+                  Tem certeza que deseja remover{" "}
+                  <strong>{deleteTarget.nome_completo}</strong>?
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Cargo: {deleteTarget.role}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button variant="secondary" className="w-1/2" onClick={() => setDeleteTarget(null)}>
+                Cancelar
+              </Button>
+
+              <Button
+                className="w-1/2 bg-red-600 hover:bg-red-700"
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" /> Removendo...
+                  </>
+                ) : (
+                  "Confirmar"
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>,
     root
   );

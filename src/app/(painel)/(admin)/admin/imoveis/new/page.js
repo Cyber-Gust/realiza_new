@@ -4,7 +4,7 @@ import ImovelForm from "@/components/imoveis/ImovelForm";
 
 import { Button } from "@/components/admin/ui/Button";
 import { useToast } from "@/contexts/ToastContext";
-
+import { BackButton } from "@/components/admin/ui/BackButton";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -40,25 +40,28 @@ export default function NovoImovelPage() {
   return (
     <div className="space-y-6">
 
-      {/* ⭐ HEADER NATIVO (substituindo PageHeader) */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Novo Imóvel
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Preencha os dados para cadastrar um novo imóvel.
-          </p>
-        </div>
+    {/* Botão de voltar */}
+    <BackButton />
 
-        <Button
-          disabled={loading}
-          onClick={salvarImovel}
-          className="flex items-center gap-2"
-        >
-          {loading ? "Salvando..." : "Salvar"}
-        </Button>
+    {/* HEADER */}
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Novo Imóvel
+        </h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Preencha os dados para cadastrar um novo imóvel.
+        </p>
       </div>
+
+      <Button
+        disabled={loading}
+        onClick={salvarImovel}
+        className="flex items-center gap-2"
+      >
+        {loading ? "Salvando..." : "Salvar"}
+      </Button>
+    </div>
 
       {/* Formulário */}
       <ImovelForm data={form} onChange={setForm} />

@@ -145,6 +145,7 @@ export default function PerfilFormEquipe({
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        credentials: "include",  // 👈 *obrigatório pro cookie chegar*
       });
 
       const json = await res.json();
@@ -182,7 +183,7 @@ export default function PerfilFormEquipe({
             <Label>Cargo</Label>
             <Select
               value={form.role}
-              disabled={modo === "edit" || readOnly}
+              disabled={readOnly || (modo === "edit" && dadosIniciais.role === "admin")}
               onChange={(e) => handleChange("role", e.target.value)}
             >
               {USER_ROLES.map((r) => (

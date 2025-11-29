@@ -9,9 +9,10 @@ import {
   Trash2,
   Search,
   RefreshCcw,
+  AlertTriangle,
 } from "lucide-react";
 
-import Image from "next/image"
+import Image from "next/image";
 
 import { Button } from "@/components/admin/ui/Button";
 import { Card } from "@/components/admin/ui/Card";
@@ -23,7 +24,7 @@ import { Table, TableHead, TableHeader, TableRow, TableCell } from "@/components
 import { useToast } from "@/contexts/ToastContext";
 
 import PerfilFormEquipe from "./PerfilFormEquipe";
-import PerfisEquipeDrawer from "./PerfisEquipeDrawer"; // 🆕 Detalhes e edição profunda
+import PerfisEquipeDrawer from "./PerfisEquipeDrawer";
 import Badge from "../admin/ui/Badge";
 
 export default function PerfisEquipePanel() {
@@ -39,6 +40,10 @@ export default function PerfisEquipePanel() {
   // Drawer
   const [openDrawer, setOpenDrawer] = useState(null);
 
+  // Modal delete
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
   // Filtros
   const [filters, setFilters] = useState({
     search: "",
@@ -47,14 +52,8 @@ export default function PerfisEquipePanel() {
 
   const getImageSrc = (foto) => {
     if (!foto || typeof foto !== "string") return "/placeholder-avatar.png";
-
-    // se já é um caminho local válido
     if (foto.startsWith("/")) return foto;
-
-    // se é uma URL https válida (CDN, S3, Cloudflare, Supabase, etc.)
     if (foto.startsWith("http://") || foto.startsWith("https://")) return foto;
-
-    // fallback caso venha só o nome do arquivo
     return "/" + foto;
   };
 
@@ -105,6 +104,42 @@ export default function PerfisEquipePanel() {
     });
   }, [profiles, filters]);
 
+  /* ========================================================================
+     HANDLER DELETE
+  ======================================================================== */
+
+  const handleConfirmDelete = async () => {
+    try {
+      setDeleting(true);
+
+      const res = await fetch("/api/perfis/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: deleteTarget.id,
+          type: "equipe",
+        }),
+        credentials: "include",
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+
+      toast.success("Perfil removido com sucesso!");
+
+      setDeleteTarget(null);
+      load(); // recarregar lista
+    } catch (err) {
+      toast.error("Erro ao remover: " + err.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  /* ========================================================================
+     RENDER
+  ======================================================================== */
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-200">
 
@@ -125,7 +160,7 @@ export default function PerfisEquipePanel() {
       {/* FILTROS */}
       <Card className="p-5 bg-panel-card border-border shadow-sm rounded-xl">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          {/* SEARCH */}
+
           <div className="flex items-center gap-2 border border-border rounded-md px-3 py-2 bg-panel-card">
             <Search size={14} className="text-muted-foreground" />
             <input
@@ -138,7 +173,6 @@ export default function PerfisEquipePanel() {
             />
           </div>
 
-          {/* ROLE */}
           <Select
             value={filters.role}
             onChange={(e) =>
@@ -190,7 +224,7 @@ export default function PerfisEquipePanel() {
                 className="cursor-pointer hover:bg-muted/20 transition"
                 onClick={() => setOpenDrawer(p.id)}
               >
-                {/* FOTO + NOME */}
+        
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <div className="relative w-9 h-9">
@@ -212,7 +246,6 @@ export default function PerfisEquipePanel() {
 
                 <TableCell>{p.telefone || "-"}</TableCell>
 
-                {/* BADGE DO CARGO */}
                 <TableCell>
                   <Badge status={p.role} />
                 </TableCell>
@@ -220,19 +253,42 @@ export default function PerfisEquipePanel() {
                 {/* AÇÕES */}
                 <TableCell className="text-right flex justify-end gap-2">
 
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditing(p);
-                      setOpenForm(true);
-                    }}
-                  >
-                    <Edit size={16} />
-                  </Button>
+                  {/* Admin NÃO tem ações */}
+                  {p.role !== "admin" && (
+                    <>
+
+                      {/* EDITAR */}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditing(p);
+                          setOpenForm(true);
+                        }}
+                      >
+                        <Edit size={16} />
+                      </Button>
+
+                      {/* REMOVER */}
+                      {p.role === "corretor" && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteTarget(p);
+                          }}
+                        >
+                          <Trash2 size={16} className="text-red-600" />
+                        </Button>
+                      )}
+
+                    </>
+                  )}
 
                 </TableCell>
+
               </TableRow>
             ))}
           </tbody>
@@ -272,6 +328,54 @@ export default function PerfisEquipePanel() {
           reload={load}
         />
       )}
+
+      {/* MODAL CONFIRMAR DELETE */}
+      <Modal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Remover membro"
+      >
+        {deleteTarget && (
+          <div className="space-y-5">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="text-red-500 mt-1" />
+              <div>
+                <p>
+                  Remover o membro <strong>{deleteTarget.nome_completo}</strong>?
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Cargo: {deleteTarget.role}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="secondary"
+                className="w-1/2"
+                onClick={() => setDeleteTarget(null)}
+              >
+                Cancelar
+              </Button>
+
+              <Button
+                className="w-1/2 bg-red-600 hover:bg-red-700"
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" /> Removendo...
+                  </>
+                ) : (
+                  "Confirmar"
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
     </div>
   );
 }

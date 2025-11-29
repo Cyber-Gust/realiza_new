@@ -9,6 +9,8 @@ import {
 } from "@/components/admin/ui/Form";
 import { Button } from "@/components/admin/ui/Button";
 import { useToast } from "@/contexts/ToastContext";
+import SearchableSelect from "@/components/admin/ui/SearchableSelect"; 
+
 
 /* ============================================================
    Helpers BRL
@@ -173,67 +175,55 @@ export default function CRMPropostaForm({ onSaved, onClose, proposta = null }) {
       {/* IMÓVEL */}
       <div>
         <Label>Imóvel</Label>
-        <Select
+        <SearchableSelect
           value={form.imovel_id}
-          onChange={(e) => setValue("imovel_id", e.target.value)}
-        >
-          <option value="">Selecione</option>
-          {imoveis.map((i) => (
-            <option key={i.id} value={i.id}>
-              {i.titulo || i.endereco_bairro}
-            </option>
-          ))}
-        </Select>
+          onChange={(v) => setValue("imovel_id", v)}
+          options={imoveis.map((i) => ({
+            value: String(i.id),
+            label: i.titulo || i.endereco_bairro
+          }))}
+        />
       </div>
 
       {/* LEAD */}
       <div>
         <Label>Lead (opcional)</Label>
-        <Select
+        <SearchableSelect
           value={form.lead_id}
-          disabled={!!form.persona_id}
-          onChange={(e) => setValue("lead_id", e.target.value)}
-        >
-          <option value="">Selecione</option>
-          {leads.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.nome}
-            </option>
-          ))}
-        </Select>
+          onChange={(v) => setValue("lead_id", v)}
+          options={leads.map((l) => ({
+            value: String(l.id),
+            label: l.nome
+          }))}
+          className={form.persona_id ? "opacity-50 pointer-events-none" : ""}
+        />
       </div>
 
       {/* PERSONA */}
       <div>
         <Label>Pessoa</Label>
-        <Select
+        <SearchableSelect
           value={form.persona_id}
-          disabled={!!form.lead_id}
-          onChange={(e) => setValue("persona_id", e.target.value)}
-        >
-          <option value="">Selecione</option>
-          {personas.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nome}
-            </option>
-          ))}
-        </Select>
+          onChange={(v) => setValue("persona_id", v)}
+          options={personas.map((p) => ({
+            value: String(p.id),
+            label: p.nome
+          }))}
+          className={form.lead_id ? "opacity-50 pointer-events-none" : ""}
+        />
       </div>
 
       {/* CORRETOR */}
       <div>
         <Label>Corretor</Label>
-        <Select
+        <SearchableSelect
           value={form.corretor_id}
-          onChange={(e) => setValue("corretor_id", e.target.value)}
-        >
-          <option value="">Selecione</option>
-          {corretores.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.nome_completo}
-            </option>
-          ))}
-        </Select>
+          onChange={(v) => setValue("corretor_id", v)}
+          options={corretores.map((c) => ({
+            value: String(c.id),
+            label: c.nome_completo
+          }))}
+        />
       </div>
 
       {/* VALOR */}

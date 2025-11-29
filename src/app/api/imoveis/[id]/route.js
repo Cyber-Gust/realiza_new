@@ -344,26 +344,37 @@ export async function PUT(req, context) {
     🔥 METHOD: DELETE
 ===================================================================== */
 export async function DELETE(req, context) {
-  const params = await context.params;     // 👈 AQUI TAMBÉM
   try {
-    const id = params.id;
+    const { id } = await context.params; // 👈 obrigatório no Next 14+
     if (!id) throw new Error("ID inválido.");
 
     const supabase = createServiceClient();
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
 
+    // Soft delete
     if (body.soft) {
       await supabase
         .from("imoveis")
-        .update({ status: "inativo", updated_at: new Date().toISOString() })
+        .update({
+          status: "inativo",
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", id);
 
       return NextResponse.json({ message: "Imóvel inativado." });
     }
 
-    await supabase.from("imoveis").delete().eq("id", id);
+    // Hard delete
+    await supabase
+      .from("imoveis")
+      .delete()
+      .eq("id", id);
+
     return NextResponse.json({ message: "Imóvel deletado." });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 400 });
+    return NextResponse.json(
+      { error: err.message },
+      { status: 400 }
+    );
   }
 }

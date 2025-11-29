@@ -17,24 +17,44 @@ const Label = forwardRef(({ className, error, ...props }, ref) => (
 Label.displayName = "Label";
 
 // 2. Input
-const Input = forwardRef(({ className, error, ...props }, ref) => {
-  return (
-    <input
-      ref={ref}
-      className={cn(
-        "flex h-11 w-full rounded-xl border bg-background/80 backdrop-blur-sm px-3 py-2 text-sm",
-        "placeholder:text-muted-foreground transition-all duration-300",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2",
-        "hover:border-primary/40 active:scale-[0.99]",
-        error
-          ? "border-red-500 focus-visible:ring-red-500"
-          : "border-input focus-visible:border-primary",
-        className
-      )}
-      {...props}
-    />
-  );
-});
+const Input = forwardRef(
+  ({ className, error, iconLeft, iconRight, ...props }, ref) => {
+    return (
+      <div className="relative flex items-center">
+        
+        {iconLeft && (
+          <span className="absolute left-3 text-muted-foreground pointer-events-none">
+            {iconLeft}
+          </span>
+        )}
+
+        <input
+          ref={ref}
+          className={cn(
+            "flex h-11 w-full rounded-xl border bg-background/80 backdrop-blur-sm px-3 py-2 text-sm",
+            "placeholder:text-muted-foreground transition-all duration-300",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2",
+            "hover:border-primary/40 active:scale-[0.99]",
+            error
+              ? "border-red-500 focus-visible:ring-red-500"
+              : "border-input focus-visible:border-primary",
+            iconLeft && "pl-10",
+            iconRight && "pr-10",
+            className
+          )}
+          {...props} // agora SEM iconLeft, SEM iconRight
+        />
+
+        {iconRight && (
+          <span className="absolute right-3 text-muted-foreground pointer-events-none">
+            {iconRight}
+          </span>
+        )}
+      </div>
+    );
+  }
+);
+
 Input.displayName = "Input";
 
 // 3. Textarea

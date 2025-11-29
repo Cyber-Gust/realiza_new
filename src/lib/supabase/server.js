@@ -8,7 +8,7 @@ import { cookies } from "next/headers";
  * Compatível com Next.js 15 (cookies() é assíncrono)
  */
 export async function createClient() {
-  const cookieStore = await cookies(); // ✅ RESOLVE a Promise
+  const cookieStore = await cookies();
 
   const cookieAdapter = {
     get: (name) => {
@@ -47,15 +47,23 @@ export async function createClient() {
 }
 
 /**
- * 🔹 Client administrativo (bypass RLS)
- * Para rotas de API internas (como /api/profiles, /api/imoveis)
+ * 🔹 Client administrativo (bypass RLS, permissões totais)
+ * Usado apenas em rotas do backend como create/delete/update de perfis
  */
 export function createServiceClient() {
   return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY,
     {
-      auth: { persistSession: false },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+      global: {
+        headers: {
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+      },
     }
   );
 }

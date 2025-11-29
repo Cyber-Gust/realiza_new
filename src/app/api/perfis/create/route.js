@@ -1,47 +1,62 @@
+// src/app/api/perfis/create/route.js
 import { NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 
-/**
- * Converte "" → null
- * Mantém arrays intactos
- */
 function sanitizePayload(payload) {
   const cleaned = {};
 
   for (const key in payload) {
     const value = payload[key];
 
-    if (value === "") {
-      cleaned[key] = null;
-      continue;
-    }
-
-    if (Array.isArray(value)) {
-      cleaned[key] = value;
-      continue;
-    }
-
-    cleaned[key] = value;
+    if (value === "") cleaned[key] = null;
+    else if (Array.isArray(value)) cleaned[key] = value;
+    else cleaned[key] = value;
   }
 
   return cleaned;
 }
 
 export async function POST(req) {
-  const supabase = createServiceClient();
-
   try {
+    // ============================================================
+    // 🔐 1) PEGAR USUÁRIO LOGADO — getSession() (NÃO usa auth.users)
+    // ============================================================
+    const cookieClient = await createClient();
+    const service = createServiceClient();
+
+    const {
+      data: { user: currentUser },
+      error: userError
+    } = await cookieClient.auth.getUser();
+
+    if (userError || !currentUser) {
+      return NextResponse.json(
+        { error: "Não autenticado." },
+        { status: 401 }
+      );
+    }
+
+    const currentRole = currentUser.user_metadata?.role;
+
+    if (currentRole !== "admin") {
+      return NextResponse.json(
+        { error: "Apenas administradores podem criar perfis de equipe." },
+        { status: 403 }
+      );
+    }
+
+    // ============================================================
+    // 2) PROCESSAR PAYLOAD
+    // ============================================================
     const body = await req.json();
     const { type, ...rest } = body;
 
-    // Sanitizar dados de entrada
     let payload = sanitizePayload(rest);
-
     let data;
 
-    // ======================================================
-    // 👥 CRIAÇÃO DE EQUIPE (corretor / admin)
-    // ======================================================
+    // ============================================================
+    // 👥 EQUIPE
+    // ============================================================
     if (type === "equipe") {
       const { nome_completo, email, cpf_cnpj, role } = payload;
 
@@ -52,74 +67,47 @@ export async function POST(req) {
         );
       }
 
-      if (role === "admin") {
-        return NextResponse.json(
-          {
-            error:
-              "Perfis de administrador só podem ser criados manualmente na configuração inicial.",
-          },
-          { status: 403 }
-        );
-      }
-
-      // Senha padrão = CPF numérico
       const senhaInicial = (cpf_cnpj || "").replace(/\D/g, "") || "123456";
 
-      let userId;
-
-      // ======================================================
-      // 🚀 CRIA DIRETO O USUÁRIO NO AUTH
-      // (sem checar antes — se der conflito, tratamos o erro)
-      // ======================================================
       const { data: authData, error: authError } =
-        await supabase.auth.admin.createUser({
+        await service.auth.admin.createUser({
           email,
           password: senhaInicial,
           email_confirm: true,
           user_metadata: {
             nome_completo,
             cpf_cnpj,
-            role,
+            role: role || "corretor",
           },
         });
 
       if (authError) {
-        const msg = (authError.message || "").toLowerCase();
+        const msg = authError.message.toLowerCase();
 
-        // E-mail duplicado
         if (
           msg.includes("exists") ||
           msg.includes("already") ||
           msg.includes("duplicate")
         ) {
           return NextResponse.json(
-            {
-              error:
-                "Já existe um usuário com este e-mail. Não é possível criar outro.",
-            },
+            { error: "Já existe um usuário com este e-mail." },
             { status: 409 }
           );
         }
 
-        // Outro erro real
         throw new Error(authError.message);
       }
 
-      userId = authData?.user?.id;
+      const userId = authData?.user?.id;
       if (!userId) throw new Error("Falha ao obter ID do usuário criado.");
 
-      // ======================================================
-      // 🧱 CRIA PERFIL NO `profiles`
-      // ======================================================
-
-      // Remove campos inválidos
       delete payload.id;
       delete payload.dados_bancarios_json;
       delete payload.endereco_json;
 
       payload.updated_at = new Date().toISOString();
 
-      const { data: profileData, error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await service
         .from("profiles")
         .upsert(
           [
@@ -140,9 +128,9 @@ export async function POST(req) {
       data = profileData;
     }
 
-    // ======================================================
-    // 🏡 PERSONAS (proprietário / inquilino / cliente)
-    // ======================================================
+    // ============================================================
+    // 🏡 PERSONAS
+    // ============================================================
     else if (type === "personas") {
       if (!payload.nome) {
         return NextResponse.json(
@@ -151,20 +139,14 @@ export async function POST(req) {
         );
       }
 
-      // Cliente usa tipo "cliente" no FE, mas não existe na tabela → convertemos
-      if (payload.tipo === "cliente") {
-        payload.tipo = "proprietario";
-      } else {
-        payload.tipo = payload.tipo || "proprietario";
-      }
+      payload.tipo = payload.tipo || "cliente";
 
-      // ID não pode vir em insert
       delete payload.id;
 
       payload.created_at = new Date().toISOString();
       payload.updated_at = new Date().toISOString();
 
-      const { data: personaData, error: personaError } = await supabase
+      const { data: personaData, error: personaError } = await service
         .from("personas")
         .insert([payload])
         .select()
@@ -175,7 +157,6 @@ export async function POST(req) {
       data = personaData;
     }
 
-    // Tipo inválido
     else {
       return NextResponse.json(
         { error: "Tipo de cadastro inválido." },

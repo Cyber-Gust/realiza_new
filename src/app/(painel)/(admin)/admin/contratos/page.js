@@ -42,68 +42,6 @@ export default function ContratosPage() {
         />
       </Card>
 
-      {/* MODAL FORM */}
-      <Modal
-        isOpen={openForm}
-        onClose={() => {
-          setOpenForm(false);
-          setEditing(null);
-        }}
-        title={editing ? "Editar Contrato" : "Novo Contrato"}
-      >
-        <CRMContratoForm
-          contrato={editing}
-          onClose={() => {
-            setOpenForm(false);
-            setEditing(null);
-          }}
-          onSaved={() => window.location.reload()}
-        />
-      </Modal>
-
-      {/* MODAL DELETE */}
-      <Modal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        title="Remover Contrato"
-      >
-        {deleteTarget && (
-          <div className="space-y-5">
-            <p>
-              Tem certeza que deseja remover o contrato do imóvel{" "}
-              <strong>{deleteTarget.imoveis?.titulo}</strong>?
-            </p>
-
-            <div className="flex gap-2">
-              <Button variant="secondary" onClick={() => setDeleteTarget(null)}>
-                Cancelar
-              </Button>
-
-              <Button
-                className="bg-red-600 hover:bg-red-700"
-                onClick={async () => {
-                  await fetch(`/api/contratos?id=${deleteTarget.id}`, {
-                    method: "DELETE",
-                  });
-
-                  window.location.reload();
-                }}
-              >
-                Confirmar
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* DRAWER DETALHES */}
-      {openDrawer && (
-        <CRMContratoDetailDrawer
-          contratoId={openDrawer}
-          onClose={() => setOpenDrawer(null)}
-          onUpdated={() => window.location.reload()}
-        />
-      )}
     </div>
   );
 }

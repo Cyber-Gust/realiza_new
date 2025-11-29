@@ -6,21 +6,23 @@ import {
   Plus,
   Loader2,
   Edit,
+  Trash2,
   Search,
   RefreshCcw,
+  AlertTriangle,
 } from "lucide-react";
 
 import { Button } from "@/components/admin/ui/Button";
 import { Card } from "@/components/admin/ui/Card";
 import Modal from "@/components/admin/ui/Modal";
 
-import { Input, Select } from "@/components/admin/ui/Form";
+import { Select } from "@/components/admin/ui/Form";
 import { Table, TableHead, TableHeader, TableRow, TableCell } from "@/components/admin/ui/Table";
 
 import { useToast } from "@/contexts/ToastContext";
 
 import PerfilFormPersonas from "./PerfilFormPersonas";
-import PerfisPersonasDrawer from "./PerfisPersonasDrawer"; // 🆕 iremos criar depois
+import PerfisPersonasDrawer from "./PerfisPersonasDrawer";
 import Badge from "../admin/ui/Badge";
 import Image from "next/image";
 
@@ -32,14 +34,14 @@ export default function PerfisPersonasPanel() {
   const [personas, setPersonas] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Modal form
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState(null);
 
-  // Drawer
   const [openDrawer, setOpenDrawer] = useState(null);
 
-  // Filters
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
   const [filters, setFilters] = useState({
     search: "",
     tipo: "",
@@ -47,14 +49,8 @@ export default function PerfisPersonasPanel() {
 
   const getImageSrc = (foto) => {
     if (!foto || typeof foto !== "string") return "/placeholder-avatar.png";
-
-    // se já é um caminho local válido
     if (foto.startsWith("/")) return foto;
-
-    // se é uma URL https válida (CDN, S3, Cloudflare, Supabase, etc.)
     if (foto.startsWith("http://") || foto.startsWith("https://")) return foto;
-
-    // fallback caso venha só o nome do arquivo
     return "/" + foto;
   };
 
@@ -69,7 +65,6 @@ export default function PerfisPersonasPanel() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
-      // Filtra apenas proprietario / inquilino
       let lista = (json.data || []).filter((p) =>
         ["proprietario", "inquilino"].includes(p.tipo)
       );
@@ -83,12 +78,12 @@ export default function PerfisPersonasPanel() {
   };
 
   useEffect(() => {
-    load();
+    async function run() {
+      await load();
+    }
+    run();
   }, []);
 
-  /* ========================================================================
-     FILTERED LIST
-  ======================================================================== */
   const filtered = useMemo(() => {
     return personas.filter((p) => {
       if (filters.tipo && p.tipo !== filters.tipo) return false;
@@ -102,14 +97,42 @@ export default function PerfisPersonasPanel() {
             p.telefone?.toLowerCase().includes(s) ||
             p.cpf_cnpj?.toLowerCase().includes(s)
           )
-        ) {
+        )
           return false;
-        }
       }
 
       return true;
     });
   }, [personas, filters]);
+
+  // DELETE
+  const handleConfirmDelete = async () => {
+    try {
+      setDeleting(true);
+
+      const res = await fetch("/api/perfis/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: deleteTarget.id,
+          type: "personas",
+        }),
+        credentials: "include",
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+
+      toast.success("Cadastro removido com sucesso!");
+
+      setDeleteTarget(null);
+      load();
+    } catch (err) {
+      toast.error("Erro ao remover: " + err.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-200">
@@ -125,11 +148,10 @@ export default function PerfisPersonasPanel() {
         </Button>
       </div>
 
-      {/* FILTROS */}
+      {/* FILTERS */}
       <Card className="p-5 bg-panel-card border-border shadow-sm rounded-xl">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
 
-          {/* SEARCH */}
           <div className="flex items-center gap-2 border border-border rounded-md px-3 py-2 bg-panel-card">
             <Search size={14} className="text-muted-foreground" />
             <input
@@ -142,7 +164,6 @@ export default function PerfisPersonasPanel() {
             />
           </div>
 
-          {/* TIPO */}
           <Select
             value={filters.tipo}
             onChange={(e) =>
@@ -157,7 +178,6 @@ export default function PerfisPersonasPanel() {
             ))}
           </Select>
 
-          {/* RESET */}
           <div className="flex items-center">
             <Button
               variant="secondary"
@@ -170,7 +190,7 @@ export default function PerfisPersonasPanel() {
         </div>
       </Card>
 
-      {/* LISTA */}
+      {/* TABLE */}
       {loading ? (
         <div className="flex justify-center items-center py-14 text-muted-foreground">
           <Loader2 className="animate-spin mr-2" /> Carregando…
@@ -198,19 +218,18 @@ export default function PerfisPersonasPanel() {
                 className="cursor-pointer hover:bg-muted/20 transition"
                 onClick={() => setOpenDrawer(p.id)}
               >
-                {/* FOTO + NOME */}
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <div className="relative w-9 h-9">
                       <Image
                         src={getImageSrc(p.foto)}
-                        alt={p.nome || p.nome_completo}
+                        alt={p.nome}
                         fill
                         className="rounded-full object-cover border border-border"
                         sizes="36px"
                       />
                     </div>
-                    <span>{p.nome || p.nome_completo}</span>
+                    <span>{p.nome}</span>
                   </div>
                 </TableCell>
 
@@ -220,14 +239,13 @@ export default function PerfisPersonasPanel() {
 
                 <TableCell>{p.telefone || "-"}</TableCell>
 
-                {/* BADGE DO TIPO */}
                 <TableCell>
                   <Badge status={p.tipo} />
                 </TableCell>
 
                 <TableCell className="text-right flex justify-end gap-2">
 
-                  {/* EDITAR */}
+                  {/* EDIT */}
                   <Button
                     size="icon"
                     variant="ghost"
@@ -240,6 +258,18 @@ export default function PerfisPersonasPanel() {
                     <Edit size={16} />
                   </Button>
 
+                  {/* DELETE */}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteTarget(p);
+                    }}
+                  >
+                    <Trash2 size={16} className="text-red-600" />
+                  </Button>
+
                 </TableCell>
               </TableRow>
             ))}
@@ -247,7 +277,7 @@ export default function PerfisPersonasPanel() {
         </Table>
       )}
 
-      {/* FORM DE CRIAÇÃO / EDIÇÃO */}
+      {/* FORM */}
       <Modal
         isOpen={openForm}
         onClose={() => {
@@ -280,6 +310,54 @@ export default function PerfisPersonasPanel() {
           reload={load}
         />
       )}
+
+      {/* CONFIRM DELETE */}
+      <Modal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Remover Pessoa"
+      >
+        {deleteTarget && (
+          <div className="space-y-5">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="text-red-500 mt-1" />
+              <div>
+                <p>
+                  Remover <strong>{deleteTarget.nome}</strong>?
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Tipo: {deleteTarget.tipo}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="secondary"
+                className="w-1/2"
+                onClick={() => setDeleteTarget(null)}
+              >
+                Cancelar
+              </Button>
+
+              <Button
+                className="w-1/2 bg-red-600 hover:bg-red-700"
+                onClick={handleConfirmDelete}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" /> Removendo...
+                  </>
+                ) : (
+                  "Confirmar"
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
     </div>
   );
 }
