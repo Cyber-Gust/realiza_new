@@ -12,7 +12,7 @@ import {
   PanelLeftClose, LogOut, ChevronRight, Menu
 } from "lucide-react";
 
-const navItems = [
+export const navItems = [
   { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { name: "CRM", href: "/admin/crm", icon: UsersRound },
   { name: "Imóveis", href: "/admin/imoveis", icon: Home },
