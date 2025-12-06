@@ -1,11 +1,252 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 
 import { Input, Label, Select } from "@/components/admin/ui/Form";
 import SearchableSelect from "@/components/admin/ui/SearchableSelect";
 import { Switch } from "@/components/admin/ui/Switch";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/admin/ui/Card";
+
+/* ============================================================
+   MOCKS DE ENDEREÇO
+============================================================ */
+const ESTADOS = [
+  { sigla: "MG", nome: "Minas Gerais" }
+];
+
+const CIDADES_POR_ESTADO = {
+  MG: [
+    "Barbacena",
+    "Barroso",
+    "Bom Sucesso",
+    "Capela Nova",
+    "Carandaí",
+    "Cipotânea",
+    "Conceição da Barra de Minas",
+    "Coronel Xavier Chaves",
+    "Desterro do Melo",
+    "Dores de Campos",
+    "Entre Rios de Minas",
+    "Ibertioga",
+    "Lagoa Dourada",
+    "Madre de Deus de Minas",
+    "Nazareno",
+    "Piedade do Rio Grande",
+    "Prados",
+    "Resende Costa",
+    "Ressaquinha",
+    "Santa Bárbara do Tugúrio",
+    "Santa Cruz de Minas",
+    "Santa Rita de Ibitipoca",
+    "Santana do Garambéu",
+    "Santos Dumont",
+    "São João Del Rei",
+    "São Tiago",
+    "São Vicente de Minas",
+    "Tiradentes"
+  ]
+};
+
+const BAIRROS_POR_CIDADE = {
+  "São João Del Rei": [
+    "Água Geral (Tejuco)",
+    "Águas Férreas (Tejuco)",
+    "Alto das Mercês",
+    "Alto do Maquiné (Colônia do Marçal)",
+    "Araçá",
+    "Área Rural de São João Del Rei",
+    "Barro Preto",
+    "Bela Vista",
+    "Bom Pastor",
+    "Bonfim",
+    "Caiçaras",
+    "Cananéia",
+    "Caquende",
+    "Centro",
+    "Cidade Nova",
+    "Cidade Verde",
+    "COHAB",
+    "Colinas Del Rey",
+    "Colônia do Giarola",
+    "Colônia do Marçal",
+    "Dom Bosco",
+    "Fábricas",
+    "Guarda-Mor",
+    "Jardim América",
+    "Jardim Colônia (Colônia do Marçal)",
+    "Jardim Montese",
+    "Jardim Paulo Campos",
+    "Lava Pés",
+    "Lombão",
+    "Loteamento do Carmindo (Colônia do Marçal)",
+    "Matozinhos",
+    "Morro Grande",
+    "Nascente do Sol (Colônia do Marçal)",
+    "Nossa Senhora da Conceição",
+    "Novo Horizonte",
+    "Parque Real",
+    "Parque São João Del Rei (Colônia do Marçal)",
+    "Pio XII",
+    "Portal Vila Rica (Colônia do Marçal)",
+    "Rainha da Paz",
+    "Recreio das Alterosas (Colônia do Marçal)",
+    "Residencial Dom Lucas Moreira Neves",
+    "Residencial Girassol",
+    "Residencial Jardim Aeroporto",
+    "Residencial Lenheiro",
+    "Residencial Maquiné",
+    "Residencial São José Operário (Tejuco)",
+    "Rio Acima",
+    "Risoleta Neves IF",
+    "São Caetano",
+    "São Francisco (Colônia do Marçal)",
+    "São Geraldo",
+    "São José Operário",
+    "São Judas Tadeu",
+    "São Pedro (Colônia do Marçal)",
+    "Segredo",
+    "Senhor dos Montes",
+    "Solar da Serra (Colônia do Marçal)",
+    "Tejuco",
+    "Vale Nascente do Sol",
+    "Várzea do Faria (Bonfim)",
+    "Vila Belizário",
+    "Vila Brasil",
+    "Vila do Carmo (Colônia do Marçal)",
+    "Vila Jardim Nossa Senhora de Fátima",
+    "Vila Jardim São José",
+    "Vila Jesus Silva",
+    "Vila João Lombard (Fábricas)",
+    "Vila Marchetti",
+    "Vila Maria (Bonfim)",
+    "Vila Militar",
+    "Vila Santa Terezinha",
+    "Vila Santo Antônio (Matozinhos)",
+    "Vila São Bento",
+    "Vila São Paulo (Fábricas)",
+    "Vila São Vicente (Colônia do Marçal)"
+  ],
+
+  "Santa Cruz de Minas": ["Centro", "Porto Real", "Bela vista"]
+};
+
+/* ============================================================
+   CATEGORIAS
+============================================================ */
+const categoriaOptions = [
+  "Para Alugar",
+  "Vitrine dos Sonhos",
+  "Realize Essence",
+  "Imóveis no Geral",
+  "Imóveis na Planta",
+  "Casa em Condomínio",
+];
+
+/* ============================================================
+   CARACTERÍSTICAS EXTRAS — COMPLETÍSSIMA E SEM REDUNDÂNCIAS
+============================================================ */
+const caracteristicasExtrasOptions = [
+  // ▶ Internas (não existentes no form principal)
+  "Ar Condicionado",
+  "Aquecimento Solar",
+  "Energia Fotovoltaica",
+  "Lareira",
+  "Iluminação Planejada",
+  "Pé Direito Alto",
+  "Acabamento de Luxo",
+  "Fechadura Eletrônica",
+  "Automação Residencial",
+  "Vista Panorâmica",
+  "Acessibilidade PCD",
+  "Portão Eletrônico",
+  "Circuito de Segurança",
+  "Sistema de Alarme",
+  "CFTV",
+  "Esquadria Premium",
+  "Teto Rebaixado em Gesso",
+  "Som Ambiente",
+  "Depósito Privativo",
+  "Despensa",
+  "Banheira / Hidromassagem",
+  "Aquecedor a Gás",
+
+  // ▶ Condomínio / áreas comuns
+  "Churrasqueira",
+  "Varanda Gourmet",
+  "Playground",
+  "Academia",
+  "Salão de Festas",
+  "Portaria 24h",
+  "Segurança Interna",
+  "Quadra Esportiva",
+  "Brinquedoteca",
+  "Jardim",
+  "Piscina Coletiva",
+  "Sauna",
+  "Sala de Jogos",
+  "Coworking",
+  "Espaço Pet",
+  "Bicicletário",
+  "Espaço Zen",
+  "Spa",
+  "Mirante",
+  "Lavanderia Coletiva",
+  "Espaço Cinema",
+  "Horta Comunitária",
+  "Mini Mercado",
+  "Gerador de Energia",
+  "Vagas para Visitantes",
+];
+
+/* ============================================================
+   OUTRAS CONFIGS
+============================================================ */
+const situacaoDocumentacaoOptions = [
+  "Regular",
+  "Em regularização",
+  "Financiado",
+  "Inventário",
+  "Contrato de gaveta",
+  "Outro",
+];
+
+const tipoOptions = [
+  { label: "Casa", value: "casa" },
+  { label: "Apartamento", value: "apartamento" },
+  { label: "Terreno", value: "terreno" },
+  { label: "Comercial", value: "comercial" },
+  { label: "Rural", value: "rural" },
+];
+
+const statusOptions = [
+  { label: "Disponível", value: "disponivel" },
+  { label: "Reservado", value: "reservado" },
+  { label: "Alugado", value: "alugado" },
+  { label: "Vendido", value: "vendido" },
+  { label: "Inativo", value: "inativo" },
+];
+
+const disponibilidadeOptions = [
+  { label: "Venda", value: "venda" },
+  { label: "Locação", value: "locacao" },
+  { label: "Ambos", value: "ambos" },
+];
+
+/* ============================================================
+   SLUGIFY
+============================================================ */
+function slugify(value) {
+  if (!value) return "";
+  return value
+    .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^\w-]+/g, "")
+    .replace(/--+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
 
 export default function ImovelForm({ data = {}, onChange }) {
   const [form, setForm] = useState({
@@ -13,18 +254,37 @@ export default function ImovelForm({ data = {}, onChange }) {
     ...data,
   });
 
-  const [personas, setPersonas] = useState([]);        // usados para proprietario e inquilino
+  const [personas, setPersonas] = useState([]);
   const [corretores, setCorretores] = useState([]);
+  const [activeTab, setActiveTab] = useState("fisicas");
 
-  /* ============================================================
-     🔄 Sync com o parent
-  ============================================================ */
+  const [autoTitulo, setAutoTitulo] = useState(!data?.titulo);
+  const [autoSlug, setAutoSlug] = useState(!data?.slug);
+  const [autoDescricao, setAutoDescricao] = useState(!data?.descricao);
+
+  const didMount = useRef(false);
+
+  // 🔥 GERA CÓDIGO AUTOMÁTICO RL-XXXX
   useEffect(() => {
+    if (!form.codigo_ref) {
+      const random = Math.floor(1000 + Math.random() * 9000);
+      const codigo = `RL-${random}`;
+      setForm((prev) => ({ ...prev, codigo_ref: codigo }));
+    }
+  }, []);
+
+  // 🔄 Sync parent (controla loop infinito)
+  useEffect(() => {
+    if (!didMount.current) {
+      didMount.current = true;
+      return;
+    }
+
     onChange?.(form);
-  }, [form, onChange]);
+  }, [form]);
 
   /* ============================================================
-     📌 Carregar PERSONAS (qualquer um pode ser proprietário ou inquilino)
+     LOAD PERSONAS
   ============================================================ */
   useEffect(() => {
     let alive = true;
@@ -51,16 +311,17 @@ export default function ImovelForm({ data = {}, onChange }) {
 
         setPersonas(list);
       } catch (e) {
-        console.error("Erro ao carregar personas/clientes:", e);
         setPersonas([]);
       }
     })();
 
-    return () => (alive = false);
+    return () => {
+      alive = false;
+    };
   }, []);
 
   /* ============================================================
-     📌 Carregar CORRETORES (equipe)
+     LOAD CORRETORES
   ============================================================ */
   useEffect(() => {
     let alive = true;
@@ -69,9 +330,10 @@ export default function ImovelForm({ data = {}, onChange }) {
       try {
         const res = await fetch("/api/perfis/list?type=equipe");
         const { data } = await res.json();
+
         if (!alive) return;
 
-        const corretores = Array.isArray(data)
+        const list = Array.isArray(data)
           ? data
               .filter((d) => ["corretor", "admin"].includes(d.role))
               .map((d) => ({
@@ -80,209 +342,270 @@ export default function ImovelForm({ data = {}, onChange }) {
               }))
           : [];
 
-        setCorretores(corretores);
+        setCorretores(list);
       } catch (e) {
-        console.error("Erro ao carregar corretores:", e);
         setCorretores([]);
       }
     })();
 
-    return () => (alive = false);
+    return () => {
+      alive = false;
+    };
   }, []);
 
   /* ============================================================
-     🔧 Change Handler
+     HANDLERS
   ============================================================ */
   const handleChange = useCallback((key, value) => {
     setForm((prev) => {
       let next = { ...prev, [key]: value };
 
-      // Regras da disponibilidade
       if (key === "disponibilidade") {
         if (value === "venda") {
           next.preco_locacao = null;
           next.inquilino_id = null;
         }
-
         if (value === "locacao") {
           next.preco_venda = null;
         }
+      }
+
+      if (key === "tipo" || key === "disponibilidade") {
+        const isRural = (key === "tipo" ? value : next.tipo) === "rural";
+        const disp = key === "disponibilidade" ? value : next.disponibilidade;
+
+        if (disp === "venda" || disp === "ambos") {
+          if (!next.comissao_venda_percent) {
+            next.comissao_venda_percent = isRural ? 8 : 5;
+          }
+        }
+
+        if (disp === "locacao" || disp === "ambos") {
+          if (!next.comissao_locacao_percent) {
+            next.comissao_locacao_percent = 8;
+          }
+        }
+      }
+
+      if (key.startsWith("cf_")) {
+        const field = key.replace("cf_", "");
+        const current = next.caracteristicas_fisicas || {};
+        next.caracteristicas_fisicas = {
+          ...current,
+          [field]: value === "" || value === null ? null : Number(value),
+        };
+        delete next[key];
+      }
+
+      if (key === "caracteristicas_extras_toggle") {
+        const { item, checked } = value || {};
+        const current = Array.isArray(prev.caracteristicas_extras)
+          ? [...prev.caracteristicas_extras]
+          : [];
+
+        const updated = checked
+          ? Array.from(new Set([...current, item]))
+          : current.filter((c) => c !== item);
+
+        next.caracteristicas_extras = updated;
+        delete next[key];
       }
 
       return next;
     });
   }, []);
 
+  const handleChangeNumero = useCallback(
+    (key, value) => {
+      const num = value === "" ? null : Number(value);
+      handleChange(key, Number.isNaN(num) ? null : num);
+    },
+    [handleChange]
+  );
+
+  const handleChangeCheckboxExtra = useCallback(
+    (item, checked) => {
+      handleChange("caracteristicas_extras_toggle", { item, checked });
+    },
+    [handleChange]
+  );
+
+  const handleChangeCaracteristicaFisica = useCallback(
+    (field, value) => {
+      handleChange(`cf_${field}`, value === "" ? "" : Number(value));
+    },
+    [handleChange]
+  );
+
+  const handleCepBlur = useCallback(async () => {
+    const cep = (form.endereco_cep || "").replace(/\D/g, "");
+    if (cep.length !== 8) return;
+
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const dataCep = await res.json();
+      if (dataCep.erro) return;
+
+      setForm((prev) => ({
+        ...prev,
+        endereco_logradouro: dataCep.logradouro || prev.endereco_logradouro,
+        endereco_bairro: dataCep.bairro || prev.endereco_bairro,
+        endereco_cidade: dataCep.localidade || prev.endereco_cidade,
+        endereco_estado: dataCep.uf || prev.endereco_estado,
+      }));
+    } catch (e) {}
+  }, [form.endereco_cep]);
+
+  // 🔥 Geradores automáticos — só atualiza se for diferente
+  useEffect(() => {
+    if (!autoTitulo) return;
+    const novo = gerarNomeImovel(form);
+    if (novo && novo !== form.titulo) {
+      setForm((prev) => ({ ...prev, titulo: novo }));
+    }
+  }, [autoTitulo, form]);
+
+  useEffect(() => {
+    if (!autoTitulo) return;
+    const curto = gerarTituloCurto(form);
+    if (curto && curto !== form.titulo_curto) {
+      setForm((prev) => ({ ...prev, titulo_curto: curto }));
+    }
+  }, [autoTitulo, form]);
+
+  useEffect(() => {
+    if (!autoDescricao) return;
+    const desc = gerarDescricao(form);
+    if (desc && desc !== form.descricao) {
+      setForm((prev) => ({ ...prev, descricao: desc }));
+    }
+  }, [autoDescricao, form]);
+
+  useEffect(() => {
+    if (!autoSlug) return;
+    if (!form.titulo) return;
+    const novoSlug = slugify(form.titulo);
+    if (novoSlug !== form.slug) {
+      setForm((prev) => ({ ...prev, slug: novoSlug }));
+    }
+  }, [autoSlug, form.titulo]);
+
+  // Cálculo de comissão (mantido como estava)
+  const comissaoVendaValor = useMemo(() => {
+    if (!form.preco_venda || !form.comissao_venda_percent) return 0;
+    return (Number(form.preco_venda) * Number(form.comissao_venda_percent)) / 100;
+  }, [form.preco_venda, form.comissao_venda_percent]);
+
+  const comissaoLocacaoValor = useMemo(() => {
+    if (!form.preco_locacao || !form.comissao_locacao_percent) return 0;
+    return (Number(form.preco_locacao) * Number(form.comissao_locacao_percent)) / 100;
+  }, [form.preco_locacao, form.comissao_locacao_percent]);
+
+  const estadoOptions = ESTADOS;
+
+  const cidadeOptions = useMemo(() => {
+    const uf = form.endereco_estado;
+    const base = uf && CIDADES_POR_ESTADO[uf] ? [...CIDADES_POR_ESTADO[uf]] : [];
+    const atual = form.endereco_cidade;
+    if (atual && !base.includes(atual)) base.push(atual);
+    return base;
+  }, [form.endereco_estado, form.endereco_cidade]);
+
+  const bairroOptions = useMemo(() => {
+    const cidade = form.endereco_cidade;
+    const base = cidade && BAIRROS_POR_CIDADE[cidade] ? [...BAIRROS_POR_CIDADE[cidade]] : [];
+    const atual = form.endereco_bairro;
+    if (atual && !base.includes(atual)) base.push(atual);
+    return base;
+  }, [form.endereco_cidade, form.endereco_bairro]);
+
+  // Funções geradoras (inalteradas)
+  function gerarNomeImovel(form) {
+    const tipo = tipoOptions.find((t) => t.value === form.tipo)?.label;
+    const bairro = form.endereco_bairro;
+    const cidade = form.endereco_cidade;
+    const vibe = [];
+
+    if (form.suites >= 2) vibe.push("alto padrão");
+    if (form.area_total > 300) vibe.push("amplitude estonteante");
+    if (form.caracteristicas_extras?.includes("Vista Panorâmica")) vibe.push("vista de tirar o fôlego");
+    if (form.caracteristicas_extras?.includes("Lareira")) vibe.push("toque acolhedor");
+    if (form.caracteristicas_extras?.includes("Aquecimento Solar")) vibe.push("sustentabilidade");
+
+    const vibes = vibe.length ? " – " + vibe.join(", ") : "";
+    return `${tipo} no ${bairro || cidade}${vibes}`;
+  }
+
+  function gerarTituloCurto(form) {
+    const tipo = tipoOptions.find((t) => t.value === form.tipo)?.label;
+    const bairro = form.endereco_bairro || form.endereco_cidade;
+    return `${tipo} • ${bairro}`;
+  }
+
+  function gerarDescricao(form) {
+    const extras = form.caracteristicas_extras?.slice(0, 4)?.join(", ");
+    return `
+      Um ${form.tipo} com ${form.area_total || "?"}m² que eleva o padrão de vida no ${form.endereco_bairro || form.endereco_cidade}. 
+      Ambientes bem distribuídos, ${form.quartos} quarto(s), ${form.suites} suíte(s) e uma atmosfera pensada para quem busca conforto e personalidade.
+
+      Destaques: ${extras || "acabamentos selecionados com critério"}.
+    `.trim();
+  }
+
+  const options1a10 = Array.from({ length: 10 }, (_, i) => i + 1);
+
   /* ============================================================
-     OPTIONS
-  ============================================================ */
-  const tipoOptions = [
-    { label: "Casa", value: "casa" },
-    { label: "Apartamento", value: "apartamento" },
-    { label: "Terreno", value: "terreno" },
-    { label: "Comercial", value: "comercial" },
-    { label: "Rural", value: "rural" },
-  ];
-
-  const statusOptions = [
-    { label: "Disponível", value: "disponivel" },
-    { label: "Reservado", value: "reservado" },
-    { label: "Alugado", value: "alugado" },
-    { label: "Vendido", value: "vendido" },
-    { label: "Inativo", value: "inativo" },
-  ];
-
-  const disponibilidadeOptions = [
-    { label: "Venda", value: "venda" },
-    { label: "Locação", value: "locacao" },
-    { label: "Ambos", value: "ambos" },
-  ];
-
-  const categoriaOptions = [
-    "Para Alugar",
-    "Vitrine dos Sonhos",
-    "Realize Essence",
-    "Imóveis no Geral",
-    "Imóveis na Planta",
-    "Casa em Condomínio",
-  ];
-
-  /* ============================================================
-     RENDER
+     AQUI TERMINA A PRIMEIRA PARTE
+     O RETURN COMEÇA AGORA — SÓ ENVIO QUANDO VOCÊ DER "OK"
   ============================================================ */
   return (
     <Card className="space-y-6">
-      <CardHeader>
-        <CardTitle>Dados do Imóvel</CardTitle>
-      </CardHeader>
+      <CardHeader className="flex flex-col gap-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <CardTitle>Dados do Imóvel</CardTitle>
 
-      <CardContent className="space-y-6">
+          {/* Toggle Venda / Locação / Ambos */}
+          <div
+            className={`
+              inline-flex overflow-hidden rounded-full border
+              border-gray-300 dark:border-neutral-700
+              bg-white dark:bg-neutral-800
+            `}
+          >
+            {disponibilidadeOptions.map((opt) => {
+              const isActive = form.disponibilidade === opt.value;
 
-        {/* Título + Código + Slug */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-          <div>
-            <Label>Título</Label>
-            <Input
-              value={form.titulo || ""}
-              onChange={(e) => {
-                const value = e.target.value;
-                handleChange("titulo", value);
-
-                if (!data.id) {
-                  const slug = value
-                    .toLowerCase()
-                    .replace(/\s+/g, "-")
-                    .replace(/[^\w-]+/g, "");
-                  handleChange("slug", slug);
-                }
-              }}
-            />
-          </div>
-
-          <div>
-            <Label>Código de Referência</Label>
-            <Input
-              value={form.codigo_ref || ""}
-              onChange={(e) => handleChange("codigo_ref", e.target.value)}
-            />
-          </div>
-
-          <div>
-            <Label>Slug</Label>
-            <Input
-              value={form.slug || ""}
-              onChange={(e) => handleChange("slug", e.target.value)}
-            />
-          </div>
-
-        </div>
-
-        {/* Título curto */}
-        <div>
-          <Label>Título Curto</Label>
-          <Input
-            value={form.titulo_curto || ""}
-            onChange={(e) => handleChange("titulo_curto", e.target.value)}
-          />
-        </div>
-
-        {/* Descrição */}
-        <div>
-          <Label>Descrição</Label>
-          <Input
-            value={form.descricao || ""}
-            onChange={(e) => handleChange("descricao", e.target.value)}
-          />
-        </div>
-
-        {/* Endereço */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <Label>CEP</Label>
-            <Input
-              value={form.endereco_cep || ""}
-              onChange={(e) => handleChange("endereco_cep", e.target.value)}
-            />
-          </div>
-
-          <div>
-            <Label>Logradouro</Label>
-            <Input
-              value={form.endereco_logradouro || ""}
-              onChange={(e) => handleChange("endereco_logradouro", e.target.value)}
-            />
-          </div>
-
-          <div>
-            <Label>Número</Label>
-            <Input
-              value={form.endereco_numero || ""}
-              onChange={(e) => handleChange("endereco_numero", e.target.value)}
-            />
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => handleChange("disponibilidade", opt.value)}
+                  className={`
+                    px-4 py-1.5 text-sm md:text-base font-medium transition-colors
+                    border-l first:border-l-0 last:border-r-0
+                    border-gray-300 dark:border-neutral-700
+                    ${
+                      isActive
+                        ? "bg-accent text-white"
+                        : "bg-white text-black dark:bg-neutral-800 dark:text-white"
+                    }
+                  `}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-          <div>
-            <Label>Bairro</Label>
-            <Input
-              value={form.endereco_bairro || ""}
-              onChange={(e) => handleChange("endereco_bairro", e.target.value)}
-            />
-          </div>
-
-          <div>
-            <Label>Cidade</Label>
-            <Input
-              value={form.endereco_cidade || ""}
-              onChange={(e) => handleChange("endereco_cidade", e.target.value)}
-            />
-          </div>
-
-          <div>
-            <Label>UF</Label>
-            <Input
-              maxLength={2}
-              value={form.endereco_estado || ""}
-              onChange={(e) =>
-                handleChange("endereco_estado", e.target.value.toUpperCase())
-              }
-            />
-          </div>
-
-        </div>
-
-        {/* Proprietário / Corretor / Tipo */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
+        {/* Info básica: Proprietário, Corretor, Tipo, Status */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-2">
           <div>
             <Label>Proprietário</Label>
             <SearchableSelect
               options={personas}
-              value={form.proprietario_id ?? ""}
-              onChange={(val) => handleChange("proprietario_id", val)}
+              value={form.proprietario_id ? String(form.proprietario_id) : ""}
+              onChange={(val) => handleChange("proprietario_id", val || null)}
             />
           </div>
 
@@ -290,44 +613,27 @@ export default function ImovelForm({ data = {}, onChange }) {
             <Label>Corretor Responsável</Label>
             <SearchableSelect
               options={corretores}
-              value={form.corretor_id ?? ""}
-              onChange={(val) => handleChange("corretor_id", val)}
+              value={form.corretor_id ? String(form.corretor_id) : ""}
+              onChange={(val) => handleChange("corretor_id", val || null)}
             />
           </div>
 
           <div>
-            <Label>Tipo</Label>
+            <Label>Tipo de Imóvel</Label>
             <Select
               value={form.tipo ?? ""}
               onChange={(e) => handleChange("tipo", e.target.value)}
             >
-              <option value="" hidden>Selecione...</option>
+              <option value="" hidden>
+                Selecione...
+              </option>
               {tipoOptions.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
               ))}
             </Select>
           </div>
-
-        </div>
-
-        {/* INQUILINO (dinâmico) */}
-        {(form.disponibilidade === "locacao" ||
-          form.disponibilidade === "ambos" ||
-          form.status === "alugado") && (
-          <div className="grid grid-cols-1 md:grid-cols-3">
-            <div>
-              <Label>Inquilino</Label>
-              <SearchableSelect
-                options={personas}
-                value={form.inquilino_id ?? ""}
-                onChange={(val) => handleChange("inquilino_id", val)}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Status / disponibilidade / flags */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
           <div>
             <Label>Status</Label>
@@ -336,230 +642,885 @@ export default function ImovelForm({ data = {}, onChange }) {
               onChange={(e) => handleChange("status", e.target.value)}
             >
               {statusOptions.map((s) => (
-                <option key={s.value} value={s.value}>{s.label}</option>
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
               ))}
             </Select>
           </div>
+        </div>
+      </CardHeader>
 
-          <div>
-            <Label>Disponibilidade</Label>
-            <Select
-              value={form.disponibilidade}
-              onChange={(e) => handleChange("disponibilidade", e.target.value)}
-            >
-              {disponibilidadeOptions.map((d) => (
-                <option key={d.value} value={d.value}>{d.label}</option>
-              ))}
-            </Select>
-          </div>
+      <CardContent className="space-y-6">
+        {/* Tabs de seção */}
+        <div className="flex flex-wrap gap-2 border-b pb-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab("fisicas")}
+            className={`px-3 py-1 rounded-t-md text-sm md:text-base border-b-2 ${
+              activeTab === "fisicas"
+                ? "border-accent text-accent"
+                : "border-transparent text-gray-600 dark:text-gray-300"
+            }`}
+          >
+            Características físicas
+          </button>
 
-          <div className="flex flex-wrap gap-6 items-center">
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={!!form.mobiliado}
-                onCheckedChange={(v) => handleChange("mobiliado", v)}
-              />
-              <Label>Mobiliado</Label>
-            </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab("financeiro")}
+            className={`px-3 py-1 rounded-t-md text-sm md:text-base border-b-2 ${
+              activeTab === "financeiro"
+                ? "border-accent text-accent"
+                : "border-transparent text-gray-600 dark:text-gray-300"
+            }`}
+          >
+            Financeiro
+          </button>
 
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={!!form.pet_friendly}
-                onCheckedChange={(v) => handleChange("pet_friendly", v)}
-              />
-              <Label>Pet Friendly</Label>
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab("documentacao")}
+            className={`px-3 py-1 rounded-t-md text-sm md:text-base border-b-2 ${
+              activeTab === "documentacao"
+                ? "border-accent text-accent"
+                : "border-transparent text-gray-600 dark:text-gray-300"
+            }`}
+          >
+            Documentação
+          </button>
 
+          <button
+            type="button"
+            onClick={() => setActiveTab("texto")}
+            className={`px-3 py-1 rounded-t-md text-sm md:text-base border-b-2 ${
+              activeTab === "texto"
+                ? "border-accent text-accent"
+                : "border-transparent text-gray-600 dark:text-gray-300"
+            }`}
+          >
+            Título & descrição
+          </button>
         </div>
 
-        {/* Flags extras */}
-        <div className="flex flex-wrap gap-6">
+        {/* =======================================================
+            TAB: CARACTERÍSTICAS FÍSICAS
+        ======================================================== */}
+        {activeTab === "fisicas" && (
+          <div className="space-y-6">
+            {/* ENDEREÇO */}
+            <div className="space-y-3">
+              <h3 className="font-semibold text-sm md:text-base">Endereço</h3>
 
-          <div className="flex items-center gap-2">
-            <Switch checked={!!form.piscina} onCheckedChange={(v) => handleChange("piscina", v)} />
-            <Label>Piscina</Label>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Switch checked={!!form.elevador} onCheckedChange={(v) => handleChange("elevador", v)} />
-            <Label>Elevador</Label>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Switch checked={!!form.area_gourmet} onCheckedChange={(v) => handleChange("area_gourmet", v)} />
-            <Label>Área Gourmet</Label>
-          </div>
-
-        </div>
-
-        {/* PREÇOS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-          {(form.disponibilidade === "venda" ||
-            form.disponibilidade === "ambos") && (
-            <div>
-              <Label>Preço de Venda (R$)</Label>
-              <Input
-                type="number"
-                value={form.preco_venda ?? ""}
-                onChange={(e) => handleChange("preco_venda", Number(e.target.value))}
-              />
-            </div>
-          )}
-
-          {(form.disponibilidade === "locacao" ||
-            form.disponibilidade === "ambos") && (
-            <div>
-              <Label>Preço de Locação (R$)</Label>
-              <Input
-                type="number"
-                value={form.preco_locacao ?? ""}
-                onChange={(e) => handleChange("preco_locacao", Number(e.target.value))}
-              />
-            </div>
-          )}
-
-          <div>
-            <Label>Valor Condomínio (R$)</Label>
-            <Input
-              type="number"
-              value={form.valor_condominio ?? ""}
-              onChange={(e) => handleChange("valor_condominio", Number(e.target.value))}
-            />
-          </div>
-
-          <div>
-            <Label>Valor IPTU (R$)</Label>
-            <Input
-              type="number"
-              value={form.valor_iptu ?? ""}
-              onChange={(e) => handleChange("valor_iptu", Number(e.target.value))}
-            />
-          </div>
-
-        </div>
-
-        {/* Área / Dormitórios */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-          <div>
-            <Label>Área Total (m²)</Label>
-            <Input
-              type="number"
-              value={form.area_total ?? ""}
-              onChange={(e) => handleChange("area_total", Number(e.target.value))}
-            />
-          </div>
-
-          <div>
-            <Label>Quartos</Label>
-            <Input
-              type="number"
-              value={form.quartos ?? ""}
-              onChange={(e) => handleChange("quartos", Number(e.target.value))}
-            />
-          </div>
-
-          <div>
-            <Label>Suítes</Label>
-            <Input
-              type="number"
-              value={form.suites ?? ""}
-              onChange={(e) => handleChange("suites", Number(e.target.value))}
-            />
-          </div>
-
-          <div>
-            <Label>Banheiros</Label>
-            <Input
-              type="number"
-              value={form.banheiros ?? ""}
-              onChange={(e) => handleChange("banheiros", Number(e.target.value))}
-            />
-          </div>
-
-        </div>
-
-        {/* Garagem */}
-        <div>
-          <Label>Vagas de Garagem</Label>
-          <Input
-            type="number"
-            value={form.vagas_garagem ?? ""}
-            onChange={(e) => handleChange("vagas_garagem", Number(e.target.value))}
-          />
-        </div>
-
-        {/* Condominio */}
-        <div>
-          <Label>Nome do Condomínio (opcional)</Label>
-          <Input
-            value={form.condominio || ""}
-            onChange={(e) => handleChange("condominio", e.target.value)}
-          />
-        </div>
-
-        {/* Chaves */}
-        <div>
-          <Label>Localização da Chave (interno)</Label>
-          <Input
-            value={form.chaves_localizacao || ""}
-            onChange={(e) => handleChange("chaves_localizacao", e.target.value)}
-          />
-        </div>
-
-        {/* Categorias */}
-        <div className="space-y-2">
-          <Label>Categorias</Label>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {categoriaOptions.map((cat) => {
-              const normalized = cat.toLowerCase();
-
-              return (
-                <label
-                  key={cat}
-                  className="
-                    flex items-center gap-3 cursor-pointer select-none
-                    p-2 rounded-xl transition-all
-                    hover:bg-gray-100 dark:hover:bg-neutral-800
-                  "
-                >
-                  <input
-                    type="checkbox"
-                    className="
-                      peer h-5 w-5 cursor-pointer appearance-none rounded
-                      border border-gray-400 transition-all
-                      checked:bg-primary checked:border-primary
-                      checked:before:block checked:before:content-['✔']
-                      checked:before:text-white checked:before:text-sm
-                      checked:before:items-center checked:before:justify-center
-                      hover:border-primary
-                    "
-                    checked={form.categorias?.includes(normalized) || false}
-                    onChange={(e) => {
-                      const checked = e.target.checked;
-
-                      let next = form.categorias ? [...form.categorias] : [];
-
-                      if (checked) {
-                        next.push(normalized);
-                      } else {
-                        next = next.filter((c) => c !== normalized);
-                      }
-
-                      handleChange("categorias", next);
-                    }}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <Label>CEP</Label>
+                  <Input
+                    value={form.endereco_cep || ""}
+                    onChange={(e) =>
+                      handleChange("endereco_cep", e.target.value)
+                    }
+                    onBlur={handleCepBlur}
+                    placeholder="Somente números"
                   />
+                </div>
 
-                  <span className="text-gray-800 dark:text-white">{cat}</span>
-                </label>
-              );
-            })}
+                <div className="md:col-span-2">
+                  <Label>Logradouro</Label>
+                  <Input
+                    value={form.endereco_logradouro || ""}
+                    onChange={(e) =>
+                      handleChange("endereco_logradouro", e.target.value)
+                    }
+                  />
+                </div>
+
+                <div>
+                  <Label>Número</Label>
+                  <Input
+                    value={form.endereco_numero || ""}
+                    onChange={(e) =>
+                      handleChange("endereco_numero", e.target.value)
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label>Estado (UF)</Label>
+                  <Select
+                    value={form.endereco_estado || ""}
+                    onChange={(e) => {
+                      const uf = e.target.value;
+                      setForm((prev) => ({
+                        ...prev,
+                        endereco_estado: uf,
+                        endereco_cidade: "",
+                        endereco_bairro: "",
+                      }));
+                    }}
+                  >
+                    <option value="" hidden>
+                      Selecione...
+                    </option>
+                    {estadoOptions.map((uf) => (
+                      <option key={uf.sigla} value={uf.sigla}>
+                        {uf.sigla} - {uf.nome}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Cidade</Label>
+                  <Select
+                    value={form.endereco_cidade || ""}
+                    onChange={(e) => {
+                      const cidade = e.target.value;
+                      setForm((prev) => ({
+                        ...prev,
+                        endereco_cidade: cidade,
+                        endereco_bairro: "",
+                      }));
+                    }}
+                  >
+                    <option value="" hidden>
+                      Selecione...
+                    </option>
+                    {cidadeOptions.map((cidade) => (
+                      <option key={cidade} value={cidade}>
+                        {cidade}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Bairro</Label>
+                  <Select
+                    value={form.endereco_bairro || ""}
+                    onChange={(e) =>
+                      handleChange("endereco_bairro", e.target.value)
+                    }
+                  >
+                    <option value="" hidden>
+                      Selecione...
+                    </option>
+                    {bairroOptions.map((bairro) => (
+                      <option key={bairro} value={bairro}>
+                        {bairro}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* ÁREAS */}
+            <div className="space-y-3">
+              <h3 className="font-semibold text-sm md:text-base">
+                Áreas e dimensões
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <Label>Área Total (m²)</Label>
+                  <Input
+                    type="number"
+                    value={form.area_total ?? ""}
+                    onChange={(e) =>
+                      handleChangeNumero("area_total", e.target.value)
+                    }
+                  />
+                </div>
+
+                <div>
+                  <Label>Área Construída (m²)</Label>
+                  <Input
+                    type="number"
+                    value={form.area_construida ?? ""}
+                    onChange={(e) =>
+                      handleChangeNumero("area_construida", e.target.value)
+                    }
+                  />
+                </div>
+
+                <div>
+                  <Label>Testada (m)</Label>
+                  <Input
+                    type="number"
+                    value={form.testada ?? ""}
+                    onChange={(e) =>
+                      handleChangeNumero("testada", e.target.value)
+                    }
+                  />
+                </div>
+
+                <div>
+                  <Label>Profundidade (m)</Label>
+                  <Input
+                    type="number"
+                    value={form.profundidade ?? ""}
+                    onChange={(e) =>
+                      handleChangeNumero("profundidade", e.target.value)
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* DORMITÓRIOS / BANHEIROS / VAGAS */}
+            <div className="space-y-3">
+              <h3 className="font-semibold text-sm md:text-base">
+                Dormitórios e banheiros
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <Label>Quartos</Label>
+                  <Select
+                    value={form.quartos ?? ""}
+                    onChange={(e) =>
+                      handleChangeNumero("quartos", e.target.value)
+                    }
+                  >
+                    <option value="" hidden>
+                      Selecione...
+                    </option>
+                    {options1a10.map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Suítes</Label>
+                  <Select
+                    value={form.suites ?? ""}
+                    onChange={(e) =>
+                      handleChangeNumero("suites", e.target.value)
+                    }
+                  >
+                    <option value="" hidden>
+                      Selecione...
+                    </option>
+                    {options1a10.map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Banheiros</Label>
+                  <Select
+                    value={form.banheiros ?? ""}
+                    onChange={(e) =>
+                      handleChangeNumero("banheiros", e.target.value)
+                    }
+                  >
+                    <option value="" hidden>
+                      Selecione...
+                    </option>
+                    {options1a10.map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Vagas de Garagem</Label>
+                  <Select
+                    value={form.vagas_garagem ?? ""}
+                    onChange={(e) =>
+                      handleChangeNumero("vagas_garagem", e.target.value)
+                    }
+                  >
+                    <option value="" hidden>
+                      Selecione...
+                    </option>
+                    {options1a10.map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+            </div>
+            {/* AMBIENTES DETALHADOS (JSONB) */}
+            <div className="space-y-3">
+              <h3 className="font-semibold text-sm md:text-base">
+                Ambientes (1 a 10) – detalhado
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {/* SALAS */}
+                <div>
+                  <Label>Sala(s)</Label>
+                  <Select
+                    value={form.caracteristicas_fisicas?.sala ?? ""}
+                    onChange={(e) =>
+                      handleChangeCaracteristicaFisica("sala", e.target.value)
+                    }
+                  >
+                    <option value="" hidden>Selecione...</option>
+                    {options1a10.map((n) => (<option key={n} value={n}>{n}</option>))}
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Sala de Jantar</Label>
+                  <Select
+                    value={form.caracteristicas_fisicas?.sala_jantar ?? ""}
+                    onChange={(e) =>
+                      handleChangeCaracteristicaFisica("sala_jantar", e.target.value)
+                    }
+                  >
+                    <option value="" hidden>Selecione...</option>
+                    {options1a10.map((n) => (<option key={n} value={n}>{n}</option>))}
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Sala de TV</Label>
+                  <Select
+                    value={form.caracteristicas_fisicas?.sala_tv ?? ""}
+                    onChange={(e) =>
+                      handleChangeCaracteristicaFisica("sala_tv", e.target.value)
+                    }
+                  >
+                    <option value="" hidden>Selecione...</option>
+                    {options1a10.map((n) => (<option key={n} value={n}>{n}</option>))}
+                  </Select>
+                </div>
+
+                {/* QUARTOS / SUÍTES / CLOSET */}
+                <div>
+                  <Label>Closet(s)</Label>
+                  <Select
+                    value={form.caracteristicas_fisicas?.closet ?? ""}
+                    onChange={(e) =>
+                      handleChangeCaracteristicaFisica("closet", e.target.value)
+                    }
+                  >
+                    <option value="" hidden>Selecione...</option>
+                    {options1a10.map((n) => (<option key={n} value={n}>{n}</option>))}
+                  </Select>
+                </div>
+
+                {/* BANHEIROS */}
+                <div>
+                  <Label>Lavabo(s)</Label>
+                  <Select
+                    value={form.caracteristicas_fisicas?.lav ?? ""}
+                    onChange={(e) => handleChangeCaracteristicaFisica("lav", e.target.value)}
+                  >
+                    <option value="" hidden>Selecione...</option>
+                    {options1a10.map((n) => (<option key={n} value={n}>{n}</option>))}
+                  </Select>
+                </div>
+
+                {/* COZINHA / COPA */}
+                <div>
+                  <Label>Cozinha(s)</Label>
+                  <Select
+                    value={form.caracteristicas_fisicas?.cozinha ?? ""}
+                    onChange={(e) => handleChangeCaracteristicaFisica("cozinha", e.target.value)}
+                  >
+                    <option value="" hidden>Selecione...</option>
+                    {options1a10.map((n) => (<option key={n} value={n}>{n}</option>))}
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Copa(s)</Label>
+                  <Select
+                    value={form.caracteristicas_fisicas?.copa ?? ""}
+                    onChange={(e) => handleChangeCaracteristicaFisica("copa", e.target.value)}
+                  >
+                    <option value="" hidden>Selecione...</option>
+                    {options1a10.map((n) => (<option key={n} value={n}>{n}</option>))}
+                  </Select>
+                </div>
+
+                {/* ÁREA DE SERVIÇO / LAVANDERIA */}
+                <div>
+                  <Label>Área de Serviço</Label>
+                  <Select
+                    value={form.caracteristicas_fisicas?.area_servico ?? ""}
+                    onChange={(e) =>
+                      handleChangeCaracteristicaFisica("area_servico", e.target.value)
+                    }
+                  >
+                    <option value="" hidden>Selecione...</option>
+                    {options1a10.map((n) => (<option key={n} value={n}>{n}</option>))}
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Lavanderia</Label>
+                  <Select
+                    value={form.caracteristicas_fisicas?.lavanderia ?? ""}
+                    onChange={(e) =>
+                      handleChangeCaracteristicaFisica("lavanderia", e.target.value)
+                    }
+                  >
+                    <option value="" hidden>Selecione...</option>
+                    {options1a10.map((n) => (<option key={n} value={n}>{n}</option>))}
+                  </Select>
+                </div>
+
+                {/* VARANDAS */}
+                <div>
+                  <Label>Varanda(s)</Label>
+                  <Select
+                    value={form.caracteristicas_fisicas?.varanda ?? ""}
+                    onChange={(e) =>
+                      handleChangeCaracteristicaFisica("varanda", e.target.value)
+                    }
+                  >
+                    <option value="" hidden>Selecione...</option>
+                    {options1a10.map((n) => (<option key={n} value={n}>{n}</option>))}
+                  </Select>
+                </div>
+
+                {/* ESCRITÓRIO */}
+                <div>
+                  <Label>Escritório(s)</Label>
+                  <Select
+                    value={form.caracteristicas_fisicas?.escritorio ?? ""}
+                    onChange={(e) =>
+                      handleChangeCaracteristicaFisica("escritorio", e.target.value)
+                    }
+                  >
+                    <option value="" hidden>Selecione...</option>
+                    {options1a10.map((n) => (<option key={n} value={n}>{n}</option>))}
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Quintal(is)</Label>
+                  <Select
+                    value={form.caracteristicas_fisicas?.quintal ?? ""}
+                    onChange={(e) =>
+                      handleChangeCaracteristicaFisica("quintal", e.target.value)
+                    }
+                  >
+                    <option value="" hidden>Selecione...</option>
+                    {options1a10.map((n) => (<option key={n} value={n}>{n}</option>))}
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* PET FRIENDLY, MOBILIADO, ELEVADOR, PISCINA, ÁREA GOURMET */}
+            <div className="space-y-3">
+              <h3 className="font-semibold text-sm md:text-base">Conveniências</h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                {/* PET FRIENDLY */}
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={!!form.pet_friendly}
+                    onCheckedChange={(v) => handleChange("pet_friendly", v)}
+                  />
+                  <Label>Pet Friendly</Label>
+                </div>
+
+                {/* MOBILIADO */}
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={!!form.mobiliado}
+                    onCheckedChange={(v) => handleChange("mobiliado", v)}
+                  />
+                  <Label>Mobiliado</Label>
+                </div>
+
+                {/* ELEVADOR */}
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={!!form.elevador}
+                    onCheckedChange={(v) => handleChange("elevador", v)}
+                  />
+                  <Label>Elevador</Label>
+                </div>
+
+                {/* PISCINA */}
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={!!form.piscina}
+                    onCheckedChange={(v) => handleChange("piscina", v)}
+                  />
+                  <Label>Piscina</Label>
+                </div>
+
+                {/* ÁREA GOURMET */}
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={!!form.area_gourmet}
+                    onCheckedChange={(v) => handleChange("area_gourmet", v)}
+                  />
+                  <Label>Área Gourmet</Label>
+                </div>
+
+              </div>
+            </div>  
+
+            {/* CARACTERÍSTICAS EXTRAS */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-sm md:text-base">Características adicionais</h3>
+
+              <details className="group border rounded-2xl p-4">
+                <summary className="font-medium flex items-center justify-between cursor-pointer">
+                  <span>Selecionar características</span>
+                  <svg className="w-5 h-5 transition-transform group-open:rotate-180" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {caracteristicasExtrasOptions.map((item) => {
+                    const checked =
+                      Array.isArray(form.caracteristicas_extras) &&
+                      form.caracteristicas_extras.includes(item);
+
+                    return (
+                      <label key={item} className="flex items-center gap-3 cursor-pointer p-3 rounded-xl">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => handleChangeCheckboxExtra(item, e.target.checked)}
+                          className="
+                            peer h-5 w-5 cursor-pointer appearance-none rounded
+                            border border-gray-400 transition-all
+
+                            checked:bg-accent               /* usa sua variável de cor */
+                            checked:border-accent
+                            checked:before:block
+                            checked:before:content-['✔']    /* check branco */
+                            checked:before:text-white
+                            checked:before:text-sm
+                            checked:before:flex checked:before:items-center checked:before:justify-center
+
+                            hover:border-accent
+                          "
+                        />
+                        <span>{item}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </details>
+            </div>
+
+            {/* Nome do Condomínio */}
+            <div className="space-y-2">
+              <Label>Nome do Condomínio (opcional)</Label>
+              <Input
+                value={form.condominio || ""}
+                onChange={(e) => handleChange("condominio", e.target.value)}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
+        {/* =======================================================
+            TAB: FINANCEIRO
+        ======================================================== */}
+        {activeTab === "financeiro" && (
+          <div className="space-y-6">
+            {(form.disponibilidade === "venda" || form.disponibilidade === "ambos") && (
+              <div className="space-y-3">
+                <h3 className="font-semibold text-sm md:text-base">Venda</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label>Preço de Venda (R$)</Label>
+                    <Input
+                      type="number"
+                      value={form.preco_venda ?? ""}
+                      onChange={(e) => handleChangeNumero("preco_venda", e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Comissão de Venda (%)</Label>
+                    <Select
+                      value={form.comissao_venda_percent ?? ""}
+                      onChange={(e) =>
+                        handleChangeNumero("comissao_venda_percent", e.target.value)
+                      }
+                    >
+                      <option value="" hidden>Selecione...</option>
+                      {(form.tipo === "rural" ? [8,9,10] : [5,6,7]).map((p) => (
+                        <option key={p} value={p}>{p}%</option>
+                      ))}
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Valor da Comissão (R$)</Label>
+                    <Input
+                      readOnly
+                      value={
+                        comissaoVendaValor
+                          ? comissaoVendaValor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                          : ""
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {(form.disponibilidade === "locacao" || form.disponibilidade === "ambos") && (
+              <div className="space-y-3">
+                <h3 className="font-semibold text-sm md:text-base">Locação</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label>Preço de Locação (R$)</Label>
+                    <Input
+                      type="number"
+                      value={form.preco_locacao ?? ""}
+                      onChange={(e) => handleChangeNumero("preco_locacao", e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Comissão de Locação (%)</Label>
+                    <Select
+                      value={form.comissao_locacao_percent ?? ""}
+                      onChange={(e) =>
+                        handleChangeNumero("comissao_locacao_percent", e.target.value)
+                      }
+                    >
+                      <option value="" hidden>Selecione...</option>
+                      {[8,9,10].map((p) => (<option key={p} value={p}>{p}%</option>))}
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Valor da Comissão (R$)</Label>
+                    <Input
+                      readOnly
+                      value={
+                        comissaoLocacaoValor
+                          ? comissaoLocacaoValor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                          : ""
+                      }
+                    />
+                  </div>
+                </div>
+
+                {(form.disponibilidade === "locacao" ||
+                  form.disponibilidade === "ambos" ||
+                  form.status === "alugado") && (
+                  <div className="grid grid-cols-1 md:grid-cols-3">
+                    <div>
+                      <Label>Inquilino</Label>
+                      <SearchableSelect
+                        options={personas}
+                        value={form.inquilino_id ? String(form.inquilino_id) : ""}
+                        onChange={(val) => handleChange("inquilino_id", val || null)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Encargos */}
+            <div className="space-y-3">
+              <h3 className="font-semibold text-sm md:text-base">Encargos</h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label>Valor Condomínio (R$)</Label>
+                  <Input
+                    type="number"
+                    value={form.valor_condominio ?? ""}
+                    onChange={(e) => handleChangeNumero("valor_condominio", e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <Label>Valor IPTU (R$)</Label>
+                  <Input
+                    type="number"
+                    value={form.valor_iptu ?? ""}
+                    onChange={(e) => handleChangeNumero("valor_iptu", e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* =======================================================
+            TAB: DOCUMENTAÇÃO
+        ======================================================== */}
+        {activeTab === "documentacao" && (
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <h3 className="font-semibold text-sm md:text-base">Situação da documentação</h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label>Situação</Label>
+                  <Select
+                    value={form.situacao_documentacao || ""}
+                    onChange={(e) => handleChange("situacao_documentacao", e.target.value)}
+                  >
+                    <option value="" hidden>Selecione...</option>
+                    {situacaoDocumentacaoOptions.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </Select>
+                </div>
+
+                <div className="flex items-center gap-2 mt-6">
+                  <Switch
+                    checked={!!form.aceita_permuta}
+                    onCheckedChange={(v) => handleChange("aceita_permuta", v)}
+                  />
+                  <Label>Aceita permuta</Label>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="font-semibold text-sm md:text-base">Controle de chaves</h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Localização da Chave</Label>
+                  <Input
+                    value={form.chaves_localizacao || ""}
+                    onChange={(e) => handleChange("chaves_localizacao", e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* =======================================================
+            TAB: TÍTULO & DESCRIÇÃO
+        ======================================================== */}
+        {activeTab === "texto" && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2">
+                <Label>Título</Label>
+                <Input
+                  value={form.titulo || ""}
+                  onChange={(e) => {
+                    setAutoTitulo(false);
+                    handleChange("titulo", e.target.value);
+                  }}
+                />
+              </div>
+
+              <div>
+                <Label>Código de Referência</Label>
+                <Input
+                  value={form.codigo_ref || ""}
+                  onChange={(e) => handleChange("codigo_ref", e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label>Slug</Label>
+                <Input
+                  value={form.slug || ""}
+                  onChange={(e) => {
+                    setAutoSlug(false);
+                    handleChange("slug", e.target.value);
+                  }}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <Label>Título Curto</Label>
+                <Input
+                  value={form.titulo_curto || ""}
+                  onChange={(e) => handleChange("titulo_curto", e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label>Descrição</Label>
+              <Input
+                value={form.descricao || ""}
+                onChange={(e) => {
+                  setAutoDescricao(false);
+                  handleChange("descricao", e.target.value);
+                }}
+              />
+            </div>
+
+            {/* CATEGORIAS */}
+            <div className="space-y-2">
+              <Label>Categorias</Label>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {categoriaOptions.map((cat) => {
+                  const normalized = cat.toLowerCase();
+                  const checked = form.categorias?.includes(normalized) || false;
+
+                  return (
+                    <label
+                      key={cat}
+                      className="flex items-center gap-3 p-2 rounded-xl cursor-pointer hover:bg-gray-100"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => {
+                          const isChecked = e.target.checked;
+                          let next = form.categorias ? [...form.categorias] : [];
+
+                          if (isChecked) {
+                            if (!next.includes(normalized)) next.push(normalized);
+                          } else {
+                            next = next.filter((c) => c !== normalized);
+                          }
+
+                          handleChange("categorias", next);
+                        }}
+                        className="
+                            peer h-5 w-5 cursor-pointer appearance-none rounded
+                            border border-gray-400 transition-all
+
+                            checked:bg-accent               /* usa sua variável de cor */
+                            checked:border-accent
+                            checked:before:block
+                            checked:before:content-['✔']    /* check branco */
+                            checked:before:text-white
+                            checked:before:text-sm
+                            checked:before:flex checked:before:items-center checked:before:justify-center
+
+                            hover:border-accent
+                          "
+                      />
+                      <span>{cat}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

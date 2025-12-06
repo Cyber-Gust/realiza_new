@@ -22,11 +22,12 @@ export default function PerfilFormPersonas({
   const [form, setForm] = useState({
     id: dadosIniciais.id || null,
 
-    // Dados
+    // Dados (Obrigatórios)
     nome: dadosIniciais.nome || "",
-    email: dadosIniciais.email || "",
     telefone: dadosIniciais.telefone || "",
     cpf_cnpj: dadosIniciais.cpf_cnpj || "",
+
+    email: dadosIniciais.email || "",
     tipo: dadosIniciais.tipo || "proprietario",
 
     data_nascimento: dadosIniciais.data_nascimento || "",
@@ -57,8 +58,36 @@ export default function PerfilFormPersonas({
     setForm((p) => ({ ...p, [key]: value }));
   };
 
+  // CEP AUTO-PREENCHER
+  const handleCepBlur = async () => {
+    const cep = form.endereco_cep.replace(/\D/g, "");
+    if (cep.length !== 8) return;
+
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const json = await res.json();
+      if (json.erro) return;
+
+      setForm((p) => ({
+        ...p,
+        endereco_logradouro: json.logradouro || "",
+        endereco_bairro: json.bairro || "",
+        endereco_cidade: json.localidade || "",
+        endereco_estado: json.uf || "",
+      }));
+    } catch (e) {
+      console.error("Erro ao buscar CEP");
+    }
+  };
+
   const handleSave = async () => {
     if (readOnly) return;
+
+    // Validação de obrigatórios
+    if (!form.nome || !form.telefone || !form.cpf_cnpj) {
+      error("Erro", "Nome, Telefone e CPF/CNPJ são obrigatórios.");
+      return;
+    }
 
     try {
       setSaving(true);
@@ -102,7 +131,7 @@ export default function PerfilFormPersonas({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
 
-          <InputBlock label="Nome" field="nome" form={form} handleChange={handleChange} readOnly={readOnly} />
+          <InputBlock required label="Nome" field="nome" form={form} handleChange={handleChange} readOnly={readOnly} />
 
           <div>
             <Label>Tipo</Label>
@@ -117,11 +146,11 @@ export default function PerfilFormPersonas({
             </Select>
           </div>
 
-          <InputBlock label="Telefone" field="telefone" form={form} handleChange={handleChange} readOnly={readOnly} />
+          <InputBlock required label="Telefone" field="telefone" form={form} handleChange={handleChange} readOnly={readOnly} />
 
           <InputBlock label="E-mail" field="email" form={form} handleChange={handleChange} readOnly={readOnly} />
 
-          <InputBlock label="CPF/CNPJ" field="cpf_cnpj" form={form} handleChange={handleChange} readOnly={readOnly} />
+          <InputBlock required label="CPF/CNPJ" field="cpf_cnpj" form={form} handleChange={handleChange} readOnly={readOnly} />
 
           <InputBlock
             label="Data de nascimento"
@@ -145,7 +174,16 @@ export default function PerfilFormPersonas({
         <h2 className="text-lg font-semibold">Endereço</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <InputBlock label="CEP" field="endereco_cep" form={form} handleChange={handleChange} readOnly={readOnly} />
+          <div>
+            <Label>CEP</Label>
+            <Input
+              value={form.endereco_cep}
+              disabled={readOnly}
+              onChange={(e) => handleChange("endereco_cep", e.target.value)}
+              onBlur={handleCepBlur}
+            />
+          </div>
+
           <InputBlock label="Logradouro" field="endereco_logradouro" form={form} handleChange={handleChange} readOnly={readOnly} />
           <InputBlock label="Número" field="endereco_numero" form={form} handleChange={handleChange} readOnly={readOnly} />
           <InputBlock label="Bairro" field="endereco_bairro" form={form} handleChange={handleChange} readOnly={readOnly} />
@@ -184,9 +222,6 @@ export default function PerfilFormPersonas({
         </div>
       </div>
 
-      {/* ======================= */}
-      {/* AÇÃO */}
-      {/* ======================= */}
       {!readOnly && (
         <div className="flex justify-end">
           <Button onClick={handleSave} disabled={saving}>
@@ -203,10 +238,12 @@ export default function PerfilFormPersonas({
 }
 
 /* Helper Component */
-function InputBlock({ label, field, form, handleChange, readOnly, type = "text" }) {
+function InputBlock({ label, field, form, handleChange, readOnly, type = "text", required }) {
   return (
     <div>
-      <Label>{label}</Label>
+      <Label>
+        {label} {required && <span className="text-red-500">*</span>}
+      </Label>
       <Input
         type={type}
         value={form[field] || ""}

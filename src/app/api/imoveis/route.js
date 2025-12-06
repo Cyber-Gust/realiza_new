@@ -64,14 +64,16 @@ async function handleGET(req, supabase) {
 }
 
 // ---------------------------------------------------------------------------
-// POST – Criar imóvel ou gerar signedUrl
+// POST – Criar imóvel (com novas regras)
 // ---------------------------------------------------------------------------
 async function handlePOST(req, supabase) {
   const { searchParams } = new URL(req.url);
   const action = searchParams.get("action");
   const body = await req.json();
 
-  // SIGNED URL
+  // ------------------------------
+  // 1) SIGNED URL PARA MÍDIAS
+  // ------------------------------
   if (action === "sign") {
     if (!body.path) throw new Error("Caminho do arquivo não informado.");
 
@@ -81,29 +83,38 @@ async function handlePOST(req, supabase) {
 
     if (error) throw error;
 
-    const uploadUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/upload/sign/imoveis_media/${body.path}?token=${data.token}`;
-    const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/imoveis_media/${body.path}`;
-
-    return { data: { uploadUrl, publicUrl } };
+    return {
+      data: {
+        uploadUrl: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/upload/sign/imoveis_media/${body.path}?token=${data.token}`,
+        publicUrl: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/imoveis_media/${body.path}`
+      }
+    };
   }
-  // SIGN PARA COMPLIANCE
+
+  // ------------------------------
+  // 2) SIGNED URL PARA COMPLIANCE
+  // ------------------------------
   if (action === "sign_compliance") {
     if (!body.path) throw new Error("Caminho do arquivo não informado.");
 
     const { data, error } = await supabase.storage
-      .from("documentos_compliance")    // 👈 AQUI O BUCKET CERTO!
+      .from("documentos_compliance")
       .createSignedUploadUrl(body.path);
 
     if (error) throw error;
 
-    const uploadUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/upload/sign/documentos_compliance/${body.path}?token=${data.token}`;
-    const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documentos_compliance/${body.path}`;
-
-    return { data: { url: uploadUrl, publicUrl } };
+    return {
+      data: {
+        uploadUrl: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/upload/sign/documentos_compliance/${body.path}?token=${data.token}`,
+        publicUrl: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documentos_compliance/${body.path}`
+      }
+    };
   }
 
-  // CRIAR IMÓVEL
-  const required = ["proprietario_id", "tipo", "codigo_ref", "titulo", "slug"];
+  // ------------------------------
+  // 3) CRIAÇÃO DO IMÓVEL
+  // ------------------------------
+  const required = ["proprietario_id", "tipo", "codigo_ref", "slug", "titulo"];
   for (const f of required) {
     if (!body[f]) throw new Error(`Campo obrigatório: ${f}`);
   }
@@ -118,18 +129,69 @@ async function handlePOST(req, supabase) {
     throw new Error("Disponibilidade inválida.");
   }
 
+  // ------------------------------
+  // 4) SANITIZAR MÍDIAS
+  // ------------------------------
+  let midias = null;
+  if (Array.isArray(body.midias)) {
+    midias = body.midias.map((m) => {
+      if (typeof m === "string") return { url: m };
+      if (typeof m === "object" && m.url) return { url: m.url };
+      throw new Error("Formato inválido em midias. Use { url }.");
+    });
+  }
+
+  // ------------------------------
+  // 5) COMISSIONAMENTO AUTOMÁTICO
+  // ------------------------------
+  function calcComissaoVenda(tipoImovel, preco, percent) {
+    if (!preco || !percent) return null;
+    return (preco * percent) / 100;
+  }
+
+  function calcComissaoLocacao(preco, percent) {
+    if (!preco || !percent) return null;
+    return (preco * percent) / 100;
+  }
+
+  const comissao_venda_valor = calcComissaoVenda(
+    body.tipo,
+    body.preco_venda,
+    body.comissao_venda_percent
+  );
+
+  const comissao_locacao_valor = calcComissaoLocacao(
+    body.preco_locacao,
+    body.comissao_locacao_percent
+  );
+
+  // ------------------------------
+  // 6) PAYLOAD FINAL
+  // ------------------------------
   const payload = {
     ...body,
-    status: body.status || "disponivel",
+    midias,
+    caracteristicas_fisicas: body.caracteristicas_fisicas || null,
+    caracteristicas_extras: body.caracteristicas_extras || null,
+    situacao_documentacao: body.situacao_documentacao || null,
+    aceita_permuta: !!body.aceita_permuta,
+
+    area_construida: body.area_construida ?? null,
+    testada: body.testada ?? null,
+    profundidade: body.profundidade ?? null,
+
+    comissao_venda_percent: body.comissao_venda_percent ?? null,
+    comissao_venda_valor,
+
+    comissao_locacao_percent: body.comissao_locacao_percent ?? null,
+    comissao_locacao_valor,
+
     mobiliado: !!body.mobiliado,
     pet_friendly: !!body.pet_friendly,
     piscina: !!body.piscina,
     elevador: !!body.elevador,
     area_gourmet: !!body.area_gourmet,
-    quartos: body.quartos ?? 0,
-    banheiros: body.banheiros ?? 0,
-    suites: body.suites ?? 0,
-    vagas_garagem: body.vagas_garagem ?? 0,
+
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -145,8 +207,9 @@ async function handlePOST(req, supabase) {
   return { data };
 }
 
+
 // ---------------------------------------------------------------------------
-// PUT – Atualizar imóvel (AJUSTADO)
+// PUT – Atualizar imóvel (com tudo atualizado)
 // ---------------------------------------------------------------------------
 async function handlePUT(req, supabase) {
   const body = await req.json();
@@ -156,17 +219,19 @@ async function handlePUT(req, supabase) {
     Object.entries(body).filter(([_, v]) => v !== undefined)
   );
 
-  const VALID_DISP = ["venda", "locacao", "ambos"];
-  if (updateData.disponibilidade && !VALID_DISP.includes(updateData.disponibilidade)) {
-    throw new Error("Disponibilidade inválida.");
-  }
-
   const VALID_STATUS = ["disponivel", "reservado", "alugado", "vendido", "inativo"];
   if (updateData.status && !VALID_STATUS.includes(updateData.status)) {
     throw new Error("Status inválido.");
   }
 
-  /// midias deve ser sempre array de objetos { url }
+  const VALID_DISP = ["venda", "locacao", "ambos"];
+  if (updateData.disponibilidade && !VALID_DISP.includes(updateData.disponibilidade)) {
+    throw new Error("Disponibilidade inválida.");
+  }
+
+  // ------------------------------
+  // MÍDIAS SANITIZADAS
+  // ------------------------------
   if (updateData.midias !== undefined) {
     if (!Array.isArray(updateData.midias)) {
       throw new Error("Campo 'midias' deve ser um array.");
@@ -175,15 +240,52 @@ async function handlePUT(req, supabase) {
     updateData.midias = updateData.midias.map((m) => {
       if (typeof m === "string") return { url: m };
       if (typeof m === "object" && m.url) return { url: m.url };
-      throw new Error("Formato inválido em midias. Use { url }.");
+      throw new Error("Formato inválido em midias.");
     });
   }
 
-  ["mobiliado", "pet_friendly", "piscina", "elevador", "area_gourmet"]
+  // ------------------------------
+  // FLAGS BOOLEANAS
+  // ------------------------------
+  ["mobiliado", "pet_friendly", "piscina", "elevador", "area_gourmet", "aceita_permuta"]
     .forEach(flag => {
       if (updateData[flag] !== undefined)
         updateData[flag] = !!updateData[flag];
     });
+
+  // ------------------------------
+  // COMISSIONAMENTO RE-CALCULADO
+  // ------------------------------
+  function calcComissaoVenda(tipoImovel, preco, percent) {
+    if (!preco || !percent) return null;
+    return (preco * percent) / 100;
+  }
+
+  function calcCommissaoLocacao(preco, percent) {
+    if (!preco || !percent) return null;
+    return (preco * percent) / 100;
+  }
+
+  if (
+    updateData.preco_venda !== undefined ||
+    updateData.comissao_venda_percent !== undefined
+  ) {
+    updateData.comissao_venda_valor = calcComissaoVenda(
+      updateData.tipo,
+      updateData.preco_venda,
+      updateData.comissao_venda_percent
+    );
+  }
+
+  if (
+    updateData.preco_locacao !== undefined ||
+    updateData.comissao_locacao_percent !== undefined
+  ) {
+    updateData.comissao_locacao_valor = calcComissaoLocacao(
+      updateData.preco_locacao,
+      updateData.comissao_locacao_percent
+    );
+  }
 
   updateData.updated_at = new Date().toISOString();
 
@@ -198,6 +300,7 @@ async function handlePUT(req, supabase) {
 
   return { data };
 }
+
 
 // ---------------------------------------------------------------------------
 // DELETE – Deletar imóvel ou arquivo

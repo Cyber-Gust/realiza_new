@@ -48,13 +48,47 @@ export default function PerfilFormCliente({
 
   const [saving, setSaving] = useState(false);
 
+  // ============================================================
+  // BUSCA AUTOMÁTICA DO CEP
+  // ============================================================
+  const buscarCEP = async (cep) => {
+    try {
+      const sanitized = cep.replace(/\D/g, "");
+      if (sanitized.length !== 8) return;
+
+      const res = await fetch(`https://viacep.com.br/ws/${sanitized}/json/`);
+      const data = await res.json();
+
+      if (data.erro) return;
+
+      setForm((prev) => ({
+        ...prev,
+        endereco_logradouro: data.logradouro || "",
+        endereco_bairro: data.bairro || "",
+        endereco_cidade: data.localidade || "",
+        endereco_estado: data.uf || "",
+      }));
+    } catch (err) {
+      console.log("Erro ao buscar CEP", err);
+    }
+  };
+
   const handleChange = (key, value) => {
     if (readOnly) return;
+
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleSave = async () => {
     if (readOnly) return;
+
+    // ============================================================
+    // VALIDAÇÃO – CAMPOS OBRIGATÓRIOS
+    // ============================================================
+    if (!form.nome.trim() || !form.telefone.trim()) {
+      error("Campos obrigatórios", "Preencha nome e telefone.");
+      return;
+    }
 
     try {
       setSaving(true);
@@ -97,8 +131,8 @@ export default function PerfilFormCliente({
         <h2 className="text-lg font-semibold">Dados pessoais</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <InputBlock label="Nome" field="nome" form={form} handleChange={handleChange} readOnly={readOnly} />
-          <InputBlock label="Telefone" field="telefone" form={form} handleChange={handleChange} readOnly={readOnly} />
+          <InputBlock required label="Nome" field="nome" form={form} handleChange={handleChange} readOnly={readOnly} />
+          <InputBlock required label="Telefone" field="telefone" form={form} handleChange={handleChange} readOnly={readOnly} />
           <InputBlock label="E-mail" field="email" form={form} handleChange={handleChange} readOnly={readOnly} />
 
           <InputBlock label="CPF/CNPJ" field="cpf_cnpj" form={form} handleChange={handleChange} readOnly={readOnly} />
@@ -124,7 +158,20 @@ export default function PerfilFormCliente({
         <h2 className="text-lg font-semibold">Endereço</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <InputBlock label="CEP" field="endereco_cep" form={form} handleChange={handleChange} readOnly={readOnly} />
+
+          {/* CEP com auto-complete */}
+          <div>
+            <Label>CEP</Label>
+            <Input
+              value={form.endereco_cep}
+              disabled={readOnly}
+              onChange={(e) => {
+                handleChange("endereco_cep", e.target.value);
+                buscarCEP(e.target.value);
+              }}
+            />
+          </div>
+
           <InputBlock label="Logradouro" field="endereco_logradouro" form={form} handleChange={handleChange} readOnly={readOnly} />
           <InputBlock label="Número" field="endereco_numero" form={form} handleChange={handleChange} readOnly={readOnly} />
           <InputBlock label="Bairro" field="endereco_bairro" form={form} handleChange={handleChange} readOnly={readOnly} />
@@ -182,10 +229,12 @@ export default function PerfilFormCliente({
 }
 
 /* Helper Component */
-function InputBlock({ label, field, form, handleChange, readOnly, type = "text" }) {
+function InputBlock({ label, field, form, handleChange, readOnly, type = "text", required }) {
   return (
     <div>
-      <Label>{label}</Label>
+      <Label>
+        {label} {required && <span className="text-red-500">*</span>}
+      </Label>
       <Input
         type={type}
         value={form[field] || ""}
@@ -195,3 +244,4 @@ function InputBlock({ label, field, form, handleChange, readOnly, type = "text" 
     </div>
   );
 }
+

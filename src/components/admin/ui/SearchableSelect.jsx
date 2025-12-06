@@ -17,12 +17,23 @@ export default function SearchableSelect({
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const [coords, setCoords] = useState(null);
-  const triggerRef = useRef(null);
 
-  const filtered = options.filter((o) =>
+  const triggerRef = useRef(null);
+  const dropdownRef = useRef(null); // ⭐ novo: referência pro dropdown (portal)
+
+  // 🔥 Normalizar tudo para string
+  const normalizedValue = value != null ? String(value) : "";
+
+  const normalizedOptions = options.map((o) => ({
+    ...o,
+    value: String(o.value),
+  }));
+
+  const filtered = normalizedOptions.filter((o) =>
     o.label.toLowerCase().includes(filter.toLowerCase())
   );
 
+  // Calcula posição do dropdown
   useEffect(() => {
     if (open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
@@ -35,16 +46,24 @@ export default function SearchableSelect({
     }
   }, [open]);
 
+  // Clique fora + scroll
   useEffect(() => {
     if (!open) return;
 
     const handleClick = (e) => {
+      const triggerEl = triggerRef.current;
+      const dropdownEl = dropdownRef.current;
+
+      // Se clicou no trigger ou dentro do dropdown, **não** fecha
       if (
-        triggerRef.current &&
-        !triggerRef.current.contains(e.target)
+        (triggerEl && triggerEl.contains(e.target)) ||
+        (dropdownEl && dropdownEl.contains(e.target))
       ) {
-        setOpen(false);
+        return;
       }
+
+      // Clicou totalmente fora → fecha
+      setOpen(false);
     };
 
     const handleScroll = () => setOpen(false);
@@ -68,10 +87,13 @@ export default function SearchableSelect({
             error ? "border-red-500" : "border-input focus:border-primary",
             className
           )}
-          onClick={() => setOpen(!open)}
+          onClick={() => setOpen((prev) => !prev)}
         >
-          <span className={cn(!value && "text-muted-foreground")}>
-            {options.find((o) => o.value === value)?.label || placeholder}
+          <span className={cn(!normalizedValue && "text-muted-foreground")}>
+            {
+              normalizedOptions.find((o) => o.value === normalizedValue)
+                ?.label || placeholder
+            }
           </span>
 
           <ChevronDown
@@ -86,6 +108,7 @@ export default function SearchableSelect({
       {open && coords &&
         createPortal(
           <div
+            ref={dropdownRef} // ⭐ agora sabemos se o clique foi dentro do dropdown
             style={{
               position: "absolute",
               top: coords.top,
@@ -95,6 +118,7 @@ export default function SearchableSelect({
             }}
             className="rounded-xl border bg-background/95 backdrop-blur-xl shadow-lg animate-in fade-in slide-in-from-top-2"
           >
+            {/* Campo de busca */}
             <div className="p-2 border-b">
               <div className="relative">
                 <Input
@@ -107,6 +131,7 @@ export default function SearchableSelect({
               </div>
             </div>
 
+            {/* Lista de opções */}
             <div className="max-h-52 overflow-auto">
               {filtered.length === 0 && (
                 <div className="px-4 py-3 text-sm text-muted-foreground">
@@ -118,11 +143,15 @@ export default function SearchableSelect({
                 <div
                   key={opt.value}
                   onClick={() => {
-                    onChange(opt.value);
+                    // 🔥 garante que sempre passa string
+                    onChange(String(opt.value));
                     setOpen(false);
                     setFilter("");
                   }}
-                  className="px-4 py-2 text-sm cursor-pointer hover:bg-primary/10 active:bg-primary/20"
+                  className={cn(
+                    "px-4 py-2 text-sm cursor-pointer hover:bg-primary/10 active:bg-primary/20",
+                    opt.value === normalizedValue && "bg-primary/20"
+                  )}
                 >
                   {opt.label}
                 </div>

@@ -16,7 +16,6 @@ const USER_ROLES = ["admin", "corretor"];
    ============================================================ */
 
 function gerarSlugAutomático(texto) {
-  // usado SOMENTE quando o nome muda
   return texto
     .toLowerCase()
     .trim()
@@ -25,13 +24,12 @@ function gerarSlugAutomático(texto) {
 }
 
 function limparSlug(texto) {
-  // usado APENAS no salvar
   return texto
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9-]+/g, "") // mantém "-"
-    .replace(/--+/g, "-")        // evita múltiplos
-    .replace(/(^-|-$)/g, "");    // remove bordas
+    .replace(/[^a-z0-9-]+/g, "")
+    .replace(/--+/g, "-")
+    .replace(/(^-|-$)/g, "");
 }
 
 export default function PerfilFormEquipe({
@@ -49,14 +47,12 @@ export default function PerfilFormEquipe({
   const [form, setForm] = useState({
     id: dadosIniciais.id || null,
 
-    // Dados pessoais
     nome_completo: dadosIniciais.nome_completo || "",
     telefone: dadosIniciais.telefone || "",
     email: dadosIniciais.email || "",
     cpf_cnpj: dadosIniciais.cpf_cnpj || "",
     data_nascimento: dadosIniciais.data_nascimento || "",
 
-    // Profissionais
     role: dadosIniciais.role || "corretor",
     creci: dadosIniciais.creci || "",
     slug: dadosIniciais.slug || "",
@@ -64,7 +60,6 @@ export default function PerfilFormEquipe({
     bio_publica: dadosIniciais.bio_publica || "",
     detalhes: dadosIniciais.detalhes?.join("\n") || "",
 
-    // Dados bancários
     banco: dadosIniciais.banco || "",
     agencia: dadosIniciais.agencia || "",
     conta: dadosIniciais.conta || "",
@@ -72,7 +67,6 @@ export default function PerfilFormEquipe({
     pix: dadosIniciais.pix || "",
     favorecido: dadosIniciais.favorecido || "",
 
-    // Endereço
     endereco_cep: dadosIniciais.endereco_cep || "",
     endereco_logradouro: dadosIniciais.endereco_logradouro || "",
     endereco_numero: dadosIniciais.endereco_numero || "",
@@ -80,7 +74,6 @@ export default function PerfilFormEquipe({
     endereco_cidade: dadosIniciais.endereco_cidade || "",
     endereco_estado: dadosIniciais.endereco_estado || "",
 
-    // Redes sociais
     instagram: dadosIniciais.instagram || "",
     linkedin: dadosIniciais.linkedin || "",
     whatsapp: dadosIniciais.whatsapp || "",
@@ -91,12 +84,32 @@ export default function PerfilFormEquipe({
   const [saving, setSaving] = useState(false);
 
   /* ============================================================
-     HANDLE CHANGE INTELIGENTE PARA SLUG
+     BUSCA CEP AUTOMÁTICO
+     ============================================================ */
+  const buscarCEP = async (cep) => {
+    if (!cep || cep.replace(/\D/g, "").length !== 8) return;
+
+    try {
+      const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await r.json();
+      if (data.erro) return;
+
+      setForm((prev) => ({
+        ...prev,
+        endereco_logradouro: data.logradouro || "",
+        endereco_bairro: data.bairro || "",
+        endereco_cidade: data.localidade || "",
+        endereco_estado: data.uf || "",
+      }));
+    } catch (err) {}
+  };
+
+  /* ============================================================
+     HANDLE CHANGE
      ============================================================ */
   const handleChange = (key, value) => {
     if (readOnly) return;
 
-    // Nome → gera slug automaticamente se o usuário ainda não mexeu no slug
     if (key === "nome_completo") {
       setForm((prev) => ({
         ...prev,
@@ -106,10 +119,15 @@ export default function PerfilFormEquipe({
       return;
     }
 
-    // Slug → permite digitação livre
     if (key === "slug") {
       setSlugEditadoManualmente(true);
       setForm((prev) => ({ ...prev, slug: value }));
+      return;
+    }
+
+    if (key === "endereco_cep") {
+      setForm((prev) => ({ ...prev, endereco_cep: value }));
+      buscarCEP(value);
       return;
     }
 
@@ -125,7 +143,12 @@ export default function PerfilFormEquipe({
     try {
       setSaving(true);
 
-      // Limpa slug só no salvar
+      if (!form.nome_completo || !form.telefone || !form.email || !form.cpf_cnpj) {
+        error("Erro", "Preencha todos os campos obrigatórios.");
+        setSaving(false);
+        return;
+      }
+
       const slugFinal = limparSlug(form.slug);
       const slugSeguro = slugFinal || gerarSlugAutomático(form.nome_completo);
 
@@ -145,7 +168,7 @@ export default function PerfilFormEquipe({
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-        credentials: "include",  // 👈 *obrigatório pro cookie chegar*
+        credentials: "include",
       });
 
       const json = await res.json();
@@ -166,17 +189,14 @@ export default function PerfilFormEquipe({
   return (
     <div className="space-y-6">
 
-      {/* ======================= */}
-      {/* DADOS PESSOAIS */}
-      {/* ======================= */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">Dados pessoais</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <InputBlock label="Nome completo" field="nome_completo" form={form} handleChange={handleChange} readOnly={readOnly} />
-          <InputBlock label="Telefone" field="telefone" form={form} handleChange={handleChange} readOnly={readOnly} />
-          <InputBlock label="E-mail" type="email" field="email" form={form} handleChange={handleChange} readOnly={readOnly} />
-          <InputBlock label="CPF/CNPJ" field="cpf_cnpj" form={form} handleChange={handleChange} readOnly={readOnly} />
+          <InputBlock required label="Nome completo" field="nome_completo" form={form} handleChange={handleChange} readOnly={readOnly} />
+          <InputBlock required label="Telefone" field="telefone" form={form} handleChange={handleChange} readOnly={readOnly} />
+          <InputBlock required label="E-mail" type="email" field="email" form={form} handleChange={handleChange} readOnly={readOnly} />
+          <InputBlock required label="CPF/CNPJ" field="cpf_cnpj" form={form} handleChange={handleChange} readOnly={readOnly} />
           <InputBlock label="Data de nascimento" type="date" field="data_nascimento" form={form} handleChange={handleChange} readOnly={readOnly} />
 
           <div>
@@ -194,16 +214,12 @@ export default function PerfilFormEquipe({
         </div>
       </div>
 
-      {/* ======================= */}
-      {/* PROFISSIONAL */}
-      {/* ======================= */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">Profissional</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <InputBlock label="CRECI" field="creci" form={form} handleChange={handleChange} readOnly={readOnly} />
 
-          {/* SLUG EDITÁVEL */}
           <div>
             <Label>Slug</Label>
             <Input
@@ -245,9 +261,6 @@ export default function PerfilFormEquipe({
         </div>
       </div>
 
-      {/* ======================= */}
-      {/* DADOS BANCÁRIOS */}
-      {/* ======================= */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">Dados bancários</h2>
 
@@ -261,14 +274,11 @@ export default function PerfilFormEquipe({
         </div>
       </div>
 
-      {/* ======================= */}
-      {/* ENDEREÇO */}
-      {/* ======================= */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">Endereço</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <InputBlock label="CEP" field="endereco_cep" form={form} handleChange={handleChange} readOnly={readOnly} />
+          <InputBlock required label="CEP" field="endereco_cep" form={form} handleChange={handleChange} readOnly={readOnly} />
           <InputBlock label="Logradouro" field="endereco_logradouro" form={form} handleChange={handleChange} readOnly={readOnly} />
           <InputBlock label="Número" field="endereco_numero" form={form} handleChange={handleChange} readOnly={readOnly} />
           <InputBlock label="Bairro" field="endereco_bairro" form={form} handleChange={handleChange} readOnly={readOnly} />
@@ -277,9 +287,6 @@ export default function PerfilFormEquipe({
         </div>
       </div>
 
-      {/* ======================= */}
-      {/* REDES SOCIAIS */}
-      {/* ======================= */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">Redes sociais</h2>
 
@@ -290,9 +297,6 @@ export default function PerfilFormEquipe({
         </div>
       </div>
 
-      {/* ======================= */}
-      {/* AÇÕES */}
-      {/* ======================= */}
       {!readOnly && (
         <div className="flex justify-end">
           <Button onClick={handleSave} disabled={saving}>
@@ -308,13 +312,12 @@ export default function PerfilFormEquipe({
   );
 }
 
-/* ============================================================
-   COMPONENTE HELPER
-   ============================================================ */
-function InputBlock({ label, field, form, handleChange, readOnly, type = "text" }) {
+function InputBlock({ label, field, form, handleChange, readOnly, type = "text", required = false }) {
   return (
     <div>
-      <Label>{label}</Label>
+      <Label>
+        {label} {required && <span className="text-red-500">*</span>}
+      </Label>
       <Input
         type={type}
         value={form[field] || ""}
