@@ -1,19 +1,32 @@
+// ======================================================
+// TABLE — RESPONSIVA, SEM OVERFLOW E SEM REGEX DELETANDO CLASSES
+// ======================================================
+
 import { cn } from "@/lib/utils";
 
-const Table = ({ className, children, ...props }) => (
-  <div className="w-full overflow-auto rounded-2xl border border-border/60 shadow-md bg-panel-card/95 backdrop-blur-sm transition-all">
-    <table
+// WRAPPER (scroll horizontal seguro)
+const Table = ({ className, children, ...props }) => {
+  return (
+    <div
       className={cn(
-        "w-full caption-bottom text-sm text-left align-middle",
+        "w-full overflow-x-auto rounded-2xl border border-border/60 shadow-md bg-panel-card/95 backdrop-blur-sm transition-all",
         className
       )}
-      {...props}
     >
-      {children}
-    </table>
-  </div>
-);
+      <table
+        className={cn(
+          "w-full table-auto caption-bottom text-sm text-left align-middle",
+          "break-words", // quebra tudo no mobile
+        )}
+        {...props}
+      >
+        {children}
+      </table>
+    </div>
+  );
+};
 
+// HEADER
 const TableHeader = ({ className, children, ...props }) => (
   <thead
     className={cn(
@@ -27,6 +40,7 @@ const TableHeader = ({ className, children, ...props }) => (
   </thead>
 );
 
+// ROW
 const TableRow = ({ className, children, ...props }) => (
   <tr
     className={cn(
@@ -41,10 +55,11 @@ const TableRow = ({ className, children, ...props }) => (
   </tr>
 );
 
+// HEAD CELL
 const TableHead = ({ className, children, ...props }) => (
   <th
     className={cn(
-      "h-12 px-4 align-middle text-muted-foreground/80 font-semibold",
+      "h-12 px-4 align-middle text-muted-foreground/80 font-semibold break-words",
       "[&:has([role=checkbox])]:pr-0",
       className
     )}
@@ -54,12 +69,14 @@ const TableHead = ({ className, children, ...props }) => (
   </th>
 );
 
+// CELL — AGORA FLEX-FRIENDLY E RESPONSIVA
 const TableCell = ({ className, children, ...props }) => (
   <td
     className={cn(
-      "p-4 align-middle text-foreground/90",
+      "p-4 align-middle text-foreground/90 break-words",
       "group-hover:text-foreground transition-colors",
       "[&:has([role=checkbox])]:pr-0",
+      // sem regex — você controla o layout onde realmente importa
       className
     )}
     {...props}

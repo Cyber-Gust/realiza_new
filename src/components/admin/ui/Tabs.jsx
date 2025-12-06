@@ -23,13 +23,15 @@ function useTabs() {
 }
 
 // ======================================================
-// LIST
+// LIST — RESPONSIVO, ESTÁVEL E SEM VAZAMENTOS
 // ======================================================
 export function TabsList({ children, className }) {
   return (
     <div
       className={cn(
-        "inline-flex h-10 items-center justify-center",
+        // 🔥 flex-wrap é obrigatório, min-w-0 evita overflow interno,
+        // flex-shrink-0 evita que o container tente encolher errado
+        "flex flex-wrap items-center justify-start w-full min-w-0 gap-2",
         "rounded-xl bg-muted/60 p-1 border border-border shadow-sm backdrop-blur-sm",
         className
       )}
@@ -40,7 +42,7 @@ export function TabsList({ children, className }) {
 }
 
 // ======================================================
-// TRIGGER — Agora com borda arredondada + borda verde no ativo 💚
+// TRIGGER — ESTÁVEL, SEM SCALE, ESTILO PRESERVADO
 // ======================================================
 export function TabsTrigger({ value, children, className }) {
   const { value: active, onValueChange } = useTabs();
@@ -51,14 +53,15 @@ export function TabsTrigger({ value, children, className }) {
       onClick={() => onValueChange(value)}
       data-state={isActive ? "active" : "inactive"}
       className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap",
+        // ❗ whitespace-nowrap removido se quiser ainda mais responsivo
+        "inline-flex items-center justify-center whitespace-nowrap flex-shrink-0",
         "px-4 py-1.5 text-sm font-medium transition-all duration-200",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         "rounded-lg",
 
-        // ⭐ Botão ATIVO — com borda verde + fundo verde + sombra + radius maior
+        // 🔥 SEM SCALE — isso elimina o problema de “vai e volta”
         isActive
-          ? "bg-accent text-accent-foreground shadow-md scale-[1.02] border border-accent rounded-xl"
+          ? "bg-accent text-accent-foreground shadow-md border border-accent rounded-xl"
           : "text-muted-foreground hover:bg-muted/50 border border-transparent",
 
         className

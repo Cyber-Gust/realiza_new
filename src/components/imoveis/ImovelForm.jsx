@@ -175,7 +175,9 @@ const caracteristicasExtrasOptions = [
   "Varanda Gourmet",
   "Playground",
   "Academia",
+  "Deck",
   "Salão de Festas",
+  "Portaria",
   "Portaria 24h",
   "Segurança Interna",
   "Quadra Esportiva",
@@ -552,7 +554,7 @@ export default function ImovelForm({ data = {}, onChange }) {
     `.trim();
   }
 
-  const options1a10 = Array.from({ length: 10 }, (_, i) => i + 1);
+  const options1a10 = Array.from({ length: 10 }, (_, i) => i);
 
   /* ============================================================
      AQUI TERMINA A PRIMEIRA PARTE

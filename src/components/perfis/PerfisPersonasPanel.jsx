@@ -135,7 +135,7 @@ export default function PerfisPersonasPanel() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-200">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-200 overflow-x-hidden max-w-full">
 
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between gap-3 md:items-center">
@@ -218,9 +218,10 @@ export default function PerfisPersonasPanel() {
                 className="cursor-pointer hover:bg-muted/20 transition"
                 onClick={() => setOpenDrawer(p.id)}
               >
+                {/* USUÁRIO */}
                 <TableCell>
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-9 h-9">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="relative w-9 h-9 shrink-0">
                       <Image
                         src={getImageSrc(p.foto)}
                         alt={p.nome}
@@ -229,53 +230,59 @@ export default function PerfisPersonasPanel() {
                         sizes="36px"
                       />
                     </div>
-                    <span>{p.nome}</span>
+
+                    <span className="truncate">{p.nome}</span>
                   </div>
                 </TableCell>
 
-                <TableCell className="text-muted-foreground">
+                {/* EMAIL */}
+                <TableCell className="text-muted-foreground truncate max-w-[180px]">
                   {p.email || "-"}
                 </TableCell>
 
-                <TableCell>{p.telefone || "-"}</TableCell>
+                {/* TELEFONE */}
+                <TableCell className="truncate max-w-[130px]">
+                  {p.telefone || "-"}
+                </TableCell>
 
+                {/* TIPO */}
                 <TableCell>
                   <Badge status={p.tipo} />
                 </TableCell>
 
-                <TableCell className="text-right flex justify-end gap-2">
+                {/* AÇÕES */}
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditing(p);
+                        setOpenForm(true);
+                      }}
+                    >
+                      <Edit size={16} />
+                    </Button>
 
-                  {/* EDIT */}
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditing(p);
-                      setOpenForm(true);
-                    }}
-                  >
-                    <Edit size={16} />
-                  </Button>
-
-                  {/* DELETE */}
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteTarget(p);
-                    }}
-                  >
-                    <Trash2 size={16} className="text-red-600" />
-                  </Button>
-
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(p);
+                      }}
+                    >
+                      <Trash2 size={16} className="text-red-600" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
           </tbody>
         </Table>
       )}
+
 
       {/* FORM */}
       <Modal

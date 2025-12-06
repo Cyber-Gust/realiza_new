@@ -30,8 +30,8 @@ export default function PerfisPage() {
       </div>
 
       {/* 🔹 Abas */}
-      <Tabs value={tab} onValueChange={setTab} className="w-full">
-        <TabsList className="bg-muted p-1 flex gap-2">
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="bg-muted p-1">
 
           <TabsTrigger value="equipe">
             Equipe
