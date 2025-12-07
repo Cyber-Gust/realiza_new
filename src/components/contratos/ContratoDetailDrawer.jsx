@@ -21,18 +21,11 @@ import {
   AlertTriangle,
   PlusCircle,
   Download,
+  ClipboardList,
 } from "lucide-react";
 
-export default function ContratoDetailDrawer({
-  contratoId,
-  onClose,
-  onUpdated,
-
-  // novos callbacks (opcionais / preparados)
-  onGenerateMinuta,
-  onSendToSign,
-  onAdicionarAditivo,
-}) {
+export default function ContratoDetailDrawer({ contratoId, onClose }) {
+  const toast = useToast();
   const [contrato, setContrato] = useState(null);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -41,10 +34,9 @@ export default function ContratoDetailDrawer({
   const [openConfirmRenew, setOpenConfirmRenew] = useState(false);
 
   const [mounted, setMounted] = useState(false);
-  const toast = useToast();
 
   /* ============================================================
-     LOAD
+     LOAD CONTRATO
   ============================================================ */
   const fetchContrato = useCallback(async () => {
     try {
@@ -54,16 +46,13 @@ export default function ContratoDetailDrawer({
       if (!res.ok) throw new Error(json.error);
       setContrato(json.data);
     } catch (err) {
-      toast.error("Erro ao carregar contrato", err.message);
+      toast.error("Erro ao carregar contrato: " + err.message);
     } finally {
       setLoading(false);
     }
   }, [contratoId, toast]);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
+  useEffect(() => setMounted(true), []);
   useEffect(() => {
     if (contratoId) fetchContrato();
   }, [contratoId, fetchContrato]);
@@ -74,45 +63,80 @@ export default function ContratoDetailDrawer({
   if (!root) return null;
 
   /* ============================================================
-     AÇÕES
+     SIGNED URL HANDLER
   ============================================================ */
-  const patchContrato = async (payload) => {
+  const getSignedUrl = async (path) => {
+    try {
+      const res = await fetch("/api/contratos/signed-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path }),
+      });
+      const json = await res.json();
+
+      if (!res.ok) throw new Error(json.error);
+      return json.signedUrl;
+    } catch (err) {
+      toast.error("Erro ao gerar link de download: " + err.message);
+    }
+  };
+
+  const downloadFile = async (path) => {
+    const url = await getSignedUrl(path);
+    if (url) window.open(url, "_blank");
+  };
+
+  /* ============================================================
+     ACTION HANDLER (rota única)
+  ============================================================ */
+  const executeAction = async (action, extra = {}) => {
     try {
       setActionLoading(true);
-      const res = await fetch("/api/contratos", {
-        method: "PATCH",
+
+      const res = await fetch("/api/contratos/actions", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          action,
+          contrato_id: contrato.id,
+          ...extra,
+        }),
       });
 
       const json = await res.json();
+
       if (!res.ok) throw new Error(json.error);
 
-      onUpdated?.();
+      toast.success(json.message || "Ação executada!");
+
+      await fetchContrato(); // atualiza paths novos
       return json;
     } catch (err) {
-      toast.error("Erro ao atualizar contrato", err.message);
-      throw err;
+      toast.error(err.message);
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleEncerrar = () =>
-    patchContrato({ id: contrato.id, status: "encerrado" }).then(() => {
-      toast.success("Contrato encerrado!");
-      onClose?.();
-    });
+  /* ============================================================
+     AÇÕES ESPECÍFICAS
+  ============================================================ */
+  const handleGenerateMinuta = async () => {
+    const res = await executeAction("gerar_minuta");
+    if (res?.url) {
+      toast.success("Minuta gerada!");
+    }
+  };
+
+  const handleSendToSign = () => executeAction("enviar_assinatura");
+  const handleCreateAditivo = () => executeAction("criar_aditivo", { variaveis: {} });
+  const handleReajustar = () => executeAction("reajustar");
 
   const handleRenovar = () =>
-    patchContrato({
-      id: contrato.id,
-      status: "renovado",
-      data_inicio: new Date().toISOString().split("T")[0],
-    }).then(() => {
-      toast.success("Contrato renovado!");
-      onClose?.();
-    });
+    executeAction("renovar").then(() => onClose?.());
+
+  const handleEncerrar = () =>
+    executeAction("encerrar").then(() => onClose?.());
 
   /* ============================================================
      RENDER
@@ -129,11 +153,10 @@ export default function ContratoDetailDrawer({
           </Button>
         </div>
 
-        {/* LOADING */}
         {loading ? (
           <div className="flex items-center justify-center h-72 flex-col text-muted-foreground">
             <Loader2 className="animate-spin" size={22} />
-            Carregando dados…
+            Carregando…
           </div>
         ) : !contrato ? (
           <div className="p-6 text-center text-muted-foreground">
@@ -146,17 +169,17 @@ export default function ContratoDetailDrawer({
             <Card className="p-4 flex flex-col gap-1">
               <div className="flex items-center gap-2 font-semibold text-base">
                 <Home size={16} />
-                {contrato.imoveis?.titulo || "Imóvel"}
+                {contrato.imoveis?.titulo || "Imóvel sem título"}
               </div>
               <p className="text-muted-foreground text-xs">
-                {contrato.imoveis?.endereco_bairro || "Bairro não informado"}
+                {contrato.imoveis?.endereco_bairro || "—"}
               </p>
             </Card>
 
             {/* INFO GERAL */}
             <Card className="p-4 grid grid-cols-2 gap-4">
               <Field label="Tipo" value={contrato.tipo} />
-              <Field label="Status" value={contrato.status} />
+              <Field label="Status" value={contrato.status.replace("_", " ")} />
 
               <Field
                 label="Valor"
@@ -165,10 +188,7 @@ export default function ContratoDetailDrawer({
               />
 
               {contrato.taxa_administracao_percent && (
-                <Field
-                  label="Taxa Adm"
-                  value={`${contrato.taxa_administracao_percent}%`}
-                />
+                <Field label="Taxa Adm" value={`${contrato.taxa_administracao_percent}%`} />
               )}
 
               <Field label="Índice" value={contrato.indice_reajuste} />
@@ -178,7 +198,6 @@ export default function ContratoDetailDrawer({
             {/* VIGÊNCIA */}
             <Card className="p-4 space-y-1">
               <p className="text-xs text-muted-foreground">Vigência</p>
-
               <p className="flex items-center gap-2">
                 <Calendar size={14} />
                 {contrato.data_inicio} → {contrato.data_fim}
@@ -189,44 +208,41 @@ export default function ContratoDetailDrawer({
             <Card className="p-4 space-y-3">
               <p className="font-semibold">Participantes</p>
 
-              <Field
-                label="Proprietário"
-                value={contrato.proprietario?.nome_completo}
-                icon={<User size={14} />}
-              />
-
-              <Field
-                label="Inquilino"
-                value={contrato.inquilino?.nome_completo}
-                icon={<User size={14} />}
-              />
+              <Field label="Proprietário" value={contrato.proprietario?.nome} icon={<User size={14} />} />
+              <Field label="Inquilino" value={contrato.inquilino?.nome} icon={<User size={14} />} />
             </Card>
 
             {/* DOCUMENTOS */}
             <Card className="p-4 space-y-3">
               <p className="font-semibold text-sm">Documentos</p>
 
+              {/* Gerar minuta */}
               <Button
                 variant="secondary"
                 className="w-full flex items-center justify-center gap-2"
-                onClick={() => onGenerateMinuta?.(contrato)}
+                onClick={handleGenerateMinuta}
               >
                 <FileText size={15} /> Gerar Minuta
               </Button>
 
-              {contrato.documento_minuta_url && (
-                <Button asChild className="w-full flex items-center gap-2">
-                  <a href={contrato.documento_minuta_url} target="_blank">
-                    <Download size={15} /> Baixar Minuta
-                  </a>
+              {/* MINUTA */}
+              {contrato.documento_minuta_path && (
+                <Button
+                  className="w-full flex items-center gap-2"
+                  onClick={() => downloadFile(contrato.documento_minuta_path)}
+                >
+                  <Download size={15} /> Baixar Minuta
                 </Button>
               )}
 
-              {contrato.documento_assinado_url && (
-                <Button asChild className="w-full flex items-center gap-2" variant="secondary">
-                  <a href={contrato.documento_assinado_url} target="_blank">
-                    <Download size={15} /> Contrato Assinado
-                  </a>
+              {/* CONTRATO ASSINADO */}
+              {contrato.documento_assinado_path && (
+                <Button
+                  variant="secondary"
+                  className="w-full flex items-center gap-2"
+                  onClick={() => downloadFile(contrato.documento_assinado_path)}
+                >
+                  <Download size={15} /> Contrato Assinado
                 </Button>
               )}
             </Card>
@@ -236,16 +252,24 @@ export default function ContratoDetailDrawer({
 
               <Button
                 className="w-full flex items-center justify-center gap-2"
-                onClick={() => onSendToSign?.(contrato)}
+                onClick={handleSendToSign}
               >
                 <FileText size={15} /> Enviar para Assinatura
               </Button>
 
               <Button
                 className="w-full flex items-center gap-2 justify-center"
-                onClick={() => onAdicionarAditivo?.(contrato)}
+                onClick={handleCreateAditivo}
               >
                 <PlusCircle size={15} /> Criar Aditivo
+              </Button>
+
+              <Button
+                className="w-full flex items-center gap-2 justify-center"
+                variant="secondary"
+                onClick={handleReajustar}
+              >
+                <ClipboardList size={15} /> Reajustar Aluguel
               </Button>
 
               <Button
@@ -262,17 +286,12 @@ export default function ContratoDetailDrawer({
               >
                 <Lock size={15} /> Encerrar Contrato
               </Button>
-
             </div>
           </div>
         )}
 
-        {/* MODAIS */}
-        <Modal
-          isOpen={openConfirmEnd}
-          onClose={() => setOpenConfirmEnd(false)}
-          title="Encerrar Contrato"
-        >
+        {/* MODAL ENCERRAR */}
+        <Modal isOpen={openConfirmEnd} onClose={() => setOpenConfirmEnd(false)} title="Encerrar Contrato">
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <AlertTriangle className="text-red-600 mt-1" />
@@ -280,16 +299,11 @@ export default function ContratoDetailDrawer({
             </div>
 
             <div className="flex gap-2 justify-end">
-              <Button variant="secondary" onClick={() => setOpenConfirmEnd(false)}>
-                Cancelar
-              </Button>
+              <Button variant="secondary" onClick={() => setOpenConfirmEnd(false)}>Cancelar</Button>
 
               <Button
                 className="bg-red-600 hover:bg-red-700"
-                onClick={async () => {
-                  await handleEncerrar();
-                  setOpenConfirmEnd(false);
-                }}
+                onClick={handleEncerrar}
                 disabled={actionLoading}
               >
                 {actionLoading ? <Loader2 className="animate-spin" size={16} /> : "Encerrar"}
@@ -298,31 +312,23 @@ export default function ContratoDetailDrawer({
           </div>
         </Modal>
 
-        <Modal
-          isOpen={openConfirmRenew}
-          onClose={() => setOpenConfirmRenew(false)}
-          title="Renovar Contrato"
-        >
+        {/* MODAL RENOVAR */}
+        <Modal isOpen={openConfirmRenew} onClose={() => setOpenConfirmRenew(false)} title="Renovar Contrato">
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <RefreshCcw className="text-emerald-600 mt-1" />
               <p>
-                Confirmar renovação? Novo início:{" "}
-                <strong>{new Date().toLocaleDateString("pt-BR")}</strong>.
+                Deseja renovar este contrato?  
+                Novo início: <strong>{new Date().toLocaleDateString("pt-BR")}</strong>.
               </p>
             </div>
 
             <div className="flex gap-2 justify-end">
-              <Button variant="secondary" onClick={() => setOpenConfirmRenew(false)}>
-                Cancelar
-              </Button>
+              <Button variant="secondary" onClick={() => setOpenConfirmRenew(false)}>Cancelar</Button>
 
               <Button
                 className="bg-emerald-600 hover:bg-emerald-700"
-                onClick={async () => {
-                  await handleRenovar();
-                  setOpenConfirmRenew(false);
-                }}
+                onClick={handleRenovar}
                 disabled={actionLoading}
               >
                 {actionLoading ? <Loader2 className="animate-spin" size={16} /> : "Renovar"}
@@ -337,13 +343,14 @@ export default function ContratoDetailDrawer({
   );
 }
 
+/* FIELD COMPONENT */
 function Field({ label, value, icon }) {
   return (
     <div className="flex flex-col gap-0.5">
       <p className="text-xs text-muted-foreground flex items-center gap-1">
         {icon} {label}
       </p>
-      <p className="font-medium">{value || "-"} </p>
+      <p className="font-medium">{value || "—"}</p>
     </div>
   );
 }

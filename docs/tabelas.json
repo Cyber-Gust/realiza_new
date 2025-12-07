@@ -7,16 +7,8 @@
     "disponibilidade_tipo": ["venda", "locacao", "ambos"],
     "lead_status": ["novo", "qualificado", "visita_agendada", "proposta_feita", "documentacao", "concluido", "perdido"],
     "contrato_tipo": ["locacao", "venda", "administracao"],
-    "contrato_status": ["ativo", "encerrado", "cancelado", "renovado", "rescindido"],
-    "transacao_tipo": [
-      "receita_aluguel",
-      "taxa_adm_imobiliaria",
-      "repasse_proprietario",
-      "comissao_corretor",
-      "despesa_manutencao",
-      "pagamento_iptu",
-      "pagamento_condominio"
-    ],
+    "contrato_status": ["em_elaboracao","aguardando_assinatura","assinado","vigente","reajuste_pendente","renovacao_pendente","encerrado","rescindido","cancelado"],
+    "transacao_tipo": ["receita_aluguel","taxa_adm_imobiliaria","repasse_proprietario","comissao_corretor","despesa_manutencao","pagamento_iptu","pagamento_condominio"],
     "transacao_status": ["pendente", "pago", "atrasado", "cancelado"],
     "os_status": ["aberta", "orcamento", "aprovada_pelo_inquilino", "aprovada_pelo_proprietario", "em_execucao", "concluida", "cancelada"]
   },
@@ -76,15 +68,59 @@
     { "name": "imovel_id", "type": "uuid", "nullable": false, "constraint": "FOREIGN KEY", "foreign_table": "imoveis", "foreign_column": "id" },
     { "name": "proprietario_id", "type": "uuid", "nullable": false, "constraint": "FOREIGN KEY", "foreign_table": "personas", "foreign_column": "id" },
     { "name": "inquilino_id", "type": "uuid", "nullable": false, "constraint": "FOREIGN KEY", "foreign_table": "personas", "foreign_column": "id" },
-    { "name": "tipo", "type": "contrato_tipo", "nullable": false },
+    { "name": "tipo", "type": "text", "nullable": false },
     { "name": "data_inicio", "type": "date", "nullable": false },
     { "name": "data_fim", "type": "date", "nullable": false },
     { "name": "valor_acordado", "type": "numeric", "nullable": false },
     { "name": "taxa_administracao_percent", "type": "numeric", "nullable": true },
     { "name": "dia_vencimento_aluguel", "type": "int4", "nullable": true },
     { "name": "indice_reajuste", "type": "text", "nullable": true },
-    { "name": "status", "type": "text", "nullable": false, "default": "'ativo'::text" },
+    { "name": "status", "type": "text", "nullable": false, "default": "'em_elaboracao'::text" },
+    { "name": "template_id", "type": "uuid", "nullable": true, "constraint": "FOREIGN KEY", "foreign_table": "contrato_templates", "foreign_column": "id" },
+    { "name": "variaveis_json", "type": "jsonb", "nullable": true },
+    { "name": "documento_minuta_url", "type": "text", "nullable": true },
     { "name": "documento_assinado_url", "type": "text", "nullable": true },
+    { "name": "assinatura_id", "type": "text", "nullable": true },
+    { "name": "assinatura_status", "type": "text", "nullable": true, "default": "'pendente'::text" },
+    { "name": "assinatura_url", "type": "text", "nullable": true },
+    { "name": "assinatura_enviado_em", "type": "timestamptz", "nullable": true },
+    { "name": "assinatura_concluida_em", "type": "timestamptz", "nullable": true },
+    { "name": "ultimo_reajuste_em", "type": "date", "nullable": true },
+    { "name": "valor_reajustado", "type": "numeric", "nullable": true },
+    { "name": "renovado_em", "type": "date", "nullable": true },
+    { "name": "renovacao_documento_url", "type": "text", "nullable": true },
+    { "name": "rescisao_solicitada_em", "type": "date", "nullable": true },
+    { "name": "rescisao_efetivada_em", "type": "date", "nullable": true },
+    { "name": "rescisao_motivo", "type": "text", "nullable": true },
+    { "name": "rescisao_documento_url", "type": "text", "nullable": true },
+    { "name": "created_at", "type": "timestamptz", "nullable": true, "default": "now()" },
+    { "name": "updated_at", "type": "timestamptz", "nullable": true }
+  ]
+}
+
+{
+  "table_schema": "public",
+  "table_name": "contrato_templates",
+  "row_security": true,
+  "columns": [
+    { "name": "id", "type": "uuid", "nullable": false, "default": "uuid_generate_v4()", "constraint": "PRIMARY KEY" },
+    { "name": "nome", "type": "text", "nullable": false },
+    { "name": "tipo", "type": "text", "nullable": false },
+    { "name": "conteudo", "type": "text", "nullable": false },
+    { "name": "created_at", "type": "timestamptz", "nullable": true, "default": "now()" }
+  ]
+}
+
+{
+  "table_schema": "public",
+  "table_name": "contrato_aditivos",
+  "row_security": true,
+  "columns": [
+    { "name": "id", "type": "uuid", "nullable": false, "default": "uuid_generate_v4()", "constraint": "PRIMARY KEY" },
+    { "name": "contrato_id", "type": "uuid", "nullable": false, "constraint": "FOREIGN KEY", "foreign_table": "contratos", "foreign_column": "id" },
+    { "name": "tipo", "type": "text", "nullable": false },
+    { "name": "documento_url", "type": "text", "nullable": true },
+    { "name": "variaveis_json", "type": "jsonb", "nullable": true },
     { "name": "created_at", "type": "timestamptz", "nullable": true, "default": "now()" }
   ]
 }
