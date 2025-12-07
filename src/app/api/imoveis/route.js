@@ -31,23 +31,48 @@ async function handleGET(req, supabase) {
   }
 
   // LISTAR IMÓVEIS
-  const id = searchParams.get("id");
-  const tipo = searchParams.get("tipo");
-  const status = searchParams.get("status");
-  const cidade = searchParams.get("cidade");
-  const preco_min = searchParams.get("preco_min");
-  const preco_max = searchParams.get("preco_max");
-  const disponibilidade = searchParams.get("disponibilidade");
+  function sanitize(value) {
+    if (!value) return null;
+    if (value === "undefined") return null;
+    if (value === "null") return null;
+    if (value === "false") return null;
+    return value;
+  }
+
+  const id = sanitize(searchParams.get("id"));
+  const tipo = sanitize(searchParams.get("tipo"));
+  const status = sanitize(searchParams.get("status"));
+  const cidade = sanitize(searchParams.get("cidade"));
+  const preco_min = sanitize(searchParams.get("preco_min"));
+  const preco_max = sanitize(searchParams.get("preco_max"));
+  const disponibilidade = sanitize(searchParams.get("disponibilidade"));
+
+  const bairro = sanitize(searchParams.get("bairro"));
+  const rua = sanitize(searchParams.get("rua"));
+  const cep = sanitize(searchParams.get("cep"));
+
+  const corretor_id = sanitize(searchParams.get("corretor_id"));
+  const proprietario_id = sanitize(searchParams.get("proprietario_id"));
 
   let query = supabase.from("imoveis").select("*", { count: "exact" });
 
   if (id) query = query.eq("id", id);
-  if (tipo && tipo !== "all") query = query.eq("tipo", tipo);
 
-  const normalizedStatus = !status || status === "" ? "all" : status;
-  if (normalizedStatus !== "all") query = query.eq("status", normalizedStatus);
+  if (tipo) query = query.eq("tipo", tipo);
+
+  const normalizedStatus = !status ? null : status;
+  if (normalizedStatus && normalizedStatus !== "all") {
+    query = query.eq("status", normalizedStatus);
+  }
 
   if (cidade) query = query.ilike("endereco_cidade", `%${cidade}%`);
+  if (bairro) query = query.ilike("endereco_bairro", `%${bairro}%`);
+  if (rua) query = query.ilike("endereco_rua", `%${rua}%`);
+  if (cep) query = query.eq("endereco_cep", cep);
+
+  if (corretor_id) query = query.eq("corretor_id", Number(corretor_id));
+  if (proprietario_id) query = query.eq("proprietario_id", Number(proprietario_id));
+
   if (preco_min) query = query.gte("preco_venda", Number(preco_min));
   if (preco_max) query = query.lte("preco_venda", Number(preco_max));
 

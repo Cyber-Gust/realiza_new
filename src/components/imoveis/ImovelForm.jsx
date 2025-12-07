@@ -143,12 +143,23 @@ const categoriaOptions = [
 ];
 
 /* ============================================================
-   CARACTERÍSTICAS EXTRAS — COMPLETÍSSIMA E SEM REDUNDÂNCIAS
+   CARACTERÍSTICAS — SEPARADAS EM: UNIDADE vs CONDOMÍNIO
 ============================================================ */
-const caracteristicasExtrasOptions = [
-  // ▶ Internas (não existentes no form principal)
+export const caracteristicasUnidade = [
   "Ar Condicionado",
   "Aquecimento Solar",
+  "Acabamento em Porcelanato",
+  "Acabamento em Laminado",
+  "Box",
+  "Iluminação em LED",
+  "Jardim de Inverno",
+  "Cerca Elétrica",
+  "Canil",
+  "Closet",
+  "Telhado Colonial",
+  "Poço Semi Artesiano",
+  "Piscina Aquecida",
+  "Móveis Planejados",
   "Energia Fotovoltaica",
   "Lareira",
   "Iluminação Planejada",
@@ -162,36 +173,36 @@ const caracteristicasExtrasOptions = [
   "Circuito de Segurança",
   "Sistema de Alarme",
   "CFTV",
-  "Esquadria Premium",
   "Teto Rebaixado em Gesso",
-  "Som Ambiente",
   "Depósito Privativo",
   "Despensa",
+  "Sala de TV",
+  "Salade Jantar",
   "Banheira / Hidromassagem",
   "Aquecedor a Gás",
-
-  // ▶ Condomínio / áreas comuns
   "Churrasqueira",
   "Varanda Gourmet",
+  "Deck",
+  "Jardim",
+  "Spa",
+  "Mirante",
+];
+
+export const caracteristicasCondominio = [
   "Playground",
   "Academia",
-  "Deck",
   "Salão de Festas",
   "Portaria",
   "Portaria 24h",
   "Segurança Interna",
   "Quadra Esportiva",
   "Brinquedoteca",
-  "Jardim",
   "Piscina Coletiva",
   "Sauna",
   "Sala de Jogos",
   "Coworking",
   "Espaço Pet",
   "Bicicletário",
-  "Espaço Zen",
-  "Spa",
-  "Mirante",
   "Lavanderia Coletiva",
   "Espaço Cinema",
   "Horta Comunitária",
@@ -199,6 +210,7 @@ const caracteristicasExtrasOptions = [
   "Gerador de Energia",
   "Vagas para Visitantes",
 ];
+
 
 /* ============================================================
    OUTRAS CONFIGS
@@ -977,32 +989,6 @@ export default function ImovelForm({ data = {}, onChange }) {
                   </Select>
                 </div>
 
-                <div>
-                  <Label>Sala de Jantar</Label>
-                  <Select
-                    value={form.caracteristicas_fisicas?.sala_jantar ?? ""}
-                    onChange={(e) =>
-                      handleChangeCaracteristicaFisica("sala_jantar", e.target.value)
-                    }
-                  >
-                    <option value="" hidden>Selecione...</option>
-                    {options1a10.map((n) => (<option key={n} value={n}>{n}</option>))}
-                  </Select>
-                </div>
-
-                <div>
-                  <Label>Sala de TV</Label>
-                  <Select
-                    value={form.caracteristicas_fisicas?.sala_tv ?? ""}
-                    onChange={(e) =>
-                      handleChangeCaracteristicaFisica("sala_tv", e.target.value)
-                    }
-                  >
-                    <option value="" hidden>Selecione...</option>
-                    {options1a10.map((n) => (<option key={n} value={n}>{n}</option>))}
-                  </Select>
-                </div>
-
                 {/* QUARTOS / SUÍTES / CLOSET */}
                 <div>
                   <Label>Closet(s)</Label>
@@ -1183,40 +1169,87 @@ export default function ImovelForm({ data = {}, onChange }) {
               <details className="group border rounded-2xl p-4">
                 <summary className="font-medium flex items-center justify-between cursor-pointer">
                   <span>Selecionar características</span>
-                  <svg className="w-5 h-5 transition-transform group-open:rotate-180" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+                  <svg className="w-5 h-5 transition-transform group-open:rotate-180" viewBox="0 0 24 24">
+                    <path d="M19 9l-7 7-7-7" />
+                  </svg>
                 </summary>
 
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {caracteristicasExtrasOptions.map((item) => {
-                    const checked =
-                      Array.isArray(form.caracteristicas_extras) &&
-                      form.caracteristicas_extras.includes(item);
+                <div className="mt-4 space-y-6">
+                  {/* BLOCO: CARACTERÍSTICAS DO IMÓVEL */}
+                  <div>
+                    <h4 className="font-semibold text-sm mb-2">Características do Imóvel</h4>
 
-                    return (
-                      <label key={item} className="flex items-center gap-3 cursor-pointer p-3 rounded-xl">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => handleChangeCheckboxExtra(item, e.target.checked)}
-                          className="
-                            peer h-5 w-5 cursor-pointer appearance-none rounded
-                            border border-gray-400 transition-all
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {caracteristicasUnidade.map((item) => {
+                        const checked =
+                          Array.isArray(form.caracteristicas_extras) &&
+                          form.caracteristicas_extras.includes(item);
 
-                            checked:bg-accent               /* usa sua variável de cor */
-                            checked:border-accent
-                            checked:before:block
-                            checked:before:content-['✔']    /* check branco */
-                            checked:before:text-white
-                            checked:before:text-sm
-                            checked:before:flex checked:before:items-center checked:before:justify-center
+                        return (
+                          <label
+                            key={item}
+                            className="flex items-center gap-3 cursor-pointer p-3 rounded-xl"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) =>
+                                handleChangeCheckboxExtra(item, e.target.checked)
+                              }
+                              className="
+                                peer h-5 w-5 cursor-pointer appearance-none rounded
+                                border border-gray-400 transition-all
+                                checked:bg-accent checked:border-accent
+                                checked:before:block checked:before:content-['✔']
+                                checked:before:text-white checked:before:text-sm
+                                checked:before:flex checked:before:items-center checked:before:justify-center
+                                hover:border-accent
+                              "
+                            />
+                            <span>{item}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-                            hover:border-accent
-                          "
-                        />
-                        <span>{item}</span>
-                      </label>
-                    );
-                  })}
+                  {/* BLOCO: CARACTERÍSTICAS DO CONDOMÍNIO */}
+                  <div>
+                    <h4 className="font-semibold text-sm mb-2">Características do Condomínio</h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {caracteristicasCondominio.map((item) => {
+                        const checked =
+                          Array.isArray(form.caracteristicas_extras) &&
+                          form.caracteristicas_extras.includes(item);
+
+                        return (
+                          <label
+                            key={item}
+                            className="flex items-center gap-3 cursor-pointer p-3 rounded-xl"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) =>
+                                handleChangeCheckboxExtra(item, e.target.checked)
+                              }
+                              className="
+                                peer h-5 w-5 cursor-pointer appearance-none rounded
+                                border border-gray-400 transition-all
+                                checked:bg-accent checked:border-accent
+                                checked:before:block checked:before:content-['✔']
+                                checked:before:text-white checked:before:text-sm
+                                checked:before:flex checked:before:items-center checked:before:justify-center
+                                hover:border-accent
+                              "
+                            />
+                            <span>{item}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </details>
             </div>

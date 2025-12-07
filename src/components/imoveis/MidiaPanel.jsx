@@ -18,6 +18,46 @@ import Image from "next/image";
 import { Loader2, Trash2, Upload, AlertTriangle } from "lucide-react";
 import { Input, Label } from "../admin/ui/Form";
 
+/* ------------------------- DND KIT ------------------------- */
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors
+} from "@dnd-kit/core";
+
+import {
+  SortableContext,
+  useSortable,
+  arrayMove,
+  rectSortingStrategy
+} from "@dnd-kit/sortable";
+
+import { CSS } from "@dnd-kit/utilities";
+
+/* ------------------------------------------------------------
+   COMPONENTE SORTABLE ITEM
+------------------------------------------------------------ */
+function SortableItem({ f, children }) {
+  const { attributes, listeners, setNodeRef, transform, transition } =
+    useSortable({ id: f.url });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      {children}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------
+   COMPONENTE PRINCIPAL
+------------------------------------------------------------ */
 export default function MidiaPanel({ imovel }) {
   const toast = useToast();
 
@@ -28,10 +68,6 @@ export default function MidiaPanel({ imovel }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  /* ----------------------------------------------------------
-     ⭐ ESTADO LOCAL PARA IMAGEM PRINCIPAL   <<<<<<<<<<<<
-     (Não depende mais do pai para atualizar a UI)
-  ---------------------------------------------------------- */
   const [principal, setPrincipalState] = useState(imovel.imagem_principal);
 
   useEffect(() => {
@@ -75,13 +111,14 @@ export default function MidiaPanel({ imovel }) {
     if (imovel?.id) refresh();
   }, [imovel?.id, refresh]);
 
+
   /* ============================================================
-     ⭐ TROCAR PRINCIPAL — COM UPDATE IMEDIATO
+     ⭐ TROCAR PRINCIPAL
   ============================================================ */
   const setPrincipal = async (url) => {
     try {
       const novaPrincipal = url;
-      setPrincipalState(novaPrincipal); // <-- atualiza badge e botão na hora
+      setPrincipalState(novaPrincipal);
 
       const outras = files
         .map((f) => f.url)
@@ -119,8 +156,9 @@ export default function MidiaPanel({ imovel }) {
     }
   };
 
+
   /* ============================================================
-     🔼 UPLOAD MÚLTIPLO
+     🔼 UPLOAD
   ============================================================ */
   const handleUpload = async (e) => {
     const selected = Array.from(e.target.files || []);
@@ -159,14 +197,14 @@ export default function MidiaPanel({ imovel }) {
       const urls = uploaded.map((u) => u.url);
       const newPrincipal = principal || urls[0];
 
-      setPrincipalState(newPrincipal); // <-- atualiza imediatamente
+      setPrincipalState(newPrincipal);
 
       const newMidias = [
         ...files.map((f) => f.url).filter((u) => u !== newPrincipal),
         ...urls.filter((u) => u !== newPrincipal)
       ];
 
-      const updateRes = await fetch(`/api/imoveis`, {
+      await fetch(`/api/imoveis`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -175,11 +213,6 @@ export default function MidiaPanel({ imovel }) {
           midias: newMidias.map((u) => ({ url: u }))
         })
       });
-
-      if (!updateRes.ok) {
-        const json = await updateRes.json();
-        throw new Error(json.error);
-      }
 
       setFiles((prev) => {
         const merged = [...uploaded, ...prev];
@@ -204,8 +237,47 @@ export default function MidiaPanel({ imovel }) {
     }
   };
 
+
   /* ============================================================
-     🗑 REMOVER MÍDIA
+     🖐️ DRAG & DROP — ORDENAR IMAGENS
+  ============================================================ */
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  const handleDragEnd = async ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = files.findIndex((f) => f.url === active.id);
+    const newIndex = files.findIndex((f) => f.url === over.id);
+
+    const newOrder = arrayMove(files, oldIndex, newIndex);
+    setFiles(newOrder);
+
+    try {
+      const midias = newOrder
+        .filter((f) => f.url !== principal)
+        .map((f) => ({ url: f.url }));
+
+      await fetch("/api/imoveis", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: imovel.id,
+          imagem_principal: principal,
+          midias
+        })
+      });
+
+      toast.success("Ordem atualizada!");
+    } catch (err) {
+      toast.error("Erro ao salvar nova ordem.");
+    }
+  };
+
+
+  /* ============================================================
+     🗑 REMOVER
   ============================================================ */
   const confirmDelete = async () => {
     if (!deleteTarget) return;
@@ -220,7 +292,7 @@ export default function MidiaPanel({ imovel }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: file.name,
-          prefix: prefix
+          prefix
         })
       });
 
@@ -235,9 +307,9 @@ export default function MidiaPanel({ imovel }) {
         newMidias = newMidias.slice(1);
       }
 
-      setPrincipalState(newPrincipal); // <-- atualização instantânea
+      setPrincipalState(newPrincipal);
 
-      const up = await fetch(`/api/imoveis`, {
+      await fetch(`/api/imoveis`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -247,19 +319,9 @@ export default function MidiaPanel({ imovel }) {
         })
       });
 
-      const upJson = await up.json();
-      if (!up.ok) throw new Error(upJson.error);
-
-      setFiles((prev) => {
-        const filtered = prev.filter((f) => f.url !== file.url);
-
-        if (!newPrincipal) return filtered;
-
-        return [
-          ...filtered.filter((f) => f.url === newPrincipal),
-          ...filtered.filter((f) => f.url !== newPrincipal)
-        ];
-      });
+      setFiles((prev) =>
+        prev.filter((f) => f.url !== file.url)
+      );
 
       imovel.onChange?.({
         ...imovel,
@@ -276,9 +338,11 @@ export default function MidiaPanel({ imovel }) {
     }
   };
 
+
   const Shimmer = () => (
     <div className="w-full h-40 bg-muted/50 animate-pulse rounded-lg" />
   );
+
 
   /* ============================================================
      🔽 RENDER
@@ -291,6 +355,7 @@ export default function MidiaPanel({ imovel }) {
         </CardHeader>
 
         <CardContent className="space-y-4">
+
           {/* HEADER */}
           <div className="flex items-center justify-between">
             <div className="text-sm text-muted-foreground">
@@ -326,7 +391,7 @@ export default function MidiaPanel({ imovel }) {
             </Label>
           </div>
 
-          {/* MEDIA GRID */}
+          {/* MEDIA GRID + DND CONTEXT */}
           {loading ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -334,62 +399,65 @@ export default function MidiaPanel({ imovel }) {
               ))}
             </div>
           ) : files.length ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {files.map((f) => (
-                <figure
-                  key={f.url}
-                  className="group rounded-xl overflow-hidden border border-border bg-panel-card relative"
-                >
-                  <div className="relative w-full h-40">
-                    <Image
-                      src={f.url}
-                      alt={f.name}
-                      fill
-                      className="object-cover transition-transform group-hover:scale-105"
-                      sizes="(max-width: 768px) 100vw, 25vw"
-                    />
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={files.map((f) => f.url)} strategy={rectSortingStrategy}>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {files.map((f) => (
+                    <SortableItem key={f.url} f={f}>
+                      <figure className="group rounded-xl overflow-hidden border border-border bg-panel-card relative cursor-move">
+                        <div className="relative w-full h-40">
+                          <Image
+                            src={f.url}
+                            alt={f.name}
+                            fill
+                            className="object-cover transition-transform group-hover:scale-105"
+                            sizes="(max-width: 768px) 100vw, 25vw"
+                          />
 
-                    {isPrincipal(f) && (
-                      <span className="absolute top-2 left-2 inline-flex items-center justify-center
-                                       rounded-full px-2.5 py-0.5
-                                       text-xs font-semibold whitespace-nowrap capitalize
-                                       border shadow-sm transition-all duration-200
-                                       bg-emerald-200 text-emerald-800 border-emerald-300">
-                        Principal
-                      </span>
-                    )}
-                  </div>
+                          {isPrincipal(f) && (
+                            <span className="absolute top-2 left-2 inline-flex items-center justify-center
+                              rounded-full px-2.5 py-0.5
+                              text-xs font-semibold whitespace-nowrap capitalize
+                              border shadow-sm transition-all duration-200
+                              bg-emerald-200 text-emerald-800 border-emerald-300">
+                              Principal
+                            </span>
+                          )}
+                        </div>
 
-                  <figcaption className="flex items-center justify-between p-2 text-xs gap-2">
-                    <span className="truncate max-w-[45%]" title={f.name}>
-                      {f.name}
-                    </span>
+                        <figcaption className="flex items-center justify-between p-2 text-xs gap-2">
+                          <span className="truncate max-w-[45%]" title={f.name}>
+                            {f.name}
+                          </span>
 
-                    <div className="flex gap-2">
-                      {!isPrincipal(f) && (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          className="h-6 px-2"
-                          onClick={() => setPrincipal(f.url)}
-                        >
-                          Tornar principal
-                        </Button>
-                      )}
+                          <div className="flex gap-2">
+                            {!isPrincipal(f) && (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                className="h-6 px-2"
+                                onClick={() => setPrincipal(f.url)}
+                              >
+                                Tornar principal
+                              </Button>
+                            )}
 
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        className="h-6 px-2"
-                        onClick={() => setDeleteTarget(f)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </figcaption>
-                </figure>
-              ))}
-            </div>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-6 px-2"
+                              onClick={() => setDeleteTarget(f)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </figcaption>
+                      </figure>
+                    </SortableItem>
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-6">
               Nenhuma mídia enviada ainda.

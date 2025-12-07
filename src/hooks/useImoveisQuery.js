@@ -5,10 +5,19 @@ export function useImoveisQuery(initialFilters = {}) {
   const [filters, setFilters] = useState({
     tipo: "all",
     status: "all",
+    disponibilidade: "all",
+
     cidade: "",
+    bairro: "",
+    rua: "",
+    cep: "",
+
+    corretor_id: "",
+    proprietario_id: "",
+
     preco_min: "",
     preco_max: "",
-    disponibilidade: "all",
+
     ...initialFilters,
   });
 
@@ -16,6 +25,9 @@ export function useImoveisQuery(initialFilters = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  /* ============================================================
+     🔍 QUERY STRING DINÂMICA
+  ============================================================ */
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
 
@@ -23,21 +35,35 @@ export function useImoveisQuery(initialFilters = {}) {
     if (filters.status !== "all") params.append("status", filters.status);
     if (filters.disponibilidade !== "all")
       params.append("disponibilidade", filters.disponibilidade);
+
     if (filters.cidade) params.append("cidade", filters.cidade.trim());
+    if (filters.bairro) params.append("bairro", filters.bairro.trim());
+    if (filters.rua) params.append("rua", filters.rua.trim());
+    if (filters.cep) params.append("cep", filters.cep.trim());
+
+    if (filters.corretor_id)
+      params.append("corretor_id", String(filters.corretor_id));
+
+    if (filters.proprietario_id)
+      params.append("proprietario_id", String(filters.proprietario_id));
+
     if (filters.preco_min) params.append("preco_min", filters.preco_min);
     if (filters.preco_max) params.append("preco_max", filters.preco_max);
 
     return params.toString();
   }, [filters]);
 
+  /* ============================================================
+     📡 LOADING AUTOMÁTICO
+  ============================================================ */
   useEffect(() => {
     const load = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        // ROTA CORRETA DO BACKEND
-        const res = await fetch(`/api/imoveis?${queryString}`);
+        const url = `/api/imoveis?${queryString}`;
+        const res = await fetch(url);
 
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "Erro ao carregar imóveis");
@@ -55,6 +81,9 @@ export function useImoveisQuery(initialFilters = {}) {
     load();
   }, [queryString]);
 
+  /* ============================================================
+     🎚 MÉTODO PARA APLICAR FILTROS
+  ============================================================ */
   const applyFilters = (newFilters) => {
     setFilters((prev) => ({ ...prev, ...newFilters }));
   };
@@ -65,7 +94,6 @@ export function useImoveisQuery(initialFilters = {}) {
     error,
     applyFilters,
     filters,
-    // COUNT REAL DO BANCO:
-    total: data.length,
+    total: data.length, // count real da resposta
   };
 }

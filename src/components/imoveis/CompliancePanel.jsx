@@ -251,12 +251,25 @@ export default function CompliancePanel({ imovelId }) {
               iconLeft={<CalendarDays className="h-4 w-4 opacity-60" />}
             />
 
-            <Input
-              type="file"
-              onChange={(e) =>
-                setDoc({ ...doc, file: e.target.files?.[0] ?? null })
-              }
-            />
+            <div className="flex items-center">
+              <label
+                htmlFor="file-upload"
+                className="flex items-center gap-2 cursor-pointer bg-accent text-white px-4 py-2 rounded
+                          hover:bg-accent/90 transition font-medium shadow-sm"
+              >
+                <Upload size={16} />
+                Selecionar arquivo
+              </label>
+
+              <input
+                id="file-upload"
+                type="file"
+                className="hidden"
+                onChange={(e) =>
+                  setDoc({ ...doc, file: e.target.files?.[0] ?? null })
+                }
+              />
+            </div>
 
             <Button
               onClick={handleUpload}
