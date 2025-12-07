@@ -9,6 +9,8 @@ import {
   CardContent
 } from "@/components/admin/ui/Card";
 
+import imageCompression from "browser-image-compression";
+
 import { Button, buttonVariants } from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 
@@ -170,12 +172,22 @@ export default function MidiaPanel({ imovel }) {
       const uploaded = [];
 
       for (const file of selected) {
+        // ===== COMPRESSÃO AQUI! =====
+        const options = {
+          maxSizeMB: 0.5,            // meta corporativa: <500kb
+          maxWidthOrHeight: 1600,    // redimensiona se quiser
+          useWebWorker: true,
+        };
+
+        const compressedFile = await imageCompression(file, options);
+
+        // ===== SIGNED URL =====
         const signRes = await fetch(`/api/imoveis?action=sign`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             path: prefix + file.name,
-            type: file.type
+            type: compressedFile.type
           })
         });
 
@@ -184,9 +196,10 @@ export default function MidiaPanel({ imovel }) {
 
         const { uploadUrl, publicUrl } = signJson.data;
 
+        // ===== UPLOAD DO ARQUIVO COMPRIMIDO =====
         const up = await fetch(uploadUrl, {
           method: "PUT",
-          body: file
+          body: compressedFile
         });
 
         if (!up.ok) throw new Error("Falha ao enviar arquivo.");
@@ -194,9 +207,9 @@ export default function MidiaPanel({ imovel }) {
         uploaded.push({ name: file.name, url: publicUrl });
       }
 
+      // RESTO DO SEU PIPELINE – SEM ALTERAÇÃO
       const urls = uploaded.map((u) => u.url);
       const newPrincipal = principal || urls[0];
-
       setPrincipalState(newPrincipal);
 
       const newMidias = [
@@ -228,7 +241,7 @@ export default function MidiaPanel({ imovel }) {
         midias: newMidias.map((u) => ({ url: u }))
       });
 
-      toast.success("Arquivos enviados!");
+      toast.success("Arquivos enviados com compressão 👊");
     } catch (err) {
       toast.error(err.message || "Erro ao enviar arquivos.");
     } finally {

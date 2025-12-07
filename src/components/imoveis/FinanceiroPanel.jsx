@@ -142,15 +142,17 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
       🔹 RENDER
   ============================================================ */
   return (
-    <div className="grid md:grid-cols-2 gap-4">
-      {/* 💰 PREÇOS */}
-      <Card className="space-y-2">
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-x-hidden min-w-0">
+
+    {/* 💰 PREÇO ATUAL */}
+    <div className="w-full min-w-0">
+      <Card className="min-w-0 w-full">
         <CardHeader>
           <CardTitle>Preço Atual</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-4">
-          <div className="flex justify-between">
+          <div className="flex justify-between flex-wrap">
             <div>
               <p className="text-sm text-muted-foreground">Venda</p>
               <p className="text-xl font-semibold">
@@ -167,10 +169,8 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
           </div>
 
           {/* Disponibilidade */}
-          <div className="flex flex-col gap-1">
-            <label className="text-sm text-muted-foreground">
-              Disponibilidade
-            </label>
+          <div className="flex flex-col gap-1 min-w-0">
+            <label className="text-sm text-muted-foreground">Disponibilidade</label>
 
             <Select
               value={imovel.disponibilidade ?? "venda"}
@@ -187,24 +187,24 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
           </Button>
         </CardContent>
       </Card>
+    </div>
 
-      {/* 📦 CUSTOS FIXOS */}
-      <Card>
+    {/* 📦 CUSTOS MENSAIS */}
+    <div className="w-full min-w-0">
+      <Card className="min-w-0 w-full">
         <CardHeader>
           <CardTitle>Custos Mensais</CardTitle>
         </CardHeader>
 
         <CardContent className="space-y-3">
-          <div className="flex justify-between">
+          <div className="flex justify-between flex-wrap">
             <p className="text-sm text-muted-foreground">Condomínio</p>
             <p className="text-base font-medium">
-              {precoAtual.condominio
-                ? formatCurrency(precoAtual.condominio)
-                : "-"}
+              {precoAtual.condominio ? formatCurrency(precoAtual.condominio) : "-"}
             </p>
           </div>
 
-          <div className="flex justify-between">
+          <div className="flex justify-between flex-wrap">
             <p className="text-sm text-muted-foreground">IPTU</p>
             <p className="text-base font-medium">
               {precoAtual.iptu ? formatCurrency(precoAtual.iptu) : "-"}
@@ -214,66 +214,70 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
           <VacanciaWidget imovelId={imovel.id} className="mt-4" />
         </CardContent>
       </Card>
+    </div>
 
-      {/* 📈 HISTÓRICO */}
-      <Card className="col-span-2">
+    {/* 📈 HISTÓRICO */}
+    <div className="col-span-1 md:col-span-2 w-full min-w-0">
+      <Card className="min-w-0 w-full">
         <CardHeader>
           <CardTitle>Histórico de Preços</CardTitle>
         </CardHeader>
 
-        <CardContent>
-          <PrecoHistoricoChart data={historico} />
+        <CardContent className="overflow-x-auto">
+          <div className="min-w-full">
+            <PrecoHistoricoChart data={historico} />
+          </div>
         </CardContent>
       </Card>
-
-      {/* 🪟 MODAL */}
-      <Modal
-        isOpen={openModal}
-        onClose={() => setOpenModal(false)}
-        title="Registrar Ajuste de Preço"
-        footer={
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setOpenModal(false)}>
-              Cancelar
-            </Button>
-
-            <Button onClick={registrarAjuste}>Salvar</Button>
-          </div>
-        }
-      >
-        <div className="grid grid-cols-1 gap-4 mt-2">
-          {/* Tipo */}
-          <div className="flex flex-col gap-1">
-            <label className="text-sm text-muted-foreground">Tipo</label>
-
-            <Select
-              value={ajuste.tipo}
-              onChange={(e) =>
-                setAjuste((p) => ({ ...p, tipo: e.target.value }))
-              }
-            >
-              <option value="venda">Venda</option>
-              <option value="locacao">Locação</option>
-            </Select>
-          </div>
-
-          {/* Valor */}
-          <div className="flex flex-col gap-1">
-            <Label className="text-sm rounded-xl text-muted-foreground">
-              Novo Valor (R$)
-            </Label>
-
-            <Input
-              type="number"
-              min={0}
-              value={ajuste.valor}
-              onChange={(e) =>
-                setAjuste((p) => ({ ...p, valor: e.target.value }))
-              }
-            />
-          </div>
-        </div>
-      </Modal>
     </div>
-  );
+
+    {/* 🪟 MODAL */}
+    <Modal
+      isOpen={openModal}
+      onClose={() => setOpenModal(false)}
+      title="Registrar Ajuste de Preço"
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={() => setOpenModal(false)}>
+            Cancelar
+          </Button>
+
+          <Button onClick={registrarAjuste}>Salvar</Button>
+        </div>
+      }
+    >
+      <div className="grid grid-cols-1 gap-4 mt-2">
+        {/* Tipo */}
+        <div className="flex flex-col gap-1">
+          <label className="text-sm text-muted-foreground">Tipo</label>
+
+          <Select
+            value={ajuste.tipo}
+            onChange={(e) => setAjuste((p) => ({ ...p, tipo: e.target.value }))}
+          >
+            <option value="venda">Venda</option>
+            <option value="locacao">Locação</option>
+          </Select>
+        </div>
+
+        {/* Valor */}
+        <div className="flex flex-col gap-1">
+          <Label className="text-sm rounded-xl text-muted-foreground">
+            Novo Valor (R$)
+          </Label>
+
+          <Input
+            type="number"
+            min={0}
+            value={ajuste.valor}
+            onChange={(e) =>
+              setAjuste((p) => ({ ...p, valor: e.target.value }))
+            }
+          />
+        </div>
+      </div>
+    </Modal>
+
+  </div>
+);
 }

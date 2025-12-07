@@ -31,7 +31,7 @@ export function TabsList({ children, className }) {
       className={cn(
         // 🔥 flex-wrap é obrigatório, min-w-0 evita overflow interno,
         // flex-shrink-0 evita que o container tente encolher errado
-        "flex flex-wrap items-center justify-start w-full min-w-0 gap-2",
+        "flex flex-wrap items-center justify-center w-full min-w-0 gap-2",
         "rounded-xl bg-muted/60 p-1 border border-border shadow-sm backdrop-blur-sm",
         className
       )}
