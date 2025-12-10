@@ -17,6 +17,10 @@ export async function POST(req) {
     const contrato_id = formData.get("contrato_id");
     const document_type = formData.get("document_type");
 
+    console.log("📎 document_type recebido:", document_type);
+    console.log("📎 contrato_id:", contrato_id);
+    console.log("📎 file:", file?.name);
+
     if (!file || !contrato_id || !document_type) {
       return NextResponse.json(
         { error: "file, contrato_id e document_type são obrigatórios" },
@@ -28,7 +32,8 @@ export async function POST(req) {
     const buffer = Buffer.from(bytes);
 
     // Sempre salvar apenas o PATH, não a URL
-    const filename = `${contrato_id}/${document_type}-${Date.now()}-${file.name}`;
+    const filename = `contratos/${contrato_id}/${document_type}-${Date.now()}-${file.name}`;
+
 
     // Upload → bucket privado
     const { error: uploadErr } = await supabase.storage
@@ -76,14 +81,36 @@ export async function POST(req) {
       );
     }
 
-    // Atualiza apenas o path do arquivo no contrato
-    await supabase
+    // Payload dinâmico
+    const payload = {
+      [updateField]: filename,
+      updated_at: new Date(),
+    };
+
+    // Regras opcionais por tipo
+    if (document_type === "minuta") {
+      payload.status = "minuta_gerada";
+      payload.documento_minuta_url = null;
+    }
+
+    if (document_type === "assinado") {
+      payload.status = "assinado";
+      payload.documento_assinado_url = null;
+    }
+
+    const { data: uData, error: uErr } = await supabase
       .from("contratos")
-      .update({
-        [updateField]: filename,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", contrato_id);
+      .update(payload)
+      .eq("id", contrato_id)
+      .select()
+      .single();
+
+    if (uErr) {
+      console.error("ERRO UPDATE CONTRATO:", uErr);
+      return NextResponse.json({ error: uErr.message }, { status: 500 });
+    }
+
+    console.log("UPDATE OK:", uData);
 
     return NextResponse.json({
       message: "Arquivo enviado com sucesso!",

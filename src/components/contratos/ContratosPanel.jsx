@@ -38,6 +38,8 @@ export default function CRMContratosPanel({
   const [contratos, setContratos] = useState([]);
   const [imoveis, setImoveis] = useState([]);
   const [pessoas, setPessoas] = useState([]);
+  const [statusList, setStatusList] = useState([]);
+
 
   const [filters, setFilters] = useState({
     search: "",
@@ -70,6 +72,7 @@ export default function CRMContratosPanel({
       if (!pRes.ok) throw new Error(pJson.error);
 
       setContratos(cJson.data || []);
+      setStatusList(cJson.status_enum || []);
       setImoveis(iJson.data || []);
       setPessoas(pJson.data || []);
     } catch (err) {
@@ -171,15 +174,11 @@ export default function CRMContratosPanel({
           >
             <option value="">Status</option>
 
-            <option value="em_elaboracao">Em Elaboração</option>
-            <option value="aguardando_assinatura">Aguardando Assinatura</option>
-            <option value="assinado">Assinado</option>
-            <option value="vigente">Vigente</option>
-            <option value="reajuste_pendente">Reajuste Pendente</option>
-            <option value="renovacao_pendente">Renovação Pendente</option>
-            <option value="encerrado">Encerrado</option>
-            <option value="rescindido">Rescindido</option>
-            <option value="cancelado">Cancelado</option>
+            {statusList.map((st) => (
+              <option key={st} value={st}>
+                {st.replaceAll("_", " ")}
+              </option>
+            ))}
           </Select>
 
           {/* Imóvel */}

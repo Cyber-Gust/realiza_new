@@ -57,11 +57,18 @@ encerrado: "bg-rose-300 text-rose-900 border-rose-400 dark:bg-rose-700 dark:text
   avcb: "bg-rose-200 text-rose-900 border-rose-300 dark:bg-rose-700 dark:text-rose-100 dark:border-rose-500",
   habite_se: "bg-amber-200 text-amber-900 border-amber-300 dark:bg-amber-700 dark:text-amber-100 dark:border-amber-500",
  
-  // --- STATUS CONTRATO (NOVO ENUM) ---
-  ativo: "bg-emerald-200 text-emerald-800 border-emerald-300 dark:bg-emerald-700 dark:text-emerald-100 dark:border-emerald-500",
-  encerrado: "bg-rose-300 text-rose-900 border-rose-400 dark:bg-rose-700 dark:text-rose-100 dark:border-rose-500",
+  // --- STATUS CONTRATO (NOVO ENUM + HARMONIZAÇÃO TOTAL) ---
+  em_elaboracao: "bg-sky-200 text-sky-900 border-sky-300 dark:bg-sky-700 dark:text-sky-100 dark:border-sky-500",
+  aguardando_assinatura: "bg-amber-200 text-amber-900 border-amber-300 dark:bg-amber-700 dark:text-amber-100 dark:border-amber-500",
+  assinado: "bg-green-300 text-green-900 border-green-400 dark:bg-green-700 dark:text-green-100 dark:border-green-500",
+  vigente: "bg-emerald-300 text-emerald-900 border-emerald-400 dark:bg-emerald-700 dark:text-emerald-100 dark:border-emerald-500",
+  ativo: "bg-emerald-200 text-emerald-900 border-emerald-300 dark:bg-emerald-700 dark:text-emerald-100 dark:border-emerald-500",
+  reajuste_pendente: "bg-purple-300 text-purple-900 border-purple-400 dark:bg-purple-700 dark:text-purple-100 dark:border-purple-500",
+  renovacao_pendente: "bg-indigo-300 text-indigo-900 border-indigo-400 dark:bg-indigo-700 dark:text-indigo-100 dark:border-indigo-500",
   renovado: "bg-lime-300 text-lime-900 border-lime-400 dark:bg-lime-700 dark:text-lime-100 dark:border-lime-500",
+  encerrado: "bg-rose-300 text-rose-900 border-rose-400 dark:bg-rose-700 dark:text-rose-100 dark:border-rose-500",
   rescindido: "bg-red-300 text-red-900 border-red-400 dark:bg-red-700 dark:text-red-100 dark:border-red-500",
+  cancelado: "bg-pink-300 text-pink-900 border-pink-400 dark:bg-pink-700 dark:text-pink-100 dark:border-pink-500",
 
   // --- STATUS OS (MANUTENÇÃO) ---
   aberta: "bg-blue-200 text-blue-900 border-blue-300 dark:bg-blue-700 dark:text-blue-100 dark:border-blue-500",

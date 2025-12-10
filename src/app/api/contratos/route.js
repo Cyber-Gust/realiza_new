@@ -11,7 +11,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
  */
 
 // ======================================================
-// GET
+// GET — agora retornando também o ENUM contrato_status
 // ======================================================
 export async function GET(req) {
   const supabase = createServiceClient();
@@ -25,66 +25,12 @@ export async function GET(req) {
 
   let query = supabase
     .from("contratos")
-    .select(
-      `
-        id,
-        tipo,
-        status,
-        data_inicio,
-        data_fim,
-        valor_acordado,
-        taxa_administracao_percent,
-        dia_vencimento_aluguel,
-        indice_reajuste,
-        template_id,
-        variaveis_json,
-        corpo_contrato,  
-        documento_minuta_url,
-        assinatura_status,
-        assinatura_id,
-        assinatura_url,
-        assinatura_enviado_em,
-        assinatura_concluida_em,
-        ultimo_reajuste_em,
-        valor_reajustado,
-        renovado_em,
-        renovacao_documento_url,
-        rescisao_solicitada_em,
-        rescisao_efetivada_em,
-        rescisao_motivo,
-        rescisao_documento_url,
-
-        documento_assinado_url,
-        updated_at,
-        created_at,
-
-        imovel_id,
-        proprietario_id,
-        inquilino_id,
-
-        imoveis (
-          id,
-          titulo,
-          endereco_bairro
-        ),
-
-        proprietario:proprietario_id (
-          id,
-          nome,
-          tipo,
-          email,
-          telefone
-        ),
-
-        inquilino:inquilino_id (
-          id,
-          nome,
-          tipo,
-          email,
-          telefone
-        )
-      `
-    )
+    .select(`
+        *,
+        imoveis(*),
+        proprietario:proprietario_id(*),
+        inquilino:inquilino_id(*)
+    `)
     .order("created_at", { ascending: false });
 
   if (id) query = query.eq("id", id);
@@ -95,10 +41,25 @@ export async function GET(req) {
 
   const { data, error } = await query;
 
-  if (error)
+  if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
-  return NextResponse.json({ data: id ? data[0] : data });
+  // ------------------------------------------------------
+  // 🔥 Consulta o ENUM direto do PostgreSQL via RPC
+  // ------------------------------------------------------
+  const { data: statusEnum, error: enumErr } = await supabase.rpc(
+    "get_contrato_status_enum"
+  );
+
+  if (enumErr) {
+    console.error("Erro ao carregar ENUM contrato_status:", enumErr);
+  }
+
+  return NextResponse.json({
+    data: id ? data[0] : data,
+    status_enum: statusEnum || [], // ← AQUI vai pra UI
+  });
 }
 
 // ======================================================

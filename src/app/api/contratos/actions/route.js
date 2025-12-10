@@ -1,102 +1,176 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 export async function POST(req) {
   const supabase = createServiceClient();
   const body = await req.json();
 
-  const { action, contrato_id } = body;
+  const { action, contrato_id, variaveis } = body;
 
-  if (!action || !contrato_id) {
+  if (!action || !contrato_id)
     return NextResponse.json(
-      { error: "action e contrato_id são obrigatórios" },
+      { error: "action e contrato_id são obrigatórios." },
       { status: 400 }
     );
-  }
 
   // ============================================================
-  // Carrega contrato com template
+  // CARREGA CONTRATO + TEMPLATE
   // ============================================================
-  const { data: contrato, error: loadErr } = await supabase
+  const { data: contrato, error: cErr } = await supabase
     .from("contratos")
     .select("*, contrato_templates(*)")
     .eq("id", contrato_id)
     .single();
 
-  if (loadErr || !contrato) {
+  if (cErr || !contrato)
     return NextResponse.json(
-      { error: "Contrato não encontrado" },
+      { error: "Contrato não encontrado." },
       { status: 404 }
     );
-  }
 
   // ============================================================
-  // 1) GERAR MINUTA
+  // 1) GERAR MINUTA (PDF)
   // ============================================================
   if (action === "gerar_minuta") {
+    console.log("🔥 GERANDO MINUTA PARA:", contrato_id);
+
     let conteudo = contrato.contrato_templates?.conteudo;
     const vars = contrato.variaveis_json || {};
 
     if (!conteudo) {
-        return NextResponse.json(
-        { error: "Template não encontrado no contrato" },
+      return NextResponse.json(
+        { error: "Template não encontrado." },
         { status: 400 }
-        );
+      );
     }
 
-    Object.entries(vars).forEach(([k, v]) => {
-        conteudo = conteudo.replaceAll(`{{${k}}}`, v);
-    });
+    // Substitui variáveis do template
+    for (const [k, v] of Object.entries(vars)) {
+      conteudo = conteudo.replaceAll(`{{${k}}}`, String(v ?? ""));
+    }
 
-    const filePath = `minutas/${contrato.id}-${Date.now()}.txt`;
+    // Gera PDF
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage([595, 842]);
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-    // Upload no bucket privado
+    let y = 800;
+    for (const line of conteudo.split("\n")) {
+      page.drawText(line, { x: 40, y, size: 12, font });
+      y -= 18;
+    }
+
+    const pdfBytes = await pdfDoc.save();
+
+    const path = `contratos/${contrato.id}/minuta-${Date.now()}.pdf`;
+    console.log("📄 salvando minuta em:", path);
+
     const { error: upErr } = await supabase.storage
-        .from("documentos_contratos")
-        .upload(filePath, conteudo, {
-        contentType: "text/plain",
-        });
+      .from("documentos_contratos")
+      .upload(path, pdfBytes, { contentType: "application/pdf" });
 
     if (upErr) {
-        return NextResponse.json({ error: upErr.message }, { status: 500 });
+      console.error("❌ ERRO UPLOAD:", upErr);
+      return NextResponse.json({ error: upErr.message }, { status: 500 });
     }
 
-    // Atualiza NO BANCO APENAS O PATH
-    await supabase
-        .from("contratos")
-        .update({
-        documento_minuta_path: filePath,
-        updated_at: new Date().toISOString(),
-        })
-        .eq("id", contrato_id);
+    // UPDATE AGORA É VERIFICADO
+    const { data: updated, error: updateErr } = await supabase
+      .from("contratos")
+      .update({
+        documento_minuta_path: path,
+        documento_minuta_url: null,
+        status: "em_elaboracao",
+        updated_at: new Date(),
+      })
+      .eq("id", contrato_id)
+      .select("id, documento_minuta_path, status")
+      .single();
+
+    console.log("📌 UPDATE RESULT:", updated, updateErr);
+
+    if (updateErr) {
+      console.error("❌ ERRO UPDATE CONTRATO:", updateErr);
+      return NextResponse.json(
+        { error: "Erro ao salvar minuta: " + updateErr.message },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
-        message: "Minuta gerada!",
-        path: filePath,
+      message: "Minuta gerada!",
+      path: updated.documento_minuta_path,
     });
-    }
+  }
 
   // ============================================================
-  // 2) ENVIAR PARA ASSINATURA DIGITAL
+  // 2) ENVIAR PARA ASSINATURA (ASSINATURA FAKE)
   // ============================================================
   if (action === "enviar_assinatura") {
-    const assinaturaId = `sign_${Date.now()}`;
-    const assinaturaUrl = `https://assinador.fake/${assinaturaId}`;
+    if (!contrato.documento_minuta_path)
+      return NextResponse.json(
+        { error: "Gere a minuta antes de enviar para assinatura." },
+        { status: 400 }
+      );
+
+    // baixa arquivo original
+    const { data: file, error: dlErr } = await supabase.storage
+      .from("documentos_contratos")
+      .download(contrato.documento_minuta_path);
+
+    if (dlErr)
+      return NextResponse.json(
+        { error: "Erro ao baixar minuta." },
+        { status: 500 }
+      );
+
+    const originalBytes = await file.arrayBuffer();
+
+    // cria PDF assinado fake
+    const pdfDoc = await PDFDocument.load(originalBytes);
+    const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+    const lastPage = pdfDoc.getPages().pop();
+    lastPage.drawText("ASSINADO DIGITALMENTE (PLACEHOLDER)", {
+      x: 40,
+      y: 40,
+      size: 14,
+      font: helvetica,
+      color: rgb(0, 0, 0),
+    });
+
+    const signedBytes = await pdfDoc.save();
+    const signedPath = `contratos/${contrato.id}/assinado-${Date.now()}.pdf`;
+
+    const { error: signedErr } = await supabase.storage
+      .from("documentos_contratos")
+      .upload(signedPath, signedBytes, {
+        contentType: "application/pdf",
+      });
+
+    if (signedErr)
+      return NextResponse.json(
+        { error: "Erro ao salvar o contrato assinado." },
+        { status: 500 }
+      );
 
     await supabase
       .from("contratos")
       .update({
-        assinatura_id: assinaturaId,
-        assinatura_status: "aguardando_assinatura",
-        assinatura_url: assinaturaUrl,
-        assinatura_enviado_em: new Date().toISOString(),
-        status: "aguardando_assinatura",
+        assinatura_status: "assinado",
+        assinatura_concluida_em: new Date(),
+        assinatura_url: null,
+        documento_assinado_path: signedPath,
+        documento_assinado_url: null,
+        status: "assinado",
+        updated_at: new Date(),
       })
       .eq("id", contrato_id);
 
     return NextResponse.json({
-      message: "Contrato enviado para assinatura!",
-      assinatura_url: assinaturaUrl,
+      message: "Assinatura simulada com sucesso!",
+      path: signedPath,
     });
   }
 
@@ -104,47 +178,44 @@ export async function POST(req) {
   // 3) CRIAR ADITIVO
   // ============================================================
   if (action === "criar_aditivo") {
-    const { variaveis = {} } = body;
-
-    const { data: aditivo, error: adErr } = await supabase
+    const { data, error } = await supabase
       .from("contrato_aditivos")
       .insert({
         contrato_id,
         tipo: "aditivo",
-        variaveis_json: variaveis,
-        created_at: new Date().toISOString(),
+        variaveis_json: variaveis || {},
+        created_at: new Date(),
       })
       .select()
       .single();
 
-    if (adErr) {
-      return NextResponse.json({ error: adErr.message }, { status: 500 });
-    }
+    if (error)
+      return NextResponse.json({ error: error.message }, { status: 500 });
 
     return NextResponse.json({
       message: "Aditivo criado!",
-      aditivo,
+      aditivo: data,
     });
   }
 
   // ============================================================
-  // 4) APLICAR REAJUSTE
+  // 4) REAJUSTE
   // ============================================================
   if (action === "reajustar") {
-    const indice = contrato.indice_reajuste; // IGPM / IPCA
-    const valorOriginal = Number(contrato.valor_acordado);
+    const fator =
+      contrato.indice_reajuste === "IGPM"
+        ? 1.07
+        : 1.05;
 
-    // reajuste fictício p/ placeholder (depois você define regra real)
-    const fator = indice === "IGPM" ? 1.07 : 1.05;
-    const novoValor = parseFloat((valorOriginal * fator).toFixed(2));
+    const novoValor = Number(contrato.valor_acordado) * fator;
 
     await supabase
       .from("contratos")
       .update({
-        valor_reajustado: novoValor,
-        ultimo_reajuste_em: new Date().toISOString(),
+        valor_reajustado: novoValor.toFixed(2),
+        ultimo_reajuste_em: new Date(),
         status: "vigente",
-        updated_at: new Date().toISOString(),
+        updated_at: new Date(),
       })
       .eq("id", contrato_id);
 
@@ -155,44 +226,39 @@ export async function POST(req) {
   }
 
   // ============================================================
-  // 5) RENOVAR CONTRATO
+  // 5) RENOVAR
   // ============================================================
   if (action === "renovar") {
+    const hoje = new Date().toISOString().split("T")[0];
+
     await supabase
       .from("contratos")
       .update({
-        renovado_em: new Date().toISOString(),
-        data_inicio: new Date().toISOString().split("T")[0],
+        renovado_em: hoje,
+        data_inicio: hoje,
         status: "vigente",
-        updated_at: new Date().toISOString(),
+        updated_at: new Date(),
       })
       .eq("id", contrato_id);
 
-    return NextResponse.json({
-      message: "Contrato renovado!",
-    });
+    return NextResponse.json({ message: "Contrato renovado!" });
   }
 
   // ============================================================
-  // 6) ENCERRAR CONTRATO
+  // 6) ENCERRAR
   // ============================================================
   if (action === "encerrar") {
     await supabase
       .from("contratos")
       .update({
         status: "encerrado",
-        rescisao_efetivada_em: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        rescisao_efetivada_em: new Date(),
+        updated_at: new Date(),
       })
       .eq("id", contrato_id);
 
-    return NextResponse.json({
-      message: "Contrato encerrado!",
-    });
+    return NextResponse.json({ message: "Contrato encerrado." });
   }
 
-  return NextResponse.json(
-    { error: "Ação não reconhecida." },
-    { status: 400 }
-  );
+  return NextResponse.json({ error: "Ação inválida." }, { status: 400 });
 }

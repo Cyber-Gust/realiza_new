@@ -179,7 +179,10 @@ export default function ContratoDetailDrawer({ contratoId, onClose }) {
             {/* INFO GERAL */}
             <Card className="p-4 grid grid-cols-2 gap-4">
               <Field label="Tipo" value={contrato.tipo} />
-              <Field label="Status" value={contrato.status.replace("_", " ")} />
+              <Field
+                label="Status"
+                value={contrato.status ? contrato.status.replace("_", " ") : "—"}
+              />
 
               <Field
                 label="Valor"
@@ -226,25 +229,32 @@ export default function ContratoDetailDrawer({ contratoId, onClose }) {
               </Button>
 
               {/* MINUTA */}
-              {contrato.documento_minuta_path && (
+              {(contrato.documento_minuta_url || contrato.documento_minuta_path) && (
                 <Button
                   className="w-full flex items-center gap-2"
-                  onClick={() => downloadFile(contrato.documento_minuta_path)}
+                  onClick={() =>
+                    downloadFile(contrato.documento_minuta_url || contrato.documento_minuta_path)
+                  }
                 >
                   <Download size={15} /> Baixar Minuta
                 </Button>
               )}
 
               {/* CONTRATO ASSINADO */}
-              {contrato.documento_assinado_path && (
+              {(contrato.documento_assinado_url || contrato.documento_assinado_path) && (
                 <Button
                   variant="secondary"
                   className="w-full flex items-center gap-2"
-                  onClick={() => downloadFile(contrato.documento_assinado_path)}
+                  onClick={() =>
+                    downloadFile(
+                      contrato.documento_assinado_url || contrato.documento_assinado_path
+                    )
+                  }
                 >
                   <Download size={15} /> Contrato Assinado
                 </Button>
               )}
+
             </Card>
 
             {/* AÇÕES */}

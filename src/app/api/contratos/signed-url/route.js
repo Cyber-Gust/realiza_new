@@ -6,33 +6,60 @@ export async function POST(req) {
     const supabase = createServiceClient();
     const { path } = await req.json();
 
-    if (!path) {
+    // ============================================================
+    // Validação inicial
+    // ============================================================
+    if (!path || typeof path !== "string") {
       return NextResponse.json(
-        { error: "path é obrigatório" },
+        { error: "O campo 'path' é obrigatório e deve ser uma string." },
         { status: 400 }
       );
     }
 
-    // Gera URL temporária de 1 hora
+    // Segurança contra path traversal
+    if (path.includes("..")) {
+      return NextResponse.json(
+        { error: "Path inválido." },
+        { status: 400 }
+      );
+    }
+
+    // Normaliza caminhos
+    const normalizedPath = path.replace(/^\/+/, "");
+
+    // ============================================================
+    // Gera URL temporária (1h)
+    // ============================================================
     const { data, error } = await supabase.storage
       .from("documentos_contratos")
-      .createSignedUrl(path, 60 * 60);
+      .createSignedUrl(normalizedPath, 60 * 60);
 
-    if (error) {
+    if (error || !data?.signedUrl) {
       return NextResponse.json(
-        { error: error.message },
+        {
+          error:
+            error?.message ||
+            "Falha ao gerar signed URL para o arquivo solicitado.",
+        },
         { status: 500 }
       );
     }
 
+    // ============================================================
+    // Sucesso
+    // ============================================================
     return NextResponse.json({
+      message: "Signed URL gerada com sucesso.",
       signedUrl: data.signedUrl,
       expiresIn: 3600,
+      path: normalizedPath,
     });
 
   } catch (err) {
     return NextResponse.json(
-      { error: err.message },
+      {
+        error: err?.message || "Erro interno ao gerar signed URL.",
+      },
       { status: 500 }
     );
   }
