@@ -306,8 +306,8 @@ export default function ImovelForm({ data = {}, onChange }) {
     (async () => {
       try {
         const [resPersonas, resClientes] = await Promise.all([
-          fetch("/api/perfis/list?type=personas"),
-          fetch("/api/perfis/list?type=clientes"),
+          fetch("/api/perfis/list?type=personas&mode=select"),
+          fetch("/api/perfis/list?type=clientes&mode=select"),
         ]);
 
         const { data: personasData } = await resPersonas.json();
@@ -318,10 +318,7 @@ export default function ImovelForm({ data = {}, onChange }) {
         const list = [
           ...(Array.isArray(personasData) ? personasData : []),
           ...(Array.isArray(clientesData) ? clientesData : []),
-        ].map((d) => ({
-          label: d.nome || d.email || "Sem nome",
-          value: String(d.id),
-        }));
+        ];
 
         setPersonas(list);
       } catch (e) {
@@ -342,19 +339,14 @@ export default function ImovelForm({ data = {}, onChange }) {
 
     (async () => {
       try {
-        const res = await fetch("/api/perfis/list?type=equipe");
+        const res = await fetch("/api/perfis/list?type=equipe&mode=select");
         const { data } = await res.json();
 
         if (!alive) return;
 
         const list = Array.isArray(data)
-          ? data
-              .filter((d) => ["corretor", "admin"].includes(d.role))
-              .map((d) => ({
-                label: d.nome_completo || d.email || "Sem nome",
-                value: String(d.id),
-              }))
-          : [];
+        ? data.filter((d) => ["corretor", "admin"].includes(d.role))
+        : [];
 
         setCorretores(list);
       } catch (e) {
@@ -621,6 +613,28 @@ export default function ImovelForm({ data = {}, onChange }) {
     return base;
   }, [form.endereco_cidade, form.endereco_bairro]);
 
+  /* ============================================================
+    SELECIONADOS — PARA EXIBIR TELEFONE (READ-ONLY)
+  ============================================================ */
+
+  const proprietarioSelecionado = useMemo(() => {
+    return personas.find(
+      (p) => p.value === String(form.proprietario_id)
+    );
+  }, [personas, form.proprietario_id]);
+
+  const inquilinoSelecionado = useMemo(() => {
+    return personas.find(
+      (p) => p.value === String(form.inquilino_id)
+    );
+  }, [personas, form.inquilino_id]);
+
+  const corretorSelecionado = useMemo(() => {
+    return corretores.find(
+      (c) => c.value === String(form.corretor_id)
+    );
+  }, [corretores, form.corretor_id]);
+
   const options1a10 = Array.from({ length: 10 }, (_, i) => i);
 
   /* ============================================================
@@ -676,6 +690,12 @@ export default function ImovelForm({ data = {}, onChange }) {
               value={form.proprietario_id ? String(form.proprietario_id) : ""}
               onChange={(val) => handleChange("proprietario_id", val || null)}
             />
+
+            {(proprietarioSelecionado?.telefone || proprietarioSelecionado?.contato_telefone) && (
+              <p className="mt-1 text-sm text-gray-500">
+                 {proprietarioSelecionado.telefone || proprietarioSelecionado.contato_telefone}
+              </p>
+            )}
           </div>
 
           <div>
@@ -685,6 +705,12 @@ export default function ImovelForm({ data = {}, onChange }) {
               value={form.corretor_id ? String(form.corretor_id) : ""}
               onChange={(val) => handleChange("corretor_id", val || null)}
             />
+
+            {(corretorSelecionado?.telefone || corretorSelecionado?.contato_telefone) && (
+              <p className="mt-1 text-sm text-gray-500">
+                 {corretorSelecionado.telefone || corretorSelecionado.contato_telefone}
+              </p>
+            )}
           </div>
 
           <div>
@@ -1434,6 +1460,12 @@ export default function ImovelForm({ data = {}, onChange }) {
                         value={form.inquilino_id ? String(form.inquilino_id) : ""}
                         onChange={(val) => handleChange("inquilino_id", val || null)}
                       />
+
+                      {(inquilinoSelecionado?.telefone || inquilinoSelecionado?.contato_telefone) && (
+                        <p className="mt-1 text-sm text-gray-500">
+                           {inquilinoSelecionado.telefone || inquilinoSelecionado.contato_telefone}
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}

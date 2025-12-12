@@ -15,9 +15,18 @@ export async function GET(req) {
 
   const type = searchParams.get("type");
   const id = searchParams.get("id");
+  const mode = searchParams.get("mode"); // "select" = payload enxuto
 
   try {
     let data = [];
+
+      const toSelectOption = (p) => ({
+        value: String(p.id),
+        label: p.nome || p.nome_completo || p.email || "Sem nome",
+        telefone: p.contato_telefone || p.whatsapp || p.telefone || null,
+        type: p.type,
+        role: p.role || null,
+      });
 
     /* ============================================================
         👥 EQUIPE — tabela profiles
@@ -69,6 +78,7 @@ export async function GET(req) {
       data = rows.map((p) => ({
         ...p,
         type: "equipe",
+        contato_telefone: p.whatsapp || p.telefone || null,
       }));
     }
 
@@ -114,6 +124,7 @@ export async function GET(req) {
       data = rows.map((p) => ({
         ...p,
         type: "personas",
+        contato_telefone: p.telefone || null,
       }));
     }
 
@@ -159,6 +170,7 @@ export async function GET(req) {
       data = rows.map((p) => ({
         ...p,
         type: "clientes",
+        contato_telefone: p.telefone || null,
       }));
     }
 
@@ -181,6 +193,11 @@ export async function GET(req) {
     if (id) {
       const item = Array.isArray(data) ? data[0] : data;
       return NextResponse.json({ data: item || null });
+    }
+
+     // 👇 Payload enxuto para selects
+    if (mode === "select") {
+      return NextResponse.json({ data: (data || []).map(toSelectOption) });
     }
 
     /* ============================================================
