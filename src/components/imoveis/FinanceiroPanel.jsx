@@ -16,17 +16,37 @@ import { useToast } from "@/contexts/ToastContext";
 import PrecoHistoricoChart from "@/components/imoveis/PrecoHistoricoChart";
 import VacanciaWidget from "@/components/imoveis/VacanciaWidget";
 
-import { formatCurrency } from "@/utils/formatters";
 import { createClient } from "@/lib/supabase/client";
 import { Input, Label, Select } from "../admin/ui/Form";
+
+/* ============================================================
+   💰 UTILITÁRIO MONETÁRIO
+============================================================ */
+export const formatBRL = (value) =>
+  new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value || 0);
+
+export const parseCurrencyToNumber = (raw) => {
+  if (!raw) return 0;
+  const digits = raw.replace(/\D/g, "");
+  return Number(digits) / 100;
+};
 
 export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
   const { success, error } = useToast();
 
   const [historico, setHistorico] = useState([]);
   const [openModal, setOpenModal] = useState(false);
-  const [ajuste, setAjuste] = useState({ tipo: "venda", valor: "" });
+  const [ajuste, setAjuste] = useState({
+    tipo: "venda",
+    valor: "",
+  });
 
+  /* ============================================================
+     📌 PREÇOS ATUAIS
+  ============================================================ */
   const precoAtual = useMemo(
     () => ({
       venda: Number(imovel?.preco_venda || 0),
@@ -38,7 +58,7 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
   );
 
   /* ============================================================
-      🔹 BUSCAR HISTÓRICO (GET action=precos)
+     📈 HISTÓRICO
   ============================================================ */
   const fetchHistorico = useCallback(async () => {
     if (!imovel?.id) return;
@@ -49,11 +69,11 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
       });
 
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Falha ao carregar histórico");
+      if (!r.ok) throw new Error(j.error);
 
       setHistorico(Array.isArray(j?.data) ? j.data : []);
     } catch (e) {
-      console.error("Erro ao buscar histórico:", e);
+      console.error(e);
     }
   }, [imovel?.id]);
 
@@ -62,20 +82,22 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
   }, [fetchHistorico]);
 
   /* ============================================================
-      🔹 REGISTRAR AJUSTE (PUT action=precos_add)
+     📝 REGISTRAR AJUSTE
   ============================================================ */
   const registrarAjuste = async () => {
-    try {
-      if (!ajuste.valor || Number(ajuste.valor) <= 0)
-        return error("Atenção", "Informe um valor válido");
+    const valorNumerico = parseCurrencyToNumber(ajuste.valor);
 
+    if (!valorNumerico || valorNumerico <= 0)
+      return error("Atenção", "Informe um valor válido");
+
+    try {
       const supabase = createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (!user)
-        return error("Autenticação", "Sessão expirada. Faça login novamente.");
+        return error("Sessão expirada", "Faça login novamente.");
 
       const r = await fetch(
         `/api/imoveis/${imovel.id}?action=precos_add`,
@@ -84,25 +106,25 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             tipo: ajuste.tipo,
-            valor: Number(ajuste.valor),
+            valor: valorNumerico,
             usuario_id: user.id,
           }),
         }
       );
 
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Falha ao registrar ajuste");
+      if (!r.ok) throw new Error(j.error);
 
       success("Sucesso", "Ajuste registrado com sucesso!");
 
       setOpenModal(false);
       setAjuste({ tipo: "venda", valor: "" });
 
-      const novo = { ...imovel };
-      if (ajuste.tipo === "venda") novo.preco_venda = Number(ajuste.valor);
-      if (ajuste.tipo === "locacao") novo.preco_locacao = Number(ajuste.valor);
-
-      onUpdateImovel?.(novo);
+      onUpdateImovel?.({
+        ...imovel,
+        ...(ajuste.tipo === "venda" && { preco_venda: valorNumerico }),
+        ...(ajuste.tipo === "locacao" && { preco_locacao: valorNumerico }),
+      });
 
       fetchHistorico();
     } catch (e) {
@@ -111,21 +133,18 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
   };
 
   /* ============================================================
-      🔹 ATUALIZAR DISPONIBILIDADE
-         (PUT /api/imoveis/:id)
+     🔄 DISPONIBILIDADE
   ============================================================ */
   const atualizarDisponibilidade = async (novaDisponibilidade) => {
     try {
       const r = await fetch(`/api/imoveis/${imovel.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          disponibilidade: novaDisponibilidade,
-        }),
+        body: JSON.stringify({ disponibilidade: novaDisponibilidade }),
       });
 
       const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Falha ao atualizar");
+      if (!r.ok) throw new Error(j.error);
 
       success("Sucesso", "Disponibilidade atualizada!");
 
@@ -139,145 +158,118 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
   };
 
   /* ============================================================
-      🔹 RENDER
+     🧱 RENDER
   ============================================================ */
   return (
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-x-hidden min-w-0">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-    {/* 💰 PREÇO ATUAL */}
-    <div className="w-full min-w-0">
-      <Card className="min-w-0 w-full">
+      {/* 💰 PREÇO ATUAL */}
+      <Card>
         <CardHeader>
           <CardTitle>Preço Atual</CardTitle>
         </CardHeader>
-
         <CardContent className="space-y-4">
-          <div className="flex justify-between flex-wrap">
+          <div className="flex justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Venda</p>
               <p className="text-xl font-semibold">
-                {precoAtual.venda ? formatCurrency(precoAtual.venda) : "-"}
+                {precoAtual.venda ? formatBRL(precoAtual.venda) : "-"}
               </p>
             </div>
-
             <div>
               <p className="text-sm text-muted-foreground">Locação</p>
               <p className="text-xl font-semibold">
-                {precoAtual.locacao ? formatCurrency(precoAtual.locacao) : "-"}
+                {precoAtual.locacao ? formatBRL(precoAtual.locacao) : "-"}
               </p>
             </div>
           </div>
 
-          {/* Disponibilidade */}
-          <div className="flex flex-col gap-1 min-w-0">
-            <label className="text-sm text-muted-foreground">Disponibilidade</label>
+          <Select
+            value={imovel.disponibilidade ?? "venda"}
+            onChange={(e) => atualizarDisponibilidade(e.target.value)}
+          >
+            <option value="venda">Venda</option>
+            <option value="locacao">Locação</option>
+            <option value="ambos">Ambos</option>
+          </Select>
 
-            <Select
-              value={imovel.disponibilidade ?? "venda"}
-              onChange={(e) => atualizarDisponibilidade(e.target.value)}
-            >
-              <option value="venda">Venda</option>
-              <option value="locacao">Locação</option>
-              <option value="ambos">Ambos</option>
-            </Select>
-          </div>
-
-          <Button className="mt-4" onClick={() => setOpenModal(true)}>
+          <Button onClick={() => setOpenModal(true)}>
             Registrar Ajuste
           </Button>
         </CardContent>
       </Card>
-    </div>
 
-    {/* 📦 CUSTOS MENSAIS */}
-    <div className="w-full min-w-0">
-      <Card className="min-w-0 w-full">
+      {/* 📦 CUSTOS */}
+      <Card>
         <CardHeader>
           <CardTitle>Custos Mensais</CardTitle>
         </CardHeader>
-
         <CardContent className="space-y-3">
-          <div className="flex justify-between flex-wrap">
-            <p className="text-sm text-muted-foreground">Condomínio</p>
-            <p className="text-base font-medium">
-              {precoAtual.condominio ? formatCurrency(precoAtual.condominio) : "-"}
-            </p>
+          <div className="flex justify-between">
+            <span>Condomínio</span>
+            <span>{formatBRL(precoAtual.condominio)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>IPTU</span>
+            <span>{formatBRL(precoAtual.iptu)}</span>
           </div>
 
-          <div className="flex justify-between flex-wrap">
-            <p className="text-sm text-muted-foreground">IPTU</p>
-            <p className="text-base font-medium">
-              {precoAtual.iptu ? formatCurrency(precoAtual.iptu) : "-"}
-            </p>
-          </div>
-
-          <VacanciaWidget imovelId={imovel.id} className="mt-4" />
+          <VacanciaWidget imovelId={imovel.id} />
         </CardContent>
       </Card>
-    </div>
 
-    {/* 📈 HISTÓRICO */}
-    <div className="col-span-1 md:col-span-2 w-full min-w-0">
-      <Card className="min-w-0 w-full">
+      {/* 📈 HISTÓRICO */}
+      <Card className="md:col-span-2">
         <CardHeader>
           <CardTitle>Histórico de Preços</CardTitle>
         </CardHeader>
-
-        <CardContent className="overflow-x-auto">
-          <div className="min-w-full">
-            <PrecoHistoricoChart data={historico} />
-          </div>
+        <CardContent>
+          <PrecoHistoricoChart data={historico} />
         </CardContent>
       </Card>
-    </div>
 
-    {/* 🪟 MODAL */}
-    <Modal
-      isOpen={openModal}
-      onClose={() => setOpenModal(false)}
-      title="Registrar Ajuste de Preço"
-      footer={
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={() => setOpenModal(false)}>
-            Cancelar
-          </Button>
-
-          <Button onClick={registrarAjuste}>Salvar</Button>
-        </div>
-      }
-    >
-      <div className="grid grid-cols-1 gap-4 mt-2">
-        {/* Tipo */}
-        <div className="flex flex-col gap-1">
-          <label className="text-sm text-muted-foreground">Tipo</label>
-
+      {/* 🪟 MODAL */}
+      <Modal
+        isOpen={openModal}
+        onClose={() => setOpenModal(false)}
+        title="Registrar Ajuste de Preço"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setOpenModal(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={registrarAjuste}>Salvar</Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
           <Select
             value={ajuste.tipo}
-            onChange={(e) => setAjuste((p) => ({ ...p, tipo: e.target.value }))}
+            onChange={(e) =>
+              setAjuste((p) => ({ ...p, tipo: e.target.value }))
+            }
           >
             <option value="venda">Venda</option>
             <option value="locacao">Locação</option>
           </Select>
+
+          <div>
+            <Label>Novo Valor</Label>
+            <Input
+              value={ajuste.valor}
+              placeholder="R$ 0,00"
+              onChange={(e) => {
+                const raw = e.target.value;
+                const numeric = parseCurrencyToNumber(raw);
+                setAjuste((p) => ({
+                  ...p,
+                  valor: formatBRL(numeric),
+                }));
+              }}
+            />
+          </div>
         </div>
-
-        {/* Valor */}
-        <div className="flex flex-col gap-1">
-          <Label className="text-sm rounded-xl text-muted-foreground">
-            Novo Valor (R$)
-          </Label>
-
-          <Input
-            type="number"
-            min={0}
-            value={ajuste.valor}
-            onChange={(e) =>
-              setAjuste((p) => ({ ...p, valor: e.target.value }))
-            }
-          />
-        </div>
-      </div>
-    </Modal>
-
-  </div>
-);
+      </Modal>
+    </div>
+  );
 }

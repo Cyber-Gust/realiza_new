@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { formatBRL, parseCurrencyToNumber } from "@/utils/currency";  // Caminho ajustado conforme sua estrutura
+import {
+  formatBRL,
+  parseCurrencyToNumber,
+  formatArea,
+  parseAreaToNumber,
+} from "@/utils/currency";
 import { Input, Label, Select } from "@/components/admin/ui/Form";
 import SearchableSelect from "@/components/admin/ui/SearchableSelect";
 import { Switch } from "@/components/admin/ui/Switch";
@@ -546,6 +551,14 @@ export default function ImovelForm({ data = {}, onChange }) {
     [handleChange]
   );
 
+  const handleChangeArea = useCallback(
+    (key, rawValue) => {
+      const numericValue = parseAreaToNumber(rawValue);
+      handleChange(key, numericValue);
+    },
+    [handleChange]
+  );
+
   const handleChangeCaracteristicaFisica = useCallback(
     (field, value) => {
       handleChange(`cf_${field}`, value === "" ? "" : Number(value));
@@ -879,10 +892,12 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Área Total (m²)</Label>
                   <Input
-                    type="number"
-                    value={form.area_total ?? ""}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="0,00"
+                    value={formatArea(form.area_total)}
                     onChange={(e) =>
-                      handleChangeNumero("area_total", e.target.value)
+                      handleChangeArea("area_total", e.target.value)
                     }
                   />
                 </div>
@@ -890,10 +905,12 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Área Construída (m²)</Label>
                   <Input
-                    type="number"
-                    value={form.area_construida ?? ""}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="0,00"
+                    value={formatArea(form.area_construida)}
                     onChange={(e) =>
-                      handleChangeNumero("area_construida", e.target.value)
+                      handleChangeArea("area_construida", e.target.value)
                     }
                   />
                 </div>
@@ -901,10 +918,12 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Testada (m)</Label>
                   <Input
-                    type="number"
-                    value={form.testada ?? ""}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="0,00"
+                    value={formatArea(form.testada)}
                     onChange={(e) =>
-                      handleChangeNumero("testada", e.target.value)
+                      handleChangeArea("testada", e.target.value)
                     }
                   />
                 </div>
@@ -912,10 +931,12 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Profundidade (m)</Label>
                   <Input
-                    type="number"
-                    value={form.profundidade ?? ""}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="0,00"
+                    value={formatArea(form.profundidade)}
                     onChange={(e) =>
-                      handleChangeNumero("profundidade", e.target.value)
+                      handleChangeArea("profundidade", e.target.value)
                     }
                   />
                 </div>
