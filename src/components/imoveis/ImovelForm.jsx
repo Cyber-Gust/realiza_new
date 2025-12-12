@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-
+import { formatBRL, parseCurrencyToNumber } from "@/utils/currency";  // Caminho ajustado conforme sua estrutura
 import { Input, Label, Select } from "@/components/admin/ui/Form";
 import SearchableSelect from "@/components/admin/ui/SearchableSelect";
 import { Switch } from "@/components/admin/ui/Switch";
@@ -177,7 +177,7 @@ export const caracteristicasUnidade = [
   "Depósito Privativo",
   "Despensa",
   "Sala de TV",
-  "Salade Jantar",
+  "Sala de Jantar",
   "Banheira / Hidromassagem",
   "Aquecedor a Gás",
   "Churrasqueira",
@@ -263,9 +263,13 @@ function slugify(value) {
 }
 
 export default function ImovelForm({ data = {}, onChange }) {
-  const [form, setForm] = useState({
-    disponibilidade: data.disponibilidade ?? "venda",
-    ...data,
+  const [form, setForm] = useState(() => {
+    const random = Math.floor(1000 + Math.random() * 9000);
+    return {
+      disponibilidade: data.disponibilidade ?? "venda",
+      codigo_ref: data.codigo_ref ?? `RL-${random}`,
+      ...data,
+    };
   });
 
   const [personas, setPersonas] = useState([]);
@@ -278,15 +282,6 @@ export default function ImovelForm({ data = {}, onChange }) {
 
   const didMount = useRef(false);
 
-  // 🔥 GERA CÓDIGO AUTOMÁTICO RL-XXXX
-  useEffect(() => {
-    if (!form.codigo_ref) {
-      const random = Math.floor(1000 + Math.random() * 9000);
-      const codigo = `RL-${random}`;
-      setForm((prev) => ({ ...prev, codigo_ref: codigo }));
-    }
-  }, []);
-
   // 🔄 Sync parent (controla loop infinito)
   useEffect(() => {
     if (!didMount.current) {
@@ -295,7 +290,7 @@ export default function ImovelForm({ data = {}, onChange }) {
     }
 
     onChange?.(form);
-  }, [form]);
+  }, [form, onChange]);
 
   /* ============================================================
      LOAD PERSONAS
@@ -367,67 +362,165 @@ export default function ImovelForm({ data = {}, onChange }) {
     };
   }, []);
 
+  const gerarNomeImovel = useCallback((form) => {
+    const tipo = tipoOptions.find((t) => t.value === form.tipo)?.label;
+    if (!tipo) return "";
+
+    const bairro = form.endereco_bairro;
+    const cidade = form.endereco_cidade;
+    const vibe = [];
+
+    if (form.suites >= 2) vibe.push("alto padrão");
+    if (form.area_total > 300) vibe.push("amplitude estonteante");
+    if (form.caracteristicas_extras?.includes("Vista Panorâmica")) {
+      vibe.push("vista de tirar o fôlego");
+    }
+    if (form.caracteristicas_extras?.includes("Lareira")) {
+      vibe.push("toque acolhedor");
+    }
+    if (form.caracteristicas_extras?.includes("Aquecimento Solar")) {
+      vibe.push("sustentabilidade");
+    }
+
+    const vibes = vibe.length ? ` – ${vibe.join(", ")}` : "";
+    return `${tipo} no ${bairro || cidade || "localização privilegiada"}${vibes}`;
+  }, []);
+
+  const gerarTituloCurto = useCallback((form) => {
+    const tipo = tipoOptions.find((t) => t.value === form.tipo)?.label;
+    if (!tipo) return "";
+
+    const bairro = form.endereco_bairro || form.endereco_cidade;
+    return bairro ? `${tipo} • ${bairro}` : tipo;
+  }, []);
+
+  const gerarDescricao = useCallback((form) => {
+    const extras = form.caracteristicas_extras?.slice(0, 4)?.join(", ");
+
+    return `
+  Um ${form.tipo || "imóvel"} com ${form.area_total || "?"}m² localizado em ${
+      form.endereco_bairro || form.endereco_cidade || "região estratégica"
+    }.
+
+  Ambientes bem distribuídos, ${form.quartos || "?"} quarto(s), ${
+      form.suites || "?"
+    } suíte(s), pensado para quem busca conforto, funcionalidade e personalidade.
+
+  Destaques: ${extras || "acabamentos selecionados com critério"}.
+  `.trim();
+  }, []);
+
   /* ============================================================
      HANDLERS
   ============================================================ */
-  const handleChange = useCallback((key, value) => {
-    setForm((prev) => {
-      let next = { ...prev, [key]: value };
+  const handleChange = useCallback(
+    (key, value) => {
+      setForm((prev) => {
+        let next = { ...prev, [key]: value };
 
-      if (key === "disponibilidade") {
-        if (value === "venda") {
-          next.preco_locacao = null;
-          next.inquilino_id = null;
-        }
-        if (value === "locacao") {
-          next.preco_venda = null;
-        }
-      }
+        /* AUTO TÍTULO / CURTO */
+        if (autoTitulo && key !== "titulo") {
+          const novoTitulo = gerarNomeImovel(next);
+          if (novoTitulo && novoTitulo !== next.titulo) {
+            next.titulo = novoTitulo;
+          }
 
-      if (key === "tipo" || key === "disponibilidade") {
-        const isRural = (key === "tipo" ? value : next.tipo) === "rural";
-        const disp = key === "disponibilidade" ? value : next.disponibilidade;
-
-        if (disp === "venda" || disp === "ambos") {
-          if (!next.comissao_venda_percent) {
-            next.comissao_venda_percent = isRural ? 8 : 5;
+          const curto = gerarTituloCurto(next);
+          if (curto && curto !== next.titulo_curto) {
+            next.titulo_curto = curto;
           }
         }
 
-        if (disp === "locacao" || disp === "ambos") {
-          if (!next.comissao_locacao_percent) {
+        /* AUTO DESCRIÇÃO */
+        if (autoDescricao && key !== "descricao") {
+          const desc = gerarDescricao(next);
+          if (desc && desc !== next.descricao) {
+            next.descricao = desc;
+          }
+        }
+
+        /* AUTO SLUG */
+        if (autoSlug && (key === "titulo" || autoTitulo)) {
+          const novoSlug = slugify(next.titulo);
+          if (novoSlug && novoSlug !== next.slug) {
+            next.slug = novoSlug;
+          }
+        }
+
+        /* DISPONIBILIDADE */
+        if (key === "disponibilidade") {
+          if (value === "venda") {
+            next.preco_locacao = null;
+            next.inquilino_id = null;
+          }
+          if (value === "locacao") {
+            next.preco_venda = null;
+          }
+        }
+
+        /* COMISSÕES */
+        if (key === "tipo" || key === "disponibilidade") {
+          const tipoAtual = key === "tipo" ? value : next.tipo;
+          const dispAtual = key === "disponibilidade" ? value : next.disponibilidade;
+          const isRural = tipoAtual === "rural";
+
+          if (
+            (dispAtual === "venda" || dispAtual === "ambos") &&
+            !next.comissao_venda_percent
+          ) {
+            next.comissao_venda_percent = isRural ? 8 : 5;
+          }
+
+          if (
+            (dispAtual === "locacao" || dispAtual === "ambos") &&
+            !next.comissao_locacao_percent
+          ) {
             next.comissao_locacao_percent = 8;
           }
         }
-      }
 
-      if (key.startsWith("cf_")) {
-        const field = key.replace("cf_", "");
-        const current = next.caracteristicas_fisicas || {};
-        next.caracteristicas_fisicas = {
-          ...current,
-          [field]: value === "" || value === null ? null : Number(value),
-        };
-        delete next[key];
-      }
+        /* CARACTERÍSTICAS FÍSICAS */
+        if (key.startsWith("cf_")) {
+          const field = key.replace("cf_", "");
+          const current = next.caracteristicas_fisicas || {};
 
-      if (key === "caracteristicas_extras_toggle") {
-        const { item, checked } = value || {};
-        const current = Array.isArray(prev.caracteristicas_extras)
-          ? [...prev.caracteristicas_extras]
-          : [];
+          next.caracteristicas_fisicas = {
+            ...current,
+            [field]:
+              value === "" || value === null || Number.isNaN(Number(value))
+                ? null
+                : Number(value),
+          };
 
-        const updated = checked
-          ? Array.from(new Set([...current, item]))
-          : current.filter((c) => c !== item);
+          delete next[key];
+        }
 
-        next.caracteristicas_extras = updated;
-        delete next[key];
-      }
+        /* CARACTERÍSTICAS EXTRAS */
+        if (key === "caracteristicas_extras_toggle") {
+          const { item, checked } = value || {};
+          const current = Array.isArray(prev.caracteristicas_extras)
+            ? prev.caracteristicas_extras
+            : [];
 
-      return next;
-    });
-  }, []);
+          next.caracteristicas_extras = checked
+            ? Array.from(new Set([...current, item]))
+            : current.filter((c) => c !== item);
+
+          delete next[key];
+        }
+
+        return next;
+      });
+    },
+    [
+      autoTitulo,
+      autoDescricao,
+      autoSlug,
+      gerarNomeImovel,
+      gerarTituloCurto,
+      gerarDescricao,
+    ]
+  );
 
   const handleChangeNumero = useCallback(
     (key, value) => {
@@ -440,6 +533,15 @@ export default function ImovelForm({ data = {}, onChange }) {
   const handleChangeCheckboxExtra = useCallback(
     (item, checked) => {
       handleChange("caracteristicas_extras_toggle", { item, checked });
+    },
+    [handleChange]
+  );
+
+  const handleChangeCurrency = useCallback(
+    (key, rawValue) => {
+      const numericValue = parseCurrencyToNumber(rawValue);  // Converte o valor digitado para número
+      handleChange(key, Number.isNaN(numericValue) ? null : numericValue);
+  // Chama o handleChange com o valor convertido
     },
     [handleChange]
   );
@@ -460,49 +562,22 @@ export default function ImovelForm({ data = {}, onChange }) {
       const dataCep = await res.json();
       if (dataCep.erro) return;
 
-      setForm((prev) => ({
-        ...prev,
-        endereco_logradouro: dataCep.logradouro || prev.endereco_logradouro,
-        endereco_bairro: dataCep.bairro || prev.endereco_bairro,
-        endereco_cidade: dataCep.localidade || prev.endereco_cidade,
-        endereco_estado: dataCep.uf || prev.endereco_estado,
-      }));
-    } catch (e) {}
-  }, [form.endereco_cep]);
-
-  // 🔥 Geradores automáticos — só atualiza se for diferente
-  useEffect(() => {
-    if (!autoTitulo) return;
-    const novo = gerarNomeImovel(form);
-    if (novo && novo !== form.titulo) {
-      setForm((prev) => ({ ...prev, titulo: novo }));
+      if (dataCep.logradouro) {
+        handleChange("endereco_logradouro", dataCep.logradouro);
+      }
+      if (dataCep.bairro) {
+        handleChange("endereco_bairro", dataCep.bairro);
+      }
+      if (dataCep.localidade) {
+        handleChange("endereco_cidade", dataCep.localidade);
+      }
+      if (dataCep.uf) {
+        handleChange("endereco_estado", dataCep.uf);
+      }
+    } catch (e) {
+      // opcional: log ou toast
     }
-  }, [autoTitulo, form]);
-
-  useEffect(() => {
-    if (!autoTitulo) return;
-    const curto = gerarTituloCurto(form);
-    if (curto && curto !== form.titulo_curto) {
-      setForm((prev) => ({ ...prev, titulo_curto: curto }));
-    }
-  }, [autoTitulo, form]);
-
-  useEffect(() => {
-    if (!autoDescricao) return;
-    const desc = gerarDescricao(form);
-    if (desc && desc !== form.descricao) {
-      setForm((prev) => ({ ...prev, descricao: desc }));
-    }
-  }, [autoDescricao, form]);
-
-  useEffect(() => {
-    if (!autoSlug) return;
-    if (!form.titulo) return;
-    const novoSlug = slugify(form.titulo);
-    if (novoSlug !== form.slug) {
-      setForm((prev) => ({ ...prev, slug: novoSlug }));
-    }
-  }, [autoSlug, form.titulo]);
+  }, [form.endereco_cep, handleChange]);
 
   // Cálculo de comissão (mantido como estava)
   const comissaoVendaValor = useMemo(() => {
@@ -532,39 +607,6 @@ export default function ImovelForm({ data = {}, onChange }) {
     if (atual && !base.includes(atual)) base.push(atual);
     return base;
   }, [form.endereco_cidade, form.endereco_bairro]);
-
-  // Funções geradoras (inalteradas)
-  function gerarNomeImovel(form) {
-    const tipo = tipoOptions.find((t) => t.value === form.tipo)?.label;
-    const bairro = form.endereco_bairro;
-    const cidade = form.endereco_cidade;
-    const vibe = [];
-
-    if (form.suites >= 2) vibe.push("alto padrão");
-    if (form.area_total > 300) vibe.push("amplitude estonteante");
-    if (form.caracteristicas_extras?.includes("Vista Panorâmica")) vibe.push("vista de tirar o fôlego");
-    if (form.caracteristicas_extras?.includes("Lareira")) vibe.push("toque acolhedor");
-    if (form.caracteristicas_extras?.includes("Aquecimento Solar")) vibe.push("sustentabilidade");
-
-    const vibes = vibe.length ? " – " + vibe.join(", ") : "";
-    return `${tipo} no ${bairro || cidade}${vibes}`;
-  }
-
-  function gerarTituloCurto(form) {
-    const tipo = tipoOptions.find((t) => t.value === form.tipo)?.label;
-    const bairro = form.endereco_bairro || form.endereco_cidade;
-    return `${tipo} • ${bairro}`;
-  }
-
-  function gerarDescricao(form) {
-    const extras = form.caracteristicas_extras?.slice(0, 4)?.join(", ");
-    return `
-      Um ${form.tipo} com ${form.area_total || "?"}m² que eleva o padrão de vida no ${form.endereco_bairro || form.endereco_cidade}. 
-      Ambientes bem distribuídos, ${form.quartos} quarto(s), ${form.suites} suíte(s) e uma atmosfera pensada para quem busca conforto e personalidade.
-
-      Destaques: ${extras || "acabamentos selecionados com critério"}.
-    `.trim();
-  }
 
   const options1a10 = Array.from({ length: 10 }, (_, i) => i);
 
@@ -767,12 +809,10 @@ export default function ImovelForm({ data = {}, onChange }) {
                     value={form.endereco_estado || ""}
                     onChange={(e) => {
                       const uf = e.target.value;
-                      setForm((prev) => ({
-                        ...prev,
-                        endereco_estado: uf,
-                        endereco_cidade: "",
-                        endereco_bairro: "",
-                      }));
+
+                      handleChange("endereco_estado", uf);
+                      handleChange("endereco_cidade", "");
+                      handleChange("endereco_bairro", "");
                     }}
                   >
                     <option value="" hidden>
@@ -792,11 +832,9 @@ export default function ImovelForm({ data = {}, onChange }) {
                     value={form.endereco_cidade || ""}
                     onChange={(e) => {
                       const cidade = e.target.value;
-                      setForm((prev) => ({
-                        ...prev,
-                        endereco_cidade: cidade,
-                        endereco_bairro: "",
-                      }));
+
+                      handleChange("endereco_cidade", cidade);
+                      handleChange("endereco_bairro", "");
                     }}
                   >
                     <option value="" hidden>
@@ -1278,9 +1316,11 @@ export default function ImovelForm({ data = {}, onChange }) {
                   <div>
                     <Label>Preço de Venda (R$)</Label>
                     <Input
-                      type="number"
-                      value={form.preco_venda ?? ""}
-                      onChange={(e) => handleChangeNumero("preco_venda", e.target.value)}
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="R$ 0,00"  // Placeholder que indica o formato
+                      value={form.preco_venda ? formatBRL(form.preco_venda) : ""}  // Exibe o valor formatado
+                      onChange={(e) => handleChangeCurrency("preco_venda", e.target.value)}  // Chama o handler para tratar a mudança
                     />
                   </div>
 
@@ -1322,9 +1362,17 @@ export default function ImovelForm({ data = {}, onChange }) {
                   <div>
                     <Label>Preço de Locação (R$)</Label>
                     <Input
-                      type="number"
-                      value={form.preco_locacao ?? ""}
-                      onChange={(e) => handleChangeNumero("preco_locacao", e.target.value)}
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="R$ 0,00"
+                      value={
+                        form.preco_locacao
+                          ? formatBRL(form.preco_locacao)
+                          : ""
+                      }
+                      onChange={(e) =>
+                        handleChangeCurrency("preco_locacao", e.target.value)
+                      }
                     />
                   </div>
 
@@ -1379,18 +1427,34 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Valor Condomínio (R$)</Label>
                   <Input
-                    type="number"
-                    value={form.valor_condominio ?? ""}
-                    onChange={(e) => handleChangeNumero("valor_condominio", e.target.value)}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="R$ 0,00"
+                    value={
+                      form.valor_condominio
+                        ? formatBRL(form.valor_condominio)
+                        : ""
+                    }
+                    onChange={(e) =>
+                      handleChangeCurrency("valor_condominio", e.target.value)
+                    }
                   />
                 </div>
 
                 <div>
                   <Label>Valor IPTU (R$)</Label>
                   <Input
-                    type="number"
-                    value={form.valor_iptu ?? ""}
-                    onChange={(e) => handleChangeNumero("valor_iptu", e.target.value)}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="R$ 0,00"
+                    value={
+                      form.valor_iptu
+                        ? formatBRL(form.valor_iptu)
+                        : ""
+                    }
+                    onChange={(e) =>
+                      handleChangeCurrency("valor_iptu", e.target.value)
+                    }
                   />
                 </div>
               </div>
