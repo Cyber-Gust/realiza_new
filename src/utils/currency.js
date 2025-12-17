@@ -33,3 +33,37 @@ export const parseAreaToNumber = (raw) => {
 
   return Number(digits) / 100;
 };
+
+export function formatPhoneBR(value) {
+  if (!value) return "";
+
+  // remove tudo que não for número
+  let digits = String(value).replace(/\D/g, "");
+
+  // remove DDI se já vier junto
+  if (digits.startsWith("55")) {
+    digits = digits.slice(2);
+  }
+
+  // celular BR (11 dígitos)
+  if (digits.length === 11) {
+    const ddd = digits.slice(0, 2);
+    const nine = digits.slice(2, 3);
+    const part1 = digits.slice(3, 7);
+    const part2 = digits.slice(7);
+
+    return `+55 (${ddd}) ${nine} ${part1}-${part2}`;
+  }
+
+  // fixo BR (10 dígitos)
+  if (digits.length === 10) {
+    const ddd = digits.slice(0, 2);
+    const part1 = digits.slice(2, 6);
+    const part2 = digits.slice(6);
+
+    return `+55 (${ddd}) ${part1}-${part2}`;
+  }
+
+  // fallback defensivo
+  return value;
+}

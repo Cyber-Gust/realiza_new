@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { Input, Label, Select } from "@/components/admin/ui/Form";
 import { Button } from "@/components/admin/ui/Button";
 import { Card } from "@/components/admin/ui/Card";
-import { Search, Plus } from "lucide-react";
+import { Search } from "lucide-react";
 import {
   Table,
   TableHeader,
@@ -18,6 +18,12 @@ import KPI from "@/components/admin/ui/KPIWidget";
 import { useRouter } from "next/navigation";
 import { useImoveisQuery } from "@/hooks/useImoveisQuery";
 
+// 👉 importa suas listas
+import {
+  CIDADES_POR_ESTADO,
+  BAIRROS_POR_CIDADE,
+} from "./ImovelForm";
+
 /* ============================================================
    ⬇️ COMPONENTE LOCAL: FILTROS
 ============================================================ */
@@ -26,12 +32,15 @@ function ImoveisFilters({ onFilter }) {
     tipo: "all",
     status: "all",
     disponibilidade: "all",
+
     cidade: "",
     bairro: "",
     rua: "",
     cep: "",
-    corretor: "",
-    proprietario: "",
+
+    corretor_id: "",
+    proprietario_id: "",
+
     preco_min: "",
     preco_max: "",
   });
@@ -40,7 +49,7 @@ function ImoveisFilters({ onFilter }) {
   const [proprietarios, setProprietarios] = useState([]);
 
   /* ============================================================
-     LOAD PROPRIETÁRIOS (personas + clientes)
+     LOAD PROPRIETÁRIOS
   ============================================================ */
   useEffect(() => {
     let alive = true;
@@ -66,7 +75,7 @@ function ImoveisFilters({ onFilter }) {
         }));
 
         setProprietarios(list);
-      } catch (e) {
+      } catch {
         setProprietarios([]);
       }
     })();
@@ -99,7 +108,7 @@ function ImoveisFilters({ onFilter }) {
           : [];
 
         setCorretores(list);
-      } catch (e) {
+      } catch {
         setCorretores([]);
       }
     })();
@@ -113,64 +122,55 @@ function ImoveisFilters({ onFilter }) {
     setFilters((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  const tipoOptions = useMemo(
-    () => [
-      { label: "Todos", value: "all" },
-      { label: "Casa", value: "casa" },
-      { label: "Apartamento", value: "apartamento" },
-      { label: "Terreno", value: "terreno" },
-      { label: "Comercial", value: "comercial" },
-      { label: "Rural", value: "rural" },
-    ],
-    []
-  );
+  const tipoOptions = [
+    { label: "Todos", value: "all" },
+    { label: "Casa", value: "casa" },
+    { label: "Apartamento", value: "apartamento" },
+    { label: "Terreno", value: "terreno" },
+    { label: "Comercial", value: "comercial" },
+    { label: "Rural", value: "rural" },
+  ];
 
-  const statusOptions = useMemo(
-    () => [
-      { label: "Todos", value: "all" },
-      { label: "Disponível", value: "disponivel" },
-      { label: "Reservado", value: "reservado" },
-      { label: "Alugado", value: "alugado" },
-      { label: "Vendido", value: "vendido" },
-      { label: "Inativo", value: "inativo" },
-    ],
-    []
-  );
+  const statusOptions = [
+    { label: "Todos", value: "all" },
+    { label: "Disponível", value: "disponivel" },
+    { label: "Reservado", value: "reservado" },
+    { label: "Alugado", value: "alugado" },
+    { label: "Vendido", value: "vendido" },
+    { label: "Inativo", value: "inativo" },
+  ];
 
-  const disponibilidadeOptions = useMemo(
-    () => [
-      { label: "Todos", value: "all" },
-      { label: "Venda", value: "venda" },
-      { label: "Locação", value: "locacao" },
-      { label: "Ambos", value: "ambos" },
-    ],
-    []
-  );
+  const disponibilidadeOptions = [
+    { label: "Todos", value: "all" },
+    { label: "Venda", value: "venda" },
+    { label: "Locação", value: "locacao" },
+    { label: "Ambos", value: "ambos" },
+  ];
 
   const applyFilters = () => {
-    const payload = {
+    onFilter?.({
       tipo: filters.tipo !== "all" ? filters.tipo : undefined,
       status: filters.status !== "all" ? filters.status : undefined,
       disponibilidade:
-        filters.disponibilidade !== "all" ? filters.disponibilidade : undefined,
+        filters.disponibilidade !== "all"
+          ? filters.disponibilidade
+          : undefined,
 
-      cidade: filters.cidade?.trim() || undefined,
-      bairro: filters.bairro?.trim() || undefined,
-      rua: filters.rua?.trim() || undefined,
-      cep: filters.cep?.trim() || undefined,
+      cidade: filters.cidade || undefined,
+      bairro: filters.bairro || undefined,
+      rua: filters.rua || undefined,
+      cep: filters.cep || undefined,
 
-      corretor_id: filters.corretor || undefined,
-      proprietario_id: filters.proprietario || undefined,
+      corretor_id: filters.corretor_id || undefined,
+      proprietario_id: filters.proprietario_id || undefined,
 
-      preco_min: filters.preco_min ? Number(filters.preco_min) : undefined,
-      preco_max: filters.preco_max ? Number(filters.preco_max) : undefined,
-    };
-
-    onFilter?.(payload);
+      preco_min: filters.preco_min || undefined,
+      preco_max: filters.preco_max || undefined,
+    });
   };
 
   const clearFilters = () => {
-    const reset = {
+    setFilters({
       tipo: "all",
       status: "all",
       disponibilidade: "all",
@@ -178,129 +178,197 @@ function ImoveisFilters({ onFilter }) {
       bairro: "",
       rua: "",
       cep: "",
-      corretor: "",
-      proprietario: "",
+      corretor_id: "",
+      proprietario_id: "",
       preco_min: "",
       preco_max: "",
-    };
+    });
 
-    setFilters(reset);
     onFilter?.({});
   };
 
   return (
-    <Card className="flex flex-wrap items-end gap-3 p-4 bg-panel-card border border-border">
-      
+    <Card className="flex flex-wrap items-end gap-3 p-4">
       {/* Tipo */}
-      <div className="flex flex-col gap-1 min-w-[180px]">
+      <div className="min-w-[180px]">
         <Label>Tipo</Label>
-        <Select value={filters.tipo} onChange={(e) => handleChange("tipo", e.target.value)}>
+        <Select
+          value={filters.tipo}
+          onChange={(e) => handleChange("tipo", e.target.value)}
+        >
           {tipoOptions.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
           ))}
         </Select>
       </div>
 
       {/* Status */}
-      <div className="flex flex-col gap-1 min-w-[180px]">
+      <div className="min-w-[180px]">
         <Label>Status</Label>
-        <Select value={filters.status} onChange={(e) => handleChange("status", e.target.value)}>
+        <Select
+          value={filters.status}
+          onChange={(e) => handleChange("status", e.target.value)}
+        >
           {statusOptions.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
           ))}
         </Select>
       </div>
 
       {/* Disponibilidade */}
-      <div className="flex flex-col gap-1 min-w-[180px]">
+      <div className="min-w-[180px]">
         <Label>Disponibilidade</Label>
-        <Select value={filters.disponibilidade} onChange={(e) => handleChange("disponibilidade", e.target.value)}>
+        <Select
+          value={filters.disponibilidade}
+          onChange={(e) =>
+            handleChange("disponibilidade", e.target.value)
+          }
+        >
           {disponibilidadeOptions.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
           ))}
         </Select>
       </div>
 
       {/* Cidade */}
-      <div className="flex flex-col gap-1 min-w-[180px]">
+      <div className="min-w-[200px]">
         <Label>Cidade</Label>
-        <Input value={filters.cidade} onChange={(e) => handleChange("cidade", e.target.value)} />
+        <Select
+          value={filters.cidade}
+          onChange={(e) => {
+            handleChange("cidade", e.target.value);
+            handleChange("bairro", "");
+          }}
+        >
+          <option value="">Todas</option>
+          {CIDADES_POR_ESTADO.MG.map((cidade) => (
+            <option key={cidade} value={cidade}>
+              {cidade}
+            </option>
+          ))}
+        </Select>
       </div>
 
       {/* Bairro */}
-      <div className="flex flex-col gap-1 min-w-[180px]">
+      <div className="min-w-[220px]">
         <Label>Bairro</Label>
-        <Input value={filters.bairro} onChange={(e) => handleChange("bairro", e.target.value)} />
+        <Select
+          value={filters.bairro}
+          disabled={!filters.cidade}
+          onChange={(e) => handleChange("bairro", e.target.value)}
+        >
+          <option value="">Todos</option>
+          {(BAIRROS_POR_CIDADE[filters.cidade] || []).map((bairro) => (
+            <option key={bairro} value={bairro}>
+              {bairro}
+            </option>
+          ))}
+        </Select>
       </div>
 
       {/* Rua */}
-      <div className="flex flex-col gap-1 min-w-[180px]">
+      <div className="min-w-[180px]">
         <Label>Rua</Label>
-        <Input value={filters.rua} onChange={(e) => handleChange("rua", e.target.value)} />
+        <Input
+          value={filters.rua}
+          onChange={(e) => handleChange("rua", e.target.value)}
+        />
       </div>
 
       {/* CEP */}
-      <div className="flex flex-col gap-1 min-w-[150px]">
+      <div className="min-w-[150px]">
         <Label>CEP</Label>
-        <Input value={filters.cep} onChange={(e) => handleChange("cep", e.target.value)} />
+        <Input
+          value={filters.cep}
+          onChange={(e) => handleChange("cep", e.target.value)}
+        />
       </div>
 
       {/* Corretor */}
-      <div className="flex flex-col gap-1 min-w-[200px]">
+      <div className="min-w-[220px]">
         <Label>Corretor</Label>
-        <Select value={filters.corretor} onChange={(e) => handleChange("corretor", e.target.value)}>
+        <Select
+          value={filters.corretor_id}
+          onChange={(e) =>
+            handleChange("corretor_id", e.target.value)
+          }
+        >
           <option value="">Todos</option>
           {corretores.map((c) => (
-            <option key={c.value} value={c.value}>{c.label}</option>
+            <option key={c.value} value={c.value}>
+              {c.label}
+            </option>
           ))}
         </Select>
       </div>
 
       {/* Proprietário */}
-      <div className="flex flex-col gap-1 min-w-[200px]">
+      <div className="min-w-[220px]">
         <Label>Proprietário</Label>
-        <Select value={filters.proprietario} onChange={(e) => handleChange("proprietario", e.target.value)}>
+        <Select
+          value={filters.proprietario_id}
+          onChange={(e) =>
+            handleChange("proprietario_id", e.target.value)
+          }
+        >
           <option value="">Todos</option>
           {proprietarios.map((p) => (
-            <option key={p.value} value={p.value}>{p.label}</option>
+            <option key={p.value} value={p.value}>
+              {p.label}
+            </option>
           ))}
         </Select>
       </div>
 
-      {/* Preço mínimo */}
-      <div className="flex flex-col gap-1 min-w-[150px]">
+      {/* Preços */}
+      <div className="min-w-[150px]">
         <Label>Preço mín.</Label>
-        <Input type="number" value={filters.preco_min} onChange={(e) => handleChange("preco_min", e.target.value)} />
+        <Input
+          type="number"
+          value={filters.preco_min}
+          onChange={(e) =>
+            handleChange("preco_min", e.target.value)
+          }
+        />
       </div>
 
-      {/* Preço máximo */}
-      <div className="flex flex-col gap-1 min-w-[150px]">
+      <div className="min-w-[150px]">
         <Label>Preço máx.</Label>
-        <Input type="number" value={filters.preco_max} onChange={(e) => handleChange("preco_max", e.target.value)} />
+        <Input
+          type="number"
+          value={filters.preco_max}
+          onChange={(e) =>
+            handleChange("preco_max", e.target.value)
+          }
+        />
       </div>
 
       {/* Botões */}
-      <div className="flex gap-2 mt-2">
-        <Button onClick={applyFilters} className="flex items-center gap-2">
-          <Search size={18} /> Filtrar
+      <div className="flex gap-2">
+        <Button onClick={applyFilters}>
+          <Search size={16} /> Filtrar
         </Button>
-
         <Button variant="secondary" onClick={clearFilters}>
           Limpar
         </Button>
       </div>
-
     </Card>
   );
 }
 
 /* ============================================================
-   ⬇️ COMPONENTE LOCAL: TABELA
+   ⬇️ TABELA
 ============================================================ */
-function ImoveisTable({ data = [], onSelect }) {
+function ImoveisTable({ data = [] }) {
   const router = useRouter();
 
-  if (!Array.isArray(data) || data.length === 0) {
+  if (!data.length) {
     return (
       <p className="p-4 text-center text-muted-foreground">
         Nenhum imóvel encontrado.
@@ -327,38 +395,28 @@ function ImoveisTable({ data = [], onSelect }) {
         {data.map((i) => (
           <TableRow key={i.id}>
             <TableCell>{i.codigo_ref || "-"}</TableCell>
-
-            <TableCell className="truncate max-w-[200px]">
-              {i.titulo || "-"}
-            </TableCell>
-
+            <TableCell>{i.titulo || "-"}</TableCell>
             <TableCell className="capitalize">{i.tipo}</TableCell>
-
             <TableCell>{i.endereco_cidade}</TableCell>
-
             <TableCell>
               {i.preco_venda
                 ? `R$ ${Number(i.preco_venda).toLocaleString("pt-BR")}`
                 : "—"}
             </TableCell>
-
             <TableCell>
               {i.preco_locacao
                 ? `R$ ${Number(i.preco_locacao).toLocaleString("pt-BR")}`
                 : "—"}
             </TableCell>
-
             <TableCell>
               <Badge status={i.status} />
             </TableCell>
-
             <TableCell className="text-right">
               <Button
                 size="sm"
                 onClick={() =>
-                  onSelect ? onSelect(i) : router.push(`/admin/imoveis/${i.id}`)
+                  router.push(`/admin/imoveis/${i.id}`)
                 }
-                className="rounded-lg shadow-sm"
               >
                 Ver Detalhes
               </Button>
@@ -371,17 +429,12 @@ function ImoveisTable({ data = [], onSelect }) {
 }
 
 /* ============================================================
-   ⬇️ COMPONENTE PRINCIPAL: PAINEL COMPLETO
+   ⬇️ PAINEL PRINCIPAL
 ============================================================ */
 export default function ImoveisPanel() {
-  const router = useRouter();
   const { imoveis, applyFilters, loading } = useImoveisQuery();
 
   const stats = useMemo(() => {
-    if (!Array.isArray(imoveis)) {
-      return { disponivel: 0, reservado: 0, alugado: 0, inativo: 0 };
-    }
-
     return imoveis.reduce(
       (acc, i) => {
         acc[i.status] = (acc[i.status] || 0) + 1;
@@ -392,9 +445,7 @@ export default function ImoveisPanel() {
   }, [imoveis]);
 
   return (
-    <div className="space-y-10">
-
-      {/* KPIs */}
+    <div className="space-y-8">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPI title="Disponíveis" value={stats.disponivel} />
         <KPI title="Reservados" value={stats.reservado} />
@@ -402,12 +453,13 @@ export default function ImoveisPanel() {
         <KPI title="Inativos" value={stats.inativo} />
       </div>
 
-      {/* Filtros + Tabela */}
       <Card className="p-4 space-y-4">
         <ImoveisFilters onFilter={applyFilters} />
 
         {loading ? (
-          <p className="p-4 text-center text-muted-foreground">Carregando imóveis...</p>
+          <p className="p-4 text-center text-muted-foreground">
+            Carregando imóveis...
+          </p>
         ) : (
           <ImoveisTable data={imoveis} />
         )}

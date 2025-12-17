@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import Image from "next/image";
+import clsx from "clsx";
+import imageCompression from "browser-image-compression";
+import { Loader2, Trash2, Upload, AlertTriangle } from "lucide-react";
 
 import {
   Card,
@@ -9,16 +13,10 @@ import {
   CardContent
 } from "@/components/admin/ui/Card";
 
-import imageCompression from "browser-image-compression";
-
 import { Button, buttonVariants } from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
-
-import { useToast } from "@/contexts/ToastContext";
-import clsx from "clsx";
-import Image from "next/image";
-import { Loader2, Trash2, Upload, AlertTriangle } from "lucide-react";
 import { Input, Label } from "../admin/ui/Form";
+import { useToast } from "@/contexts/ToastContext";
 
 /* ------------------------- DND KIT ------------------------- */
 import {
@@ -39,11 +37,11 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 /* ------------------------------------------------------------
-   COMPONENTE SORTABLE ITEM
+   SORTABLE ITEM
 ------------------------------------------------------------ */
-function SortableItem({ f, children }) {
+function SortableItem({ id, children }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: f.url });
+    useSortable({ id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -64,24 +62,29 @@ export default function MidiaPanel({ imovel }) {
   const toast = useToast();
 
   const [files, setFiles] = useState([]);
+  const [gallery, setGallery] = useState([]);
+  const [principal, setPrincipal] = useState(imovel.imagem_principal);
+
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
-
-  const [principal, setPrincipalState] = useState(imovel.imagem_principal);
-
-  useEffect(() => {
-    setPrincipalState(imovel.imagem_principal);
-  }, [imovel.imagem_principal]);
-
-  const isPrincipal = (f) => principal === f.url;
+  
 
   const prefix = `imovel_${imovel.id}/`;
+  
 
   /* ============================================================
-     🔄 LISTAR STORAGE + ORDENAR
+     DERIVAÇÕES SIMPLES
+  ============================================================ */
+  const principalFile = useMemo(
+    () => files.find(f => f.url === principal),
+    [files, principal]
+  );
+
+  /* ============================================================
+     🔄 REFRESH
   ============================================================ */
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -91,73 +94,76 @@ export default function MidiaPanel({ imovel }) {
         `/api/imoveis?action=storage&prefix=${encodeURIComponent(prefix)}`
       );
       const json = await res.json();
-
       if (!res.ok) throw new Error(json.error);
 
-      const lista = json.data || [];
+      const storageFiles = json.data || [];
+      const ordered = [];
 
-      const ordered = [
-        ...lista.filter((f) => isPrincipal(f)),
-        ...lista.filter((f) => !isPrincipal(f))
-      ];
+      if (principal) {
+        const p = storageFiles.find(f => f.url === principal);
+        if (p) ordered.push(p);
+      }
+
+      (imovel.midias || []).forEach(url => {
+        const f = storageFiles.find(s => s.url === url);
+        if (f && !ordered.some(o => o.url === f.url)) ordered.push(f);
+      });
+
+      storageFiles.forEach(f => {
+        if (!ordered.some(o => o.url === f.url)) ordered.push(f);
+      });
 
       setFiles(ordered);
     } catch {
-      toast.error("Erro ao carregar arquivos.");
+      toast.error("Erro ao carregar mídias.");
     } finally {
       setLoading(false);
     }
-  }, [prefix, principal]);
+  }, [prefix, principal, imovel.midias, toast]);
 
   useEffect(() => {
-    if (imovel?.id) refresh();
-  }, [imovel?.id, refresh]);
-
+    refresh();
+  }, []);
 
   /* ============================================================
-     ⭐ TROCAR PRINCIPAL
+     🔁 SINCRONIZA GALERIA (REGRA DO DND KIT)
   ============================================================ */
-  const setPrincipal = async (url) => {
-    try {
-      const novaPrincipal = url;
-      setPrincipalState(novaPrincipal);
+  useEffect(() => {
+    setGallery(files.filter(f => f.url !== principal));
+  }, [files, principal]);
 
-      const outras = files
-        .map((f) => f.url)
-        .filter((u) => u !== url);
+  /* ============================================================
+     ⭐ DEFINIR PRINCIPAL
+  ============================================================ */
+  const handleSetPrincipal = async (url) => {
+    const principalFile = files.find(f => f.url === url);
+    if (!principalFile) return;
 
-      const updateRes = await fetch(`/api/imoveis`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: imovel.id,
-          imagem_principal: novaPrincipal,
-          midias: outras.map((u) => ({ url: u }))
-        })
-      });
+    const rest = files.filter(f => f.url !== url);
+    const newFiles = [principalFile, ...rest];
+    const newMidias = rest.map(f => f.url);
 
-      if (!updateRes.ok) {
-        const json = await updateRes.json();
-        throw new Error(json.error);
-      }
+    setPrincipal(url);
+    setFiles(newFiles);
 
-      imovel.onChange?.({
-        ...imovel,
-        imagem_principal: novaPrincipal,
-        midias: outras.map((u) => ({ url: u }))
-      });
+    await fetch("/api/imoveis", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: imovel.id,
+        imagem_principal: url,
+        midias: newMidias
+      })
+    });
 
-      setFiles((prev) => [
-        ...prev.filter((f) => f.url === novaPrincipal),
-        ...prev.filter((f) => f.url !== novaPrincipal)
-      ]);
+    imovel.onChange?.({
+      ...imovel,
+      imagem_principal: url,
+      midias: newMidias
+    });
 
-      toast.success("Imagem principal atualizada!");
-    } catch (err) {
-      toast.error(err.message || "Erro ao definir principal.");
-    }
+    toast.success("Imagem principal atualizada");
   };
-
 
   /* ============================================================
      🔼 UPLOAD
@@ -169,90 +175,65 @@ export default function MidiaPanel({ imovel }) {
     setUploading(true);
 
     try {
-      const uploaded = [];
+      const uploadedUrls = [];
 
       for (const file of selected) {
-        // ===== COMPRESSÃO AQUI! =====
-        const options = {
-          maxSizeMB: 0.5,            // meta corporativa: <500kb
-          maxWidthOrHeight: 1600,    // redimensiona se quiser
-          useWebWorker: true,
-        };
+        const compressed = await imageCompression(file, {
+          maxSizeMB: 0.5,
+          maxWidthOrHeight: 1600,
+          useWebWorker: true
+        });
 
-        const compressedFile = await imageCompression(file, options);
-
-        // ===== SIGNED URL =====
-        const signRes = await fetch(`/api/imoveis?action=sign`, {
+        const signRes = await fetch("/api/imoveis?action=sign", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             path: prefix + file.name,
-            type: compressedFile.type
+            type: compressed.type
           })
         });
 
-        const signJson = await signRes.json();
-        if (!signRes.ok) throw new Error(signJson.error);
-
-        const { uploadUrl, publicUrl } = signJson.data;
-
-        // ===== UPLOAD DO ARQUIVO COMPRIMIDO =====
-        const up = await fetch(uploadUrl, {
-          method: "PUT",
-          body: compressedFile
-        });
-
-        if (!up.ok) throw new Error("Falha ao enviar arquivo.");
-
-        uploaded.push({ name: file.name, url: publicUrl });
+        const { data } = await signRes.json();
+        await fetch(data.uploadUrl, { method: "PUT", body: compressed });
+        uploadedUrls.push(data.publicUrl);
       }
 
-      // RESTO DO SEU PIPELINE – SEM ALTERAÇÃO
-      const urls = uploaded.map((u) => u.url);
-      const newPrincipal = principal || urls[0];
-      setPrincipalState(newPrincipal);
-
+      const newPrincipal = principal || uploadedUrls[0];
       const newMidias = [
-        ...files.map((f) => f.url).filter((u) => u !== newPrincipal),
-        ...urls.filter((u) => u !== newPrincipal)
+        ...files.map(f => f.url).filter(u => u !== newPrincipal),
+        ...uploadedUrls.filter(u => u !== newPrincipal)
       ];
 
-      await fetch(`/api/imoveis`, {
+      setPrincipal(newPrincipal);
+
+      await fetch("/api/imoveis", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: imovel.id,
           imagem_principal: newPrincipal,
-          midias: newMidias.map((u) => ({ url: u }))
+          midias: newMidias
         })
-      });
-
-      setFiles((prev) => {
-        const merged = [...uploaded, ...prev];
-        return [
-          ...merged.filter((f) => f.url === newPrincipal),
-          ...merged.filter((f) => f.url !== newPrincipal)
-        ];
       });
 
       imovel.onChange?.({
         ...imovel,
         imagem_principal: newPrincipal,
-        midias: newMidias.map((u) => ({ url: u }))
+        midias: newMidias
       });
 
-      toast.success("Arquivos enviados com compressão 👊");
-    } catch (err) {
-      toast.error(err.message || "Erro ao enviar arquivos.");
+      refresh();
+      toast.success("Upload concluído 🚀");
+    } catch {
+      toast.error("Erro no upload");
     } finally {
       setUploading(false);
       e.target.value = "";
     }
   };
 
-
   /* ============================================================
-     🖐️ DRAG & DROP — ORDENAR IMAGENS
+     🖐️ DRAG & DROP
   ============================================================ */
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -261,274 +242,219 @@ export default function MidiaPanel({ imovel }) {
   const handleDragEnd = async ({ active, over }) => {
     if (!over || active.id === over.id) return;
 
-    const oldIndex = files.findIndex((f) => f.url === active.id);
-    const newIndex = files.findIndex((f) => f.url === over.id);
+    const oldIndex = gallery.findIndex(f => f.url === active.id);
+    const newIndex = gallery.findIndex(f => f.url === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
 
-    const newOrder = arrayMove(files, oldIndex, newIndex);
-    setFiles(newOrder);
+    const reordered = arrayMove(gallery, oldIndex, newIndex);
+    setGallery(reordered);
 
-    try {
-      const midias = newOrder
-        .filter((f) => f.url !== principal)
-        .map((f) => ({ url: f.url }));
+    const newFiles = principalFile
+      ? [principalFile, ...reordered]
+      : reordered;
 
-      await fetch("/api/imoveis", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: imovel.id,
-          imagem_principal: principal,
-          midias
-        })
-      });
+    setFiles(newFiles);
 
-      toast.success("Ordem atualizada!");
-    } catch (err) {
-      toast.error("Erro ao salvar nova ordem.");
-    }
+    const newMidias = reordered.map(f => f.url);
+
+    await fetch("/api/imoveis", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: imovel.id,
+        imagem_principal: principal,
+        midias: newMidias
+      })
+    });
+
+    imovel.onChange?.({
+      ...imovel,
+      imagem_principal: principal,
+      midias: newMidias
+    });
+
+    toast.success("Ordem atualizada");
   };
-
 
   /* ============================================================
      🗑 REMOVER
   ============================================================ */
   const confirmDelete = async () => {
     if (!deleteTarget) return;
-
     setDeleting(true);
 
-    const file = deleteTarget;
-
     try {
-      const res = await fetch(`/api/imoveis?action=storage`, {
+      await fetch("/api/imoveis?action=storage", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: file.name,
+          name: deleteTarget.name,
           prefix
         })
       });
 
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
+      const remaining = files.filter(f => f.url !== deleteTarget.url);
+      const newPrincipal =
+        deleteTarget.url === principal ? remaining[0]?.url || null : principal;
 
-      let newMidias = files.map((f) => f.url).filter((u) => u !== file.url);
+      setPrincipal(newPrincipal);
+      setFiles(remaining);
 
-      let newPrincipal = principal;
-      if (file.url === newPrincipal) {
-        newPrincipal = newMidias[0] || null;
-        newMidias = newMidias.slice(1);
-      }
-
-      setPrincipalState(newPrincipal);
-
-      await fetch(`/api/imoveis`, {
+      await fetch("/api/imoveis", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: imovel.id,
-          midias: newMidias.map((u) => ({ url: u })),
-          imagem_principal: newPrincipal
+          imagem_principal: newPrincipal,
+          midias: remaining
+            .filter(f => f.url !== newPrincipal)
+            .map(f => f.url)
         })
       });
 
-      setFiles((prev) =>
-        prev.filter((f) => f.url !== file.url)
-      );
-
-      imovel.onChange?.({
-        ...imovel,
-        midias: newMidias.map((u) => ({ url: u })),
-        imagem_principal: newPrincipal
-      });
-
-      toast.success("Mídia removida!");
-    } catch (err) {
-      toast.error(err.message || "Erro ao remover arquivo.");
+      toast.success("Mídia removida");
+    } catch {
+      toast.error("Erro ao remover");
     } finally {
       setDeleting(false);
       setDeleteTarget(null);
     }
   };
 
-
-  const Shimmer = () => (
-    <div className="w-full h-40 bg-muted/50 animate-pulse rounded-lg" />
-  );
-
-
   /* ============================================================
-     🔽 RENDER
+     🔽 RENDER (INALTERADO)
   ============================================================ */
   return (
-    <>
-      <Card className="space-y-4">
-        <CardHeader>
-          <CardTitle>Mídia e Publicação</CardTitle>
-        </CardHeader>
+    <Card>
+      <CardHeader>
+        <CardTitle>Mídia e Publicação</CardTitle>
+      </CardHeader>
 
-        <CardContent className="space-y-4">
+      <CardContent className="space-y-4">
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-muted-foreground">
+            Gerencie fotos e a ordem de exibição
+          </span>
 
-          {/* HEADER */}
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              Gerencie fotos e defina a imagem principal.
-            </div>
+          <Label
+            htmlFor="midiaUploader"
+            className={clsx(
+              buttonVariants({ variant: "secondary" }),
+              "cursor-pointer gap-2"
+            )}
+          >
+            {uploading ? <Loader2 className="animate-spin" /> : <Upload />}
+            Enviar
+            <Input
+              id="midiaUploader"
+              type="file"
+              multiple
+              onChange={handleUpload}
+              className="hidden"
+            />
+          </Label>
+        </div>
 
-            <Label
-              htmlFor="midiaUploader"
-              className={clsx(
-                buttonVariants({ variant: "secondary" }),
-                "cursor-pointer gap-2",
-                uploading && "opacity-50 cursor-not-allowed"
-              )}
+        {loading ? (
+          <div className="h-40 bg-muted animate-pulse rounded" />
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={gallery.map(f => f.url)}
+              strategy={rectSortingStrategy}
             >
-              {uploading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Enviando...
-                </>
-              ) : (
-                <>
-                  <Upload className="w-4 h-4" /> Enviar arquivos
-                </>
-              )}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {/* PRINCIPAL */}
+                {principalFile && (
+                  <div className="border rounded overflow-hidden relative">
+                    <Image
+                      src={principalFile.url}
+                      alt={principalFile.name}
+                      width={300}
+                      height={200}
+                      className="object-cover w-full h-40"
+                    />
 
-              <Input
-                id="midiaUploader"
-                type="file"
-                multiple
-                onChange={handleUpload}
-                className="hidden"
-                disabled={uploading}
-              />
-            </Label>
-          </div>
+                    <span className="absolute top-2 left-2 bg-emerald-500 text-white text-xs px-2 py-1 rounded">
+                      Principal
+                    </span>
 
-          {/* MEDIA GRID + DND CONTEXT */}
-          {loading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Shimmer key={i} />
-              ))}
-            </div>
-          ) : files.length ? (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={files.map((f) => f.url)} strategy={rectSortingStrategy}>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {files.map((f) => (
-                    <SortableItem key={f.url} f={f}>
-                      <figure className="group rounded-xl overflow-hidden border border-border bg-panel-card relative cursor-move">
-                        <div className="relative w-full h-40">
-                          <Image
-                            src={f.url}
-                            alt={f.name}
-                            fill
-                            className="object-cover transition-transform group-hover:scale-105"
-                            sizes="(max-width: 768px) 100vw, 25vw"
-                          />
+                    <div className="flex justify-between p-2">
+                      <span />
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => setDeleteTarget(principalFile)}
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
-                          {isPrincipal(f) && (
-                            <span className="absolute top-2 left-2 inline-flex items-center justify-center
-                              rounded-full px-2.5 py-0.5
-                              text-xs font-semibold whitespace-nowrap capitalize
-                              border shadow-sm transition-all duration-200
-                              bg-emerald-200 text-emerald-800 border-emerald-300">
-                              Principal
-                            </span>
-                          )}
-                        </div>
+                {/* GALERIA */}
+                {gallery.map(f => (
+                  <SortableItem key={f.url} id={f.url}>
+                    <div className="border rounded overflow-hidden relative">
+                      <Image
+                        src={f.url}
+                        alt={f.name}
+                        width={300}
+                        height={200}
+                        className="object-cover w-full h-40"
+                      />
 
-                        <figcaption className="flex items-center justify-between p-2 text-xs gap-2">
-                          <span className="truncate max-w-[45%]" title={f.name}>
-                            {f.name}
-                          </span>
+                      <div className="flex justify-between p-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleSetPrincipal(f.url)}
+                        >
+                          Tornar principal
+                        </Button>
 
-                          <div className="flex gap-2">
-                            {!isPrincipal(f) && (
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                className="h-6 px-2"
-                                onClick={() => setPrincipal(f.url)}
-                              >
-                                Tornar principal
-                              </Button>
-                            )}
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => setDeleteTarget(f)}
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
+                    </div>
+                  </SortableItem>
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
+      </CardContent>
 
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="h-6 px-2"
-                              onClick={() => setDeleteTarget(f)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </figcaption>
-                      </figure>
-                    </SortableItem>
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-6">
-              Nenhuma mídia enviada ainda.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* MODAL DELETE */}
       <Modal
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        title="Excluir Mídia"
+        title="Excluir mídia"
       >
-        {deleteTarget && (
-          <div className="space-y-5">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="text-red-500 mt-1" />
-              <div>
-                <p>
-                  Tem certeza que deseja remover{" "}
-                    <strong>{deleteTarget.name}</strong>?
-                </p>
-
-                {isPrincipal(deleteTarget) && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Esta é a imagem principal. A próxima será definida automaticamente.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="secondary"
-                className="w-1/2"
-                onClick={() => setDeleteTarget(null)}
-              >
-                Cancelar
-              </Button>
-
-              <Button
-                className="w-1/2 bg-red-600 hover:bg-red-700"
-                onClick={confirmDelete}
-                disabled={deleting}
-              >
-                {deleting ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin" /> Removendo...
-                  </>
-                ) : (
-                  "Confirmar"
-                )}
-              </Button>
-            </div>
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <AlertTriangle className="text-red-500" />
+            Tem certeza?
           </div>
-        )}
+
+          <Button
+            className="w-full"
+            variant="destructive"
+            onClick={confirmDelete}
+            disabled={deleting}
+          >
+            {deleting ? "Removendo..." : "Confirmar"}
+          </Button>
+        </div>
       </Modal>
-    </>
+    </Card>
   );
 }

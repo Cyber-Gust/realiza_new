@@ -41,24 +41,24 @@ export default function ImovelDetailPageClient({ imovelId }) {
   /* ======================================================
      🔥 LOAD IMÓVEL
   ====================================================== */
-  const loadImovel = async () => {
-    try {
-      const res = await fetch(`/api/imoveis/${imovelId}`, { cache: "no-store" });
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.error || "Erro ao carregar imóvel");
-
-      setImovel(data.data || null);
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const loadImovel = async () => {
+      try {
+        const res = await fetch(`/api/imoveis/${imovelId}`, { cache: "no-store" });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || "Erro ao carregar imóvel");
+
+        setImovel(data.data || null);
+      } catch (err) {
+        toast.error(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     if (imovelId) loadImovel();
-  }, [imovelId]);
+  }, [imovelId, toast]);
 
   /* ======================================================
      🔥 SALVAR ALTERAÇÕES
@@ -152,14 +152,16 @@ export default function ImovelDetailPageClient({ imovelId }) {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button
-            onClick={salvarAlteracoes}
-            disabled={saving}
-            className="flex items-center gap-2"
-          >
-            <Save size={16} />
-            {saving ? "Salvando..." : "Salvar"}
-          </Button>
+          {tab !== "midia" && (
+            <Button
+              onClick={salvarAlteracoes}
+              disabled={saving}
+              className="flex items-center gap-2"
+            >
+              <Save size={16} />
+              {saving ? "Salvando..." : "Salvar"}
+            </Button>
+          )}
 
           <Button
             onClick={() => {

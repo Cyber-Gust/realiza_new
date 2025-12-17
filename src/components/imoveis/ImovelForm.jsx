@@ -6,8 +6,9 @@ import {
   parseCurrencyToNumber,
   formatArea,
   parseAreaToNumber,
+  formatPhoneBR,
 } from "@/utils/currency";
-import { Input, Label, Select } from "@/components/admin/ui/Form";
+import { Input, Label, Select, Textarea } from "@/components/admin/ui/Form";
 import SearchableSelect from "@/components/admin/ui/SearchableSelect";
 import { Switch } from "@/components/admin/ui/Switch";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/admin/ui/Card";
@@ -19,7 +20,7 @@ const ESTADOS = [
   { sigla: "MG", nome: "Minas Gerais" }
 ];
 
-const CIDADES_POR_ESTADO = {
+export const CIDADES_POR_ESTADO = {
   MG: [
     "Barbacena",
     "Barroso",
@@ -52,7 +53,7 @@ const CIDADES_POR_ESTADO = {
   ]
 };
 
-const BAIRROS_POR_CIDADE = {
+export const BAIRROS_POR_CIDADE = {
   "São João Del Rei": [
     "Água Geral (Tejuco)",
     "Águas Férreas (Tejuco)",
@@ -273,6 +274,7 @@ export default function ImovelForm({ data = {}, onChange }) {
     return {
       disponibilidade: data.disponibilidade ?? "venda",
       codigo_ref: data.codigo_ref ?? `RL-${random}`,
+      observacoes: data.observacoes ?? "",
       ...data,
     };
   });
@@ -691,9 +693,13 @@ export default function ImovelForm({ data = {}, onChange }) {
               onChange={(val) => handleChange("proprietario_id", val || null)}
             />
 
-            {(proprietarioSelecionado?.telefone || proprietarioSelecionado?.contato_telefone) && (
+            {(proprietarioSelecionado?.telefone ||
+              proprietarioSelecionado?.contato_telefone) && (
               <p className="mt-1 text-sm text-gray-500">
-                 {proprietarioSelecionado.telefone || proprietarioSelecionado.contato_telefone}
+                {formatPhoneBR(
+                  proprietarioSelecionado.telefone ||
+                  proprietarioSelecionado.contato_telefone
+                )}
               </p>
             )}
           </div>
@@ -708,7 +714,10 @@ export default function ImovelForm({ data = {}, onChange }) {
 
             {(corretorSelecionado?.telefone || corretorSelecionado?.contato_telefone) && (
               <p className="mt-1 text-sm text-gray-500">
-                 {corretorSelecionado.telefone || corretorSelecionado.contato_telefone}
+                {formatPhoneBR(
+                  corretorSelecionado.telefone ||
+                  corretorSelecionado.contato_telefone
+                )}
               </p>
             )}
           </div>
@@ -1287,8 +1296,6 @@ export default function ImovelForm({ data = {}, onChange }) {
                                 checked:bg-accent checked:border-accent
                                 checked:before:block checked:before:content-['✔']
                                 checked:before:text-white checked:before:text-sm
-                                checked:before:flex checked:before:items-center checked:before:justify-center
-                                hover:border-accent
                               "
                             />
                             <span>{item}</span>
@@ -1325,8 +1332,6 @@ export default function ImovelForm({ data = {}, onChange }) {
                                 checked:bg-accent checked:border-accent
                                 checked:before:block checked:before:content-['✔']
                                 checked:before:text-white checked:before:text-sm
-                                checked:before:flex checked:before:items-center checked:before:justify-center
-                                hover:border-accent
                               "
                             />
                             <span>{item}</span>
@@ -1337,6 +1342,16 @@ export default function ImovelForm({ data = {}, onChange }) {
                   </div>
                 </div>
               </details>
+            </div>
+
+            {/* OBSERVAÇÕES */}
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea
+                value={form.observacoes || ""}
+                onChange={(e) => handleChange("observacoes", e.target.value)}
+                placeholder="Anotações internas, detalhes importantes, contexto do imóvel..."
+              />
             </div>
 
             {/* Nome do Condomínio */}
@@ -1463,7 +1478,10 @@ export default function ImovelForm({ data = {}, onChange }) {
 
                       {(inquilinoSelecionado?.telefone || inquilinoSelecionado?.contato_telefone) && (
                         <p className="mt-1 text-sm text-gray-500">
-                           {inquilinoSelecionado.telefone || inquilinoSelecionado.contato_telefone}
+                          {formatPhoneBR(
+                            inquilinoSelecionado.telefone ||
+                            inquilinoSelecionado.contato_telefone
+                          )}
                         </p>
                       )}
                     </div>
@@ -1612,12 +1630,13 @@ export default function ImovelForm({ data = {}, onChange }) {
 
             <div>
               <Label>Descrição</Label>
-              <Input
+              <Textarea
                 value={form.descricao || ""}
                 onChange={(e) => {
                   setAutoDescricao(false);
                   handleChange("descricao", e.target.value);
                 }}
+                placeholder="Descrição completa do imóvel"
               />
             </div>
 
@@ -1660,8 +1679,6 @@ export default function ImovelForm({ data = {}, onChange }) {
                             checked:before:content-['✔']    /* check branco */
                             checked:before:text-white
                             checked:before:text-sm
-                            checked:before:flex checked:before:items-center checked:before:justify-center
-
                             hover:border-accent
                           "
                       />
