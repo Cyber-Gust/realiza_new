@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   FileText,
   Plus,
@@ -40,7 +40,6 @@ export default function CRMContratosPanel({
   const [pessoas, setPessoas] = useState([]);
   const [statusList, setStatusList] = useState([]);
 
-
   const [filters, setFilters] = useState({
     search: "",
     tipo: "",
@@ -50,9 +49,9 @@ export default function CRMContratosPanel({
   });
 
   /* ===========================================
-     LOAD DATA
+     LOAD DATA (fonte única)
   ============================================ */
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [cRes, iRes, pRes] = await Promise.all([
@@ -80,14 +79,14 @@ export default function CRMContratosPanel({
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   /* ===========================================
-     FILTROS ➝ SUPER OTIMIZADOS
+     FILTROS (derivados)
   ============================================ */
   const filtered = useMemo(() => {
     return contratos.filter((c) => {
@@ -128,7 +127,7 @@ export default function CRMContratosPanel({
         </h3>
 
         <Button
-          onClick={() => onOpenForm?.(null)}
+          onClick={() => onOpenForm?.(null, loadData)}
           className="flex items-center gap-2"
         >
           <Plus size={16} /> Novo Contrato
@@ -165,7 +164,7 @@ export default function CRMContratosPanel({
             <option value="administracao">Administração</option>
           </Select>
 
-          {/* Status */}
+          {/* Status (dinâmico via enum real) */}
           <Select
             value={filters.status}
             onChange={(e) =>
@@ -173,7 +172,6 @@ export default function CRMContratosPanel({
             }
           >
             <option value="">Status</option>
-
             {statusList.map((st) => (
               <option key={st} value={st}>
                 {st.replaceAll("_", " ")}
@@ -223,7 +221,6 @@ export default function CRMContratosPanel({
           >
             <RefreshCcw size={14} /> Reset
           </Button>
-
         </div>
       </Card>
 
@@ -255,7 +252,7 @@ export default function CRMContratosPanel({
               <TableRow
                 key={c.id}
                 className="cursor-pointer hover:bg-muted/20 transition"
-                onClick={() => onOpenDrawer?.(c.id)}
+                onClick={() => onOpenDrawer?.(c.id, loadData)}
               >
                 <TableCell>{c.imoveis?.titulo || "-"}</TableCell>
 
@@ -271,19 +268,22 @@ export default function CRMContratosPanel({
                 </TableCell>
 
                 <TableCell>
-                  <Badge status={c.status} className="capitalize">
-                    {c.status.replace("_", " ")}
-                  </Badge>
+                  {c.status ? (
+                    <Badge status={c.status} className="capitalize">
+                      {c.status.replaceAll("_", " ")}
+                    </Badge>
+                  ) : (
+                    <Badge status="em_elaboracao">—</Badge>
+                  )}
                 </TableCell>
 
                 <TableCell className="text-right flex justify-end gap-2">
-
                   <Button
                     size="icon"
                     variant="ghost"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onOpenForm?.(c);
+                      onOpenForm?.(c, loadData);
                     }}
                   >
                     <Edit size={16} />
@@ -294,12 +294,11 @@ export default function CRMContratosPanel({
                     variant="ghost"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onOpenDelete?.(c);
+                      onOpenDelete?.(c, loadData);
                     }}
                   >
                     <Trash2 size={16} className="text-red-500" />
                   </Button>
-
                 </TableCell>
               </TableRow>
             ))}

@@ -17,7 +17,10 @@ export default function TemplateManager({ onClose }) {
   };
 
   useEffect(() => {
-    load();
+    const fetchTemplates = async () => {
+      await load();
+    };
+    fetchTemplates();
   }, []);
 
   const saveTemplate = async () => {

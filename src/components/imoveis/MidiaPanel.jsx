@@ -123,7 +123,7 @@ export default function MidiaPanel({ imovel }) {
 
   useEffect(() => {
     refresh();
-  }, []);
+  }, [refresh]);
 
   /* ============================================================
      🔁 SINCRONIZA GALERIA (REGRA DO DND KIT)

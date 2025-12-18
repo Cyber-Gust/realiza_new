@@ -32,7 +32,11 @@ export default function ChavesDialog({ imovelId, open, onClose, userId }) {
   };
 
   useEffect(() => {
-    if (open) loadChaves();
+    const fetchChaves = async () => {
+      if (open) await loadChaves();
+    };
+    fetchChaves();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, imovelId]);
 
   const atualizarLocal = async () => {

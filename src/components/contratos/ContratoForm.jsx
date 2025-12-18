@@ -6,6 +6,7 @@ import { Card } from "@/components/admin/ui/Card";
 import { Label, Input, Select, Textarea } from "@/components/admin/ui/Form";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
+import SearchableSelect from "../admin/ui/SearchableSelect";
 
 export default function ContratoForm({ contrato, onClose, onSaved }) {
   const toast = useToast();
@@ -159,7 +160,7 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
       {/* ===========================================
           DADOS GERAIS
       ============================================ */}
-      <Card className="p-5 border border-border rounded-xl shadow-sm bg-panel-card">
+      <div >
         <h4 className="font-semibold text-sm mb-4 tracking-wide">Dados Gerais</h4>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -193,75 +194,69 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
           </Field>
 
         </div>
-      </Card>
+      </div>
 
       {/* ===========================================
           PARTICIPANTES
       ============================================ */}
-      <Card className="p-5 border border-border rounded-xl shadow-sm bg-panel-card">
+      <div>
         <h4 className="font-semibold text-sm mb-4 tracking-wide">Participantes</h4>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
           <Field label="Proprietário">
-            <Select
+            <SearchableSelect
               value={form.proprietario_id}
-              onChange={(e) => updateField("proprietario_id", e.target.value)}
-            >
-              <option value="">Selecione</option>
-              {pessoas.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nome}
-                </option>
-              ))}
-            </Select>
+              onChange={(value) => updateField("proprietario_id", value)}
+              placeholder="Selecione o proprietário"
+              options={pessoas.map((p) => ({
+                value: p.id,
+                label: p.nome,
+              }))}
+            />
           </Field>
 
           {/* 🔧 MOD: inquilino só aparece quando tipo === locacao  */}
           {form.tipo === "locacao" && (
             <Field label="Inquilino">
-              <Select
+              <SearchableSelect
                 value={form.inquilino_id}
-                onChange={(e) => updateField("inquilino_id", e.target.value)}
-              >
-                <option value="">Selecione</option>
-                {pessoas.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nome}
-                  </option>
-                ))}
-              </Select>
+                onChange={(value) => updateField("inquilino_id", value)}
+                placeholder="Selecione o inquilino"
+                options={pessoas.map((p) => ({
+                  value: p.id,
+                  label: p.nome,
+                }))}
+              />
             </Field>
           )}
 
         </div>
-      </Card>
+      </div>
 
       {/* ===========================================
           IMÓVEL
       ============================================ */}
-      <Card className="p-5 border border-border rounded-xl shadow-sm bg-panel-card">
+      <div>
         <h4 className="font-semibold text-sm mb-4 tracking-wide">Imóvel</h4>
 
         <Field label="Selecione o imóvel">
-          <Select
+          <SearchableSelect
             value={form.imovel_id}
-            onChange={(e) => updateField("imovel_id", e.target.value)}
-          >
-            <option value="">Selecione</option>
-            {imoveis.map((i) => (
-              <option key={i.id} value={i.id}>
-                {i.titulo}
-              </option>
-            ))}
-          </Select>
+            onChange={(value) => updateField("imovel_id", value)}
+            placeholder="Buscar imóvel..."
+            options={imoveis.map((i) => ({
+              value: i.id,
+              label: i.titulo,
+            }))}
+          />
         </Field>
-      </Card>
+      </div>
 
       {/* ===========================================
           TEMPLATE & CORPO DO CONTRATO
       ============================================ */}
-      <Card className="p-5 border border-border rounded-xl shadow-sm bg-panel-card">
+      <div >
         <h4 className="font-semibold text-sm mb-4 tracking-wide">Template do Contrato</h4>
 
         <Field label="Modelo de Contrato">
@@ -290,12 +285,12 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
             />
           </div>
         )}
-      </Card>
+      </div>
 
       {/* ===========================================
           FINANCEIRO
       ============================================ */}
-      <Card className="p-5 border border-border rounded-xl shadow-sm bg-panel-card">
+      <div>
         <h4 className="font-semibold text-sm mb-4 tracking-wide">Financeiro</h4>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -343,12 +338,12 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
           )}
 
         </div>
-      </Card>
+      </div>
 
       {/* ===========================================
           VIGÊNCIA
       ============================================ */}
-      <Card className="p-5 border border-border rounded-xl shadow-sm bg-panel-card">
+      <div >
         <h4 className="font-semibold text-sm mb-4 tracking-wide">Vigência</h4>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -370,7 +365,7 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
           </Field>
 
         </div>
-      </Card>
+      </div>
 
       {/* BOTÕES */}
       <div className="flex justify-end gap-2">
