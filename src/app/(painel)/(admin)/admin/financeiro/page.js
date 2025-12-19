@@ -3,56 +3,54 @@
 import { useState } from "react";
 
 import { Card } from "@/components/admin/ui/Card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/admin/ui/Tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/admin/ui/Tabs";
 
-import ReceberPanel from "@/components/financeiro/ReceberPanel";
-import PagarPanel from "@/components/financeiro/PagarPanel";
-import RepassePanel from "@/components/financeiro/RepassePanel";
-import InadimplenciaPanel from "@/components/financeiro/InadimplenciaPanel";
-import ComissoesPanel from "@/components/financeiro/ComissoesPanel";
+/* PAINÉIS NOVOS (UNIFICADOS) */
+import ReceitasPanel from "@/components/financeiro/ReceitasPanel";
+import DespesasPanel from "@/components/financeiro/DespesasPanel";
 import FluxoCaixaPanel from "@/components/financeiro/FluxoCaixaPanel";
+import InadimplenciaPanel from "@/components/financeiro/InadimplenciaPanel";
 
 export default function FinanceiroPage() {
-  const [tab, setTab] = useState("receber");
+  const [tab, setTab] = useState("fluxo"); // default inteligente
 
   return (
     <div className="space-y-6">
 
       {/* HEADER */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Módulo Financeiro</h1>
+        <h1 className="text-2xl font-bold text-foreground">
+          Financeiro
+        </h1>
         <p className="text-muted-foreground mt-1">
-          Controle total das receitas, despesas, repasses, inadimplências e fluxo de caixa da imobiliária.
+          Visão consolidada das receitas, despesas e saúde financeira da imobiliária.
         </p>
       </div>
 
       {/* TABS */}
       <Tabs value={tab} onValueChange={setTab} className="w-full">
 
-        <TabsList className="bg-muted p-1 flex gap-2">
+        <TabsList className="bg-muted p-1 flex flex-wrap gap-2">
 
-          <TabsTrigger value="receber">
-            Receber
+          <TabsTrigger value="fluxo">
+            Fluxo de Caixa
           </TabsTrigger>
 
-          <TabsTrigger value="pagar">
-            Pagar
+          <TabsTrigger value="receitas">
+            Receitas
           </TabsTrigger>
 
-          <TabsTrigger value="repasse">
-            Repasses
+          <TabsTrigger value="despesas">
+            Despesas
           </TabsTrigger>
 
           <TabsTrigger value="inadimplencia">
             Inadimplência
-          </TabsTrigger>
-
-          <TabsTrigger value="comissoes">
-            Comissões
-          </TabsTrigger>
-
-          <TabsTrigger value="fluxo">
-            Fluxo de Caixa
           </TabsTrigger>
 
         </TabsList>
@@ -60,28 +58,28 @@ export default function FinanceiroPage() {
         {/* CONTENT */}
         <div className="mt-6 space-y-4">
 
-          <TabsContent value="receber">
-            <Card className="p-6 space-y-4"><ReceberPanel /></Card>
+          <TabsContent value="fluxo">
+            <Card className="p-6">
+              <FluxoCaixaPanel />
+            </Card>
           </TabsContent>
 
-          <TabsContent value="pagar">
-            <Card className="p-6 space-y-4"><PagarPanel /></Card>
+          <TabsContent value="receitas">
+            <Card className="p-6">
+              <ReceitasPanel />
+            </Card>
           </TabsContent>
 
-          <TabsContent value="repasse">
-            <Card className="p-6 space-y-4"><RepassePanel /></Card>
+          <TabsContent value="despesas">
+            <Card className="p-6">
+              <DespesasPanel />
+            </Card>
           </TabsContent>
 
           <TabsContent value="inadimplencia">
-            <Card className="p-6 space-y-4"><InadimplenciaPanel /></Card>
-          </TabsContent>
-
-          <TabsContent value="comissoes">
-            <Card className="p-6 space-y-4"><ComissoesPanel /></Card>
-          </TabsContent>
-
-          <TabsContent value="fluxo">
-            <Card className="p-6 space-y-4"><FluxoCaixaPanel /></Card>
+            <Card className="p-6">
+              <InadimplenciaPanel />
+            </Card>
           </TabsContent>
 
         </div>

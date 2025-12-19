@@ -24,7 +24,7 @@ export async function GET(req) {
   const supabase = createServiceClient();
   const { searchParams } = new URL(req.url);
 
-  const type = searchParams.get("type") || "fluxo";
+  const type = searchParams.get("type") || "lancamentos";
   const status = searchParams.get("status");
   const contrato_id = searchParams.get("contrato_id");
   const profile_id = searchParams.get("profile_id");
@@ -68,8 +68,12 @@ export async function GET(req) {
     // ========================
     switch (type) {
       case "receber":
-        query = query.in("tipo", ["receita_aluguel", "taxa_adm_imobiliaria"]);
+        query = query.in("tipo", [
+          "receita_aluguel",
+          "taxa_adm_imobiliaria",
+        ]);
         break;
+
       case "pagar":
         query = query.in("tipo", [
           "repasse_proprietario",
@@ -79,17 +83,23 @@ export async function GET(req) {
           "pagamento_condominio",
         ]);
         break;
+
       case "repasse":
         query = query.eq("tipo", "repasse_proprietario");
         break;
-      case "inadimplencia":
-        query = query.in("status", ["pendente", "atrasado"]);
-        break;
+
       case "comissoes":
         query = query.eq("tipo", "comissao_corretor");
         break;
+
+      case "inadimplencia":
+        query = query.in("status", ["pendente", "atrasado"]);
+        break;
+
+      case "lancamentos":
       case "fluxo":
       default:
+        // NÃO filtra nada
         break;
     }
 

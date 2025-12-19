@@ -3,15 +3,15 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 /**
  * -----------------------------------------------------
- * GET    → Lista contratos + enum de status
+ * GET    → Lista contratos + enum real de status
  * POST   → Cria contrato (status SEMPRE em_elaboracao)
- * PATCH  → Atualiza contrato (SEM status)
+ * PATCH  → Atualiza contrato (❌ SEM status)
  * DELETE → Remove contrato + documentos
  * -----------------------------------------------------
  */
 
 /* ======================================================
-   GET — Lista contratos + ENUM contrato_status
+   GET — Lista contratos
 ====================================================== */
 export async function GET(req) {
   const supabase = createServiceClient();
@@ -49,7 +49,7 @@ export async function GET(req) {
   }
 
   /* ====================================================
-     ENUM direto do Postgres (fonte da verdade)
+     STATUS ENUM (fonte da verdade do banco)
   ==================================================== */
   const { data: statusEnum, error: enumErr } = await supabase.rpc(
     "get_contrato_status_enum"
@@ -67,7 +67,7 @@ export async function GET(req) {
 
 /* ======================================================
    POST — Criar contrato
-   Status SEMPRE começa como em_elaboracao
+   🔒 Status SEMPRE começa como em_elaboracao
 ====================================================== */
 export async function POST(req) {
   const supabase = await createClient();
@@ -89,7 +89,9 @@ export async function POST(req) {
     updated_at: new Date().toISOString(),
   };
 
+  // Governança: nunca confiar no client
   delete payload.id;
+  delete payload.status;
   delete payload.assinatura_status;
 
   const { data, error } = await supabase
@@ -119,7 +121,7 @@ export async function PATCH(req) {
   const supabase = createServiceClient();
   const body = await req.json();
 
-  const { id, status, ...updates } = body;
+  const { id, status, assinatura_status, ...updates } = body;
 
   if (!id) {
     return NextResponse.json(
@@ -128,9 +130,9 @@ export async function PATCH(req) {
     );
   }
 
-  if (status) {
+  if (status || assinatura_status) {
     return NextResponse.json(
-      { error: "Status não pode ser alterado manualmente" },
+      { error: "Status do contrato não pode ser alterado manualmente" },
       { status: 400 }
     );
   }
@@ -152,7 +154,7 @@ export async function PATCH(req) {
   }
 
   return NextResponse.json({
-    message: "Contrato atualizado!",
+    message: "Contrato atualizado com sucesso!",
     data,
   });
 }

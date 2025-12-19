@@ -16,9 +16,9 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
   const [pessoas, setPessoas] = useState([]);
   const [templates, setTemplates] = useState([]);
 
-  // =============================
-  // CAMPOS DO FORM
-  // =============================
+  /* =============================
+     CAMPOS DO FORM
+  ============================== */
   const [form, setForm] = useState({
     tipo: "locacao",
     imovel_id: "",
@@ -30,17 +30,13 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
     indice_reajuste: "IGPM",
     data_inicio: "",
     data_fim: "",
-    status: "em_elaboracao",
-
     template_id: "",
     corpo_contrato: "",
-
-    assinatura_status: "pendente",
   });
 
-  // =============================
-  // LOAD OPTIONS
-  // =============================
+  /* =============================
+     LOAD OPTIONS
+  ============================== */
   const loadOptions = useCallback(async () => {
     try {
       const [imv, ppl, tmpl] = await Promise.all([
@@ -59,76 +55,90 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
     }
   }, [toast]);
 
-  // Carregar contrato existente
+  /* =============================
+     LOAD CONTRATO (EDIÇÃO)
+  ============================== */
   useEffect(() => {
     loadOptions();
 
     if (contrato) {
       setForm({
-        ...contrato,
-        corpo_contrato: contrato.corpo_contrato || "",
-        template_id: contrato.template_id || "",
+        tipo: contrato.tipo || "locacao",
+        imovel_id: contrato.imovel_id || "",
+        proprietario_id: contrato.proprietario_id || "",
+        inquilino_id: contrato.inquilino_id || "",
         valor_acordado: contrato.valor_acordado || "",
-        taxa_administracao_percent: contrato.taxa_administracao_percent || "",
+        taxa_administracao_percent:
+          contrato.taxa_administracao_percent || "",
+        dia_vencimento_aluguel: contrato.dia_vencimento_aluguel || 5,
+        indice_reajuste: contrato.indice_reajuste || "IGPM",
+        data_inicio: contrato.data_inicio || "",
+        data_fim: contrato.data_fim || "",
+        template_id: contrato.template_id || "",
+        corpo_contrato: contrato.corpo_contrato || "",
       });
     }
   }, [contrato, loadOptions]);
 
-  // =============================
-  // HANDLERS
-  // =============================
+  /* =============================
+     HANDLERS
+  ============================== */
   const updateField = (field, value) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
-  // Quando escolher um template → carregar texto
   const handleSelectTemplate = (templateId) => {
     updateField("template_id", templateId);
 
     const tpl = templates.find((t) => t.id === templateId);
     if (tpl) {
-      updateField("corpo_contrato", tpl.conteudo); // 🔧 MOD: texto do template vai para o campo editável
+      updateField("corpo_contrato", tpl.conteudo);
     }
   };
 
-  // =============================
-  // SAVE
-  // =============================
+  /* =============================
+     SAVE
+  ============================== */
   const handleSave = async () => {
     try {
       setSaving(true);
 
       if (!form.imovel_id) return toast.error("Selecione o imóvel");
-      if (!form.proprietario_id) return toast.error("Selecione o proprietário");
+      if (!form.proprietario_id)
+        return toast.error("Selecione o proprietário");
 
-      // 🔧 MOD: validação dinâmica → só exige inquilino para locação
-      if (form.tipo === "locacao" && !form.inquilino_id)
-        return toast.error("Selecione o inquilino (somente em contratos de locação)");
+      if (form.tipo === "locacao" && !form.inquilino_id) {
+        return toast.error(
+          "Selecione o inquilino (somente contratos de locação)"
+        );
+      }
 
       if (!form.data_inicio || !form.data_fim)
         return toast.error("Preencha as datas de vigência");
-      if (new Date(form.data_inicio) > new Date(form.data_fim))
-        return toast.error("A data de início não pode ser maior que a de término");
 
-      // =============================
-      // MONTAGEM DO PAYLOAD
-      // =============================
+      if (new Date(form.data_inicio) > new Date(form.data_fim))
+        return toast.error(
+          "A data de início não pode ser maior que a de término"
+        );
+
+      /* =============================
+         PAYLOAD
+      ============================== */
       const payload = {
         ...form,
         valor_acordado: Number(form.valor_acordado),
         taxa_administracao_percent: form.taxa_administracao_percent
           ? Number(form.taxa_administracao_percent)
           : null,
-        corpo_contrato: form.corpo_contrato,
       };
 
-      // Ajuste crítico: nunca enviar "" como UUID
+      // Nunca enviar "" como UUID
       if (form.tipo !== "locacao") {
         payload.inquilino_id = null;
-      } else {
-        if (!form.inquilino_id) {
-          return toast.error("Selecione o inquilino");
-        }
       }
+
+      // Governança: status e assinatura não vêm do formulário
+      delete payload.status;
+      delete payload.assinatura_status;
 
       const method = contrato ? "PATCH" : "POST";
 
@@ -151,63 +161,43 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
     }
   };
 
-  // =============================
-  // UI
-  // =============================
+  /* =============================
+     UI
+  ============================== */
   return (
     <div className="space-y-8">
 
-      {/* ===========================================
-          DADOS GERAIS
-      ============================================ */}
-      <div >
-        <h4 className="font-semibold text-sm mb-4 tracking-wide">Dados Gerais</h4>
+      {/* DADOS GERAIS */}
+      <Card className="p-5">
+        <h4 className="font-semibold text-sm mb-4 tracking-wide">
+          Dados Gerais
+        </h4>
+
+        <Field label="Tipo de Contrato">
+          <Select
+            value={form.tipo}
+            onChange={(e) => updateField("tipo", e.target.value)}
+          >
+            <option value="locacao">Locação</option>
+            <option value="venda">Venda</option>
+            <option value="administracao">Administração</option>
+          </Select>
+        </Field>
+      </Card>
+
+      {/* PARTICIPANTES */}
+      <Card className="p-5">
+        <h4 className="font-semibold text-sm mb-4 tracking-wide">
+          Participantes
+        </h4>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-          <Field label="Tipo de Contrato">
-            <Select
-              value={form.tipo}
-              onChange={(e) => updateField("tipo", e.target.value)}
-            >
-              <option value="locacao">Locação</option>
-              <option value="venda">Venda</option>
-              <option value="administracao">Administração</option>
-            </Select>
-          </Field>
-
-          <Field label="Status">
-            <Select
-              value={form.status}
-              onChange={(e) => updateField("status", e.target.value)}
-            >
-              <option value="em_elaboracao">Em Elaboração</option>
-              <option value="aguardando_assinatura">Aguardando Assinatura</option>
-              <option value="assinado">Assinado</option>
-              <option value="vigente">Vigente</option>
-              <option value="reajuste_pendente">Reajuste Pendente</option>
-              <option value="renovacao_pendente">Renovação Pendente</option>
-              <option value="encerrado">Encerrado</option>
-              <option value="rescindido">Rescindido</option>
-              <option value="cancelado">Cancelado</option>
-            </Select>
-          </Field>
-
-        </div>
-      </div>
-
-      {/* ===========================================
-          PARTICIPANTES
-      ============================================ */}
-      <div>
-        <h4 className="font-semibold text-sm mb-4 tracking-wide">Participantes</h4>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
           <Field label="Proprietário">
             <SearchableSelect
               value={form.proprietario_id}
-              onChange={(value) => updateField("proprietario_id", value)}
+              onChange={(value) =>
+                updateField("proprietario_id", value)
+              }
               placeholder="Selecione o proprietário"
               options={pessoas.map((p) => ({
                 value: p.id,
@@ -216,12 +206,13 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
             />
           </Field>
 
-          {/* 🔧 MOD: inquilino só aparece quando tipo === locacao  */}
           {form.tipo === "locacao" && (
             <Field label="Inquilino">
               <SearchableSelect
                 value={form.inquilino_id}
-                onChange={(value) => updateField("inquilino_id", value)}
+                onChange={(value) =>
+                  updateField("inquilino_id", value)
+                }
                 placeholder="Selecione o inquilino"
                 options={pessoas.map((p) => ({
                   value: p.id,
@@ -230,15 +221,14 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
               />
             </Field>
           )}
-
         </div>
-      </div>
+      </Card>
 
-      {/* ===========================================
-          IMÓVEL
-      ============================================ */}
-      <div>
-        <h4 className="font-semibold text-sm mb-4 tracking-wide">Imóvel</h4>
+      {/* IMÓVEL */}
+      <Card className="p-5">
+        <h4 className="font-semibold text-sm mb-4 tracking-wide">
+          Imóvel
+        </h4>
 
         <Field label="Selecione o imóvel">
           <SearchableSelect
@@ -251,13 +241,13 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
             }))}
           />
         </Field>
-      </div>
+      </Card>
 
-      {/* ===========================================
-          TEMPLATE & CORPO DO CONTRATO
-      ============================================ */}
-      <div >
-        <h4 className="font-semibold text-sm mb-4 tracking-wide">Template do Contrato</h4>
+      {/* TEMPLATE */}
+      <Card className="p-5">
+        <h4 className="font-semibold text-sm mb-4 tracking-wide">
+          Template do Contrato
+        </h4>
 
         <Field label="Modelo de Contrato">
           <Select
@@ -273,33 +263,36 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
           </Select>
         </Field>
 
-        {/* 🔧 MOD: corpo_contrato aparece sempre que existir texto */}
         {form.corpo_contrato && (
-          <div className="mt-4 space-y-1">
-            <Label className="text-xs tracking-wide">Corpo do Contrato (editável)</Label>
-
+          <div className="mt-4">
+            <Label className="text-xs tracking-wide">
+              Corpo do Contrato (editável)
+            </Label>
             <Textarea
               className="min-h-[260px]"
               value={form.corpo_contrato}
-              onChange={(e) => updateField("corpo_contrato", e.target.value)}
+              onChange={(e) =>
+                updateField("corpo_contrato", e.target.value)
+              }
             />
           </div>
         )}
-      </div>
+      </Card>
 
-      {/* ===========================================
-          FINANCEIRO
-      ============================================ */}
-      <div>
-        <h4 className="font-semibold text-sm mb-4 tracking-wide">Financeiro</h4>
+      {/* FINANCEIRO */}
+      <Card className="p-5">
+        <h4 className="font-semibold text-sm mb-4 tracking-wide">
+          Financeiro
+        </h4>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
           <Field label="Valor do Contrato (R$)">
             <Input
               type="number"
               value={form.valor_acordado}
-              onChange={(e) => updateField("valor_acordado", e.target.value)}
+              onChange={(e) =>
+                updateField("valor_acordado", e.target.value)
+              }
             />
           </Field>
 
@@ -308,7 +301,10 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
               type="number"
               value={form.taxa_administracao_percent}
               onChange={(e) =>
-                updateField("taxa_administracao_percent", e.target.value)
+                updateField(
+                  "taxa_administracao_percent",
+                  e.target.value
+                )
               }
             />
           </Field>
@@ -320,7 +316,10 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
                   type="number"
                   value={form.dia_vencimento_aluguel}
                   onChange={(e) =>
-                    updateField("dia_vencimento_aluguel", Number(e.target.value))
+                    updateField(
+                      "dia_vencimento_aluguel",
+                      Number(e.target.value)
+                    )
                   }
                 />
               </Field>
@@ -328,7 +327,9 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
               <Field label="Índice de Reajuste">
                 <Select
                   value={form.indice_reajuste}
-                  onChange={(e) => updateField("indice_reajuste", e.target.value)}
+                  onChange={(e) =>
+                    updateField("indice_reajuste", e.target.value)
+                  }
                 >
                   <option value="IGPM">IGP-M</option>
                   <option value="IPCA">IPCA</option>
@@ -336,23 +337,23 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
               </Field>
             </>
           )}
-
         </div>
-      </div>
+      </Card>
 
-      {/* ===========================================
-          VIGÊNCIA
-      ============================================ */}
-      <div >
-        <h4 className="font-semibold text-sm mb-4 tracking-wide">Vigência</h4>
+      {/* VIGÊNCIA */}
+      <Card className="p-5">
+        <h4 className="font-semibold text-sm mb-4 tracking-wide">
+          Vigência
+        </h4>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
           <Field label="Data de Início">
             <Input
               type="date"
               value={form.data_inicio}
-              onChange={(e) => updateField("data_inicio", e.target.value)}
+              onChange={(e) =>
+                updateField("data_inicio", e.target.value)
+              }
             />
           </Field>
 
@@ -360,12 +361,13 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
             <Input
               type="date"
               value={form.data_fim}
-              onChange={(e) => updateField("data_fim", e.target.value)}
+              onChange={(e) =>
+                updateField("data_fim", e.target.value)
+              }
             />
           </Field>
-
         </div>
-      </div>
+      </Card>
 
       {/* BOTÕES */}
       <div className="flex justify-end gap-2">
@@ -386,7 +388,7 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
   );
 }
 
-/* COMPONENTE FIELD */
+/* FIELD */
 function Field({ label, children }) {
   return (
     <div className="flex flex-col gap-1">
