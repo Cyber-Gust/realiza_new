@@ -1,3 +1,4 @@
+//src/utils/currency.js
 // Formata o valor em centavos para o formato monetário em BRL
 export const formatBRL = (value) => {
   return new Intl.NumberFormat("pt-BR", {
@@ -67,3 +68,37 @@ export function formatPhoneBR(value) {
   // fallback defensivo
   return value;
 }
+
+// =======================
+// DATAS (PADRÃO BR)
+// =======================
+
+// ISO ("2025-02-10" ou Date) → "10/02/2025"
+export const formatDateBR = (value) => {
+  if (!value) return "—";
+
+  const date = value instanceof Date ? value : new Date(value);
+
+  if (isNaN(date.getTime())) return "—";
+
+  return date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
+
+// ISO → "10/02/2025 • Seg"
+export const formatDateBRWithWeekday = (value) => {
+  if (!value) return "—";
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (isNaN(date.getTime())) return "—";
+
+  return date.toLocaleDateString("pt-BR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};

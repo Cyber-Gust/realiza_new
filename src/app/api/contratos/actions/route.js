@@ -27,6 +27,10 @@ const STATUS_FLOW = {
     from: ["aguardando_assinatura"],
     to: "assinado",
   },
+  ativar_vigencia: {
+    from: ["assinado"],
+    to: "vigente",
+  },
 };
 
 function getNextStatus(action, currentStatus) {
@@ -251,7 +255,68 @@ export async function POST(req) {
     }
 
     /* ====================================================
-       3) ENCERRAR CONTRATO (override)
+      3) ATIVAR VIGÊNCIA (AUTOMÁTICO / CONTROLADO)
+    ==================================================== */
+    if (action === "ativar_vigencia") {
+      if (contrato.status === "vigente") {
+        return NextResponse.json({
+          message: "Contrato já está vigente.",
+          contrato_status: "vigente",
+        });
+      }
+
+      if (contrato.status !== "assinado") {
+        return NextResponse.json(
+          { error: "Contrato precisa estar assinado para virar vigente." },
+          { status: 400 }
+        );
+      }
+
+      const hoje = new Date().toISOString().split("T")[0];
+
+      if (!contrato.data_inicio || contrato.data_inicio > hoje) {
+        return NextResponse.json(
+          { error: "Data de início ainda não foi alcançada." },
+          { status: 400 }
+        );
+      }
+
+      // 1️⃣ Atualiza contrato
+      await supabase
+        .from("contratos")
+        .update({
+          status: getNextStatus("ativar_vigencia", contrato.status),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", contrato_id);
+
+      // 2️⃣ Atualiza imóvel
+      let novoStatusImovel = null;
+
+      if (contrato.tipo === "venda") {
+        novoStatusImovel = "vendido";
+      }
+
+      if (contrato.tipo === "locacao") {
+        novoStatusImovel = "alugado";
+      }
+
+      if (novoStatusImovel) {
+        await supabase
+          .from("imoveis")
+          .update({ status: novoStatusImovel })
+          .eq("id", contrato.imovel_id);
+      }
+
+      return NextResponse.json({
+        message: "Contrato ativado com sucesso!",
+        contrato_status: "vigente",
+        imovel_status: novoStatusImovel,
+      });
+    }
+
+    /* ====================================================
+      4) ENCERRAR CONTRATO (override)
     ==================================================== */
     if (action === "encerrar") {
       if (contrato.status === "encerrado") {
@@ -269,6 +334,12 @@ export async function POST(req) {
           updated_at: new Date().toISOString(),
         })
         .eq("id", contrato_id);
+
+      // 🔁 imóvel volta a ficar disponível
+      await supabase
+        .from("imoveis")
+        .update({ status: "disponivel" })
+        .eq("id", contrato.imovel_id);
 
       return NextResponse.json({
         message: "Contrato encerrado com sucesso.",

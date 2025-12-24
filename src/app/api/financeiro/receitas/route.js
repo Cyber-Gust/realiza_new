@@ -1,0 +1,335 @@
+import { NextResponse } from "next/server";
+import { createServiceClient } from "@/lib/supabase/server";
+
+/* ======================================================
+   CONSTANTES DE DOMÍNIO
+====================================================== */
+
+const TIPOS_AUTOMATICOS = ["receita_aluguel"];
+
+const TIPOS_MANUAIS = [
+  "receita_venda_imovel",
+  "taxa_adm_imobiliaria",
+  "outra_receita",
+];
+
+/* ======================================================
+   HELPERS
+====================================================== */
+
+function getCompetenciaAtual() {
+  const hoje = new Date(
+    new Date().toLocaleString("en-US", {
+      timeZone: "America/Sao_Paulo",
+    })
+  );
+  const ano = hoje.getFullYear();
+  const mes = String(hoje.getMonth() + 1).padStart(2, "0");
+  return `${ano}-${mes}`;
+}
+
+function calcularDataVencimento(competencia, diaVencimento) {
+  const [ano, mes] = competencia.split("-");
+  const dia = Math.min(Number(diaVencimento), 28);
+  return `${ano}-${mes}-${String(dia).padStart(2, "0")}`;
+}
+
+async function atualizarAtrasos(supabase) {
+  const hoje = new Date().toISOString().split("T")[0];
+
+  await supabase
+    .from("transacoes")
+    .update({ status: "atrasado" })
+    .eq("natureza", "entrada")
+    .eq("status", "pendente")
+    .lt("data_vencimento", hoje);
+}
+
+/* ======================================================
+   🔒 RESOLVER CONTRATO PELO IMÓVEL (FONTE DA VERDADE)
+====================================================== */
+
+async function resolverContratoPorImovel(supabase, imovelId) {
+  if (!imovelId) return null;
+
+  const { data: contrato, error } = await supabase
+    .from("contratos")
+    .select("id")
+    .eq("imovel_id", imovelId)
+    .eq("status", "vigente")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error || !contrato) {
+    return null;
+  }
+
+  return contrato.id;
+}
+
+/* ======================================================
+   🔄 GERAÇÃO AUTOMÁTICA — ALUGUEL
+====================================================== */
+
+async function gerarReceitasAutomaticas(supabase) {
+  const hoje = new Date().toISOString().split("T")[0];
+  const competencia = getCompetenciaAtual();
+
+  const { data: contratos } = await supabase
+    .from("contratos")
+    .select(`
+      id,
+      imovel_id,
+      valor_acordado,
+      dia_vencimento_aluguel,
+      taxa_administracao_percent,
+      data_inicio,
+      data_fim
+    `)
+    .eq("tipo", "locacao")
+    .eq("status", "vigente")
+    .lte("data_inicio", hoje)
+    .gte("data_fim", hoje)
+    .not("dia_vencimento_aluguel", "is", null);
+
+  if (!contratos?.length) return;
+
+  const contratoIds = contratos.map(c => c.id);
+
+  const { data: existentes } = await supabase
+    .from("transacoes")
+    .select("contrato_id")
+    .eq("tipo", "receita_aluguel")
+    .in("contrato_id", contratoIds)
+    .eq("dados_cobranca_json->>competencia", competencia);
+
+  const existentesSet = new Set(existentes?.map(e => e.contrato_id));
+
+  const novas = [];
+
+  for (const contrato of contratos) {
+    if (existentesSet.has(contrato.id)) continue;
+
+    novas.push({
+      contrato_id: contrato.id,
+      imovel_id: contrato.imovel_id,
+      tipo: "receita_aluguel",
+      natureza: "entrada",
+      status: "pendente",
+      valor: Number(contrato.valor_acordado),
+      data_vencimento: calcularDataVencimento(
+        competencia,
+        contrato.dia_vencimento_aluguel
+      ),
+      descricao: `Aluguel ${competencia}`,
+      dados_cobranca_json: {
+        origem: "automatica",
+        competencia,
+        dia_vencimento: contrato.dia_vencimento_aluguel,
+        taxa_administracao_percent: contrato.taxa_administracao_percent,
+      },
+    });
+  }
+
+  if (novas.length) {
+    await supabase.from("transacoes").insert(novas);
+  }
+}
+
+/* ======================================================
+   GET — LISTAGEM + GERAÇÃO AUTOMÁTICA
+====================================================== */
+
+export async function GET() {
+  const supabase = createServiceClient();
+
+  try {
+    await atualizarAtrasos(supabase);
+    await gerarReceitasAutomaticas(supabase);
+
+    const { data, error } = await supabase
+      .from("transacoes")
+      .select(`
+        id,
+        contrato_id,
+        imovel_id,
+        tipo,
+        status,
+        valor,
+        descricao,
+        data_vencimento,
+        data_pagamento,
+        dados_cobranca_json,
+        created_at,
+        imovel:imoveis(codigo_ref, titulo)
+      `)
+      .eq("natureza", "entrada")
+      .order("data_vencimento", { ascending: false });
+
+    if (error) throw error;
+
+    return NextResponse.json({ data });
+  } catch (err) {
+    console.error("❌ Receitas GET:", err);
+    return NextResponse.json(
+      { error: err.message },
+      { status: 500 }
+    );
+  }
+}
+
+/* ======================================================
+   POST — RECEITA MANUAL (CONTRATO RESOLVIDO NO BACKEND)
+====================================================== */
+
+export async function POST(req) {
+  const supabase = createServiceClient();
+
+  try {
+    const body = await req.json();
+
+    if (TIPOS_AUTOMATICOS.includes(body.tipo)) {
+      return NextResponse.json(
+        { error: "Receita automática não pode ser criada manualmente." },
+        { status: 403 }
+      );
+    }
+
+    if (!TIPOS_MANUAIS.includes(body.tipo)) {
+      return NextResponse.json(
+        { error: "Tipo de receita inválido." },
+        { status: 400 }
+      );
+    }
+
+    // 🔒 contrato é resolvido pelo imóvel
+    const contratoId = await resolverContratoPorImovel(
+      supabase,
+      body.imovel_id
+    );
+
+    if (!contratoId) {
+      return NextResponse.json(
+        { error: "Nenhum contrato vigente encontrado para este imóvel." },
+        { status: 409 }
+      );
+    }
+
+    const payload = {
+      tipo: body.tipo,
+      natureza: "entrada",
+      status: "pendente",
+      valor: body.valor,
+      imovel_id: body.imovel_id || null,
+      contrato_id: contratoId,
+      data_vencimento: body.data_vencimento,
+      descricao: body.descricao,
+      dados_cobranca_json: {
+        ...body.dados_cobranca_json,
+        origem: "manual",
+      },
+    };
+
+    const { data, error } = await supabase
+      .from("transacoes")
+      .insert(payload)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return NextResponse.json({ data });
+  } catch (err) {
+    console.error("❌ Receitas POST:", err);
+    return NextResponse.json(
+      { error: err.message },
+      { status: 500 }
+    );
+  }
+}
+
+/* ======================================================
+   PUT — ATUALIZAÇÃO GOVERNADA (STATUS ONLY)
+====================================================== */
+
+export async function PUT(req) {
+  const supabase = createServiceClient();
+
+  try {
+    const { id, status, data_pagamento } = await req.json();
+
+    if (!id || !status) {
+      return NextResponse.json(
+        { error: "ID e status são obrigatórios." },
+        { status: 400 }
+      );
+    }
+
+    const { data: atual } = await supabase
+      .from("transacoes")
+      .select("status, dados_cobranca_json")
+      .eq("id", id)
+      .single();
+
+    if (!atual) {
+      return NextResponse.json(
+        { error: "Receita não encontrada." },
+        { status: 404 }
+      );
+    }
+
+    const origem = atual.dados_cobranca_json?.origem;
+
+    if (origem === "automatica" && status === "cancelado") {
+      return NextResponse.json(
+        { error: "Receita automática não pode ser cancelada." },
+        { status: 409 }
+      );
+    }
+
+    if (atual.status === "pago") {
+      return NextResponse.json(
+        { error: "Receita paga é imutável." },
+        { status: 403 }
+      );
+    }
+
+    const updates = {
+      status,
+      updated_at: new Date().toISOString(),
+      data_pagamento:
+        status === "pago"
+          ? data_pagamento || new Date().toISOString().split("T")[0]
+          : null,
+    };
+
+    const { data, error } = await supabase
+      .from("transacoes")
+      .update(updates)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return NextResponse.json({ data });
+  } catch (err) {
+    console.error("❌ Receitas PUT:", err);
+    return NextResponse.json(
+      { error: err.message },
+      { status: 500 }
+    );
+  }
+}
+
+/* ======================================================
+   DELETE — BLOQUEADO
+====================================================== */
+
+export async function DELETE() {
+  return NextResponse.json(
+    { error: "Exclusão não permitida. Use status 'cancelado'." },
+    { status: 403 }
+  );
+}

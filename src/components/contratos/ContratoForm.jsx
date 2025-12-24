@@ -15,6 +15,8 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
   const [imoveis, setImoveis] = useState([]);
   const [pessoas, setPessoas] = useState([]);
   const [templates, setTemplates] = useState([]);
+  const [corretores, setCorretores] = useState([]);
+  const [imovelSelecionado, setImovelSelecionado] = useState(null);
 
   /* =============================
      CAMPOS DO FORM
@@ -24,6 +26,7 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
     imovel_id: "",
     proprietario_id: "",
     inquilino_id: "",
+    corretor_venda_id: "",
     valor_acordado: "",
     taxa_administracao_percent: "",
     dia_vencimento_aluguel: 5,
@@ -39,9 +42,10 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
   ============================== */
   const loadOptions = useCallback(async () => {
     try {
-      const [imv, ppl, tmpl] = await Promise.all([
+      const [imv, ppl, corr, tmpl] = await Promise.all([
         fetch("/api/imoveis").then((r) => r.json()),
         fetch("/api/perfis/list?type=personas").then((r) => r.json()),
+        fetch("/api/perfis/list?type=equipe").then((r) => r.json()),
         fetch("/api/contratos/templates")
           .then((r) => r.json())
           .catch(() => ({ data: [] })),
@@ -49,6 +53,7 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
 
       setImoveis(imv.data || []);
       setPessoas(ppl.data || []);
+      setCorretores(corr.data || []);
       setTemplates(tmpl.data || []);
     } catch {
       toast.error("Erro ao carregar opções");
@@ -67,6 +72,7 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
         imovel_id: contrato.imovel_id || "",
         proprietario_id: contrato.proprietario_id || "",
         inquilino_id: contrato.inquilino_id || "",
+        corretor_venda_id: contrato.corretor_venda_id || "",
         valor_acordado: contrato.valor_acordado || "",
         taxa_administracao_percent:
           contrato.taxa_administracao_percent || "",
@@ -79,6 +85,36 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
       });
     }
   }, [contrato, loadOptions]);
+
+  /* =============================
+     AUTO-PREENCHIMENTO FINANCEIRO
+     (IMÓVEL → FORM)
+  ============================== */
+  useEffect(() => {
+    if (!imovelSelecionado) return;
+
+    // LOCAÇÃO → taxa de administração
+    if (form.tipo === "locacao") {
+      if (imovelSelecionado.comissao_locacao_percent != null) {
+        setForm((prev) => ({
+          ...prev,
+          taxa_administracao_percent:
+            imovelSelecionado.comissao_locacao_percent,
+        }));
+      }
+    }
+
+    // VENDA → comissão
+    if (form.tipo === "venda") {
+      if (imovelSelecionado.comissao_venda_percent != null) {
+        setForm((prev) => ({
+          ...prev,
+          taxa_administracao_percent:
+            imovelSelecionado.comissao_venda_percent,
+        }));
+      }
+    }
+  }, [form.tipo, imovelSelecionado]);
 
   /* =============================
      HANDLERS
@@ -120,9 +156,6 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
           "A data de início não pode ser maior que a de término"
         );
 
-      /* =============================
-         PAYLOAD
-      ============================== */
       const payload = {
         ...form,
         valor_acordado: Number(form.valor_acordado),
@@ -131,12 +164,9 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
           : null,
       };
 
-      // Nunca enviar "" como UUID
-      if (form.tipo !== "locacao") {
-        payload.inquilino_id = null;
-      }
+      if (form.tipo !== "locacao") payload.inquilino_id = null;
+      if (form.tipo !== "venda") payload.corretor_venda_id = null;
 
-      // Governança: status e assinatura não vêm do formulário
       delete payload.status;
       delete payload.assinatura_status;
 
@@ -166,13 +196,8 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
   ============================== */
   return (
     <div className="space-y-8">
-
       {/* DADOS GERAIS */}
       <Card className="p-5">
-        <h4 className="font-semibold text-sm mb-4 tracking-wide">
-          Dados Gerais
-        </h4>
-
         <Field label="Tipo de Contrato">
           <Select
             value={form.tipo}
@@ -191,14 +216,24 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
           Participantes
         </h4>
 
+        {form.tipo === "venda" && (
+          <Field label="Corretor da Venda">
+            <SearchableSelect
+              value={form.corretor_venda_id}
+              onChange={(v) => updateField("corretor_venda_id", v)}
+              options={corretores.map((c) => ({
+                value: c.id,
+                label: c.nome_completo,
+              }))}
+            />
+          </Field>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Proprietário">
             <SearchableSelect
               value={form.proprietario_id}
-              onChange={(value) =>
-                updateField("proprietario_id", value)
-              }
-              placeholder="Selecione o proprietário"
+              onChange={(v) => updateField("proprietario_id", v)}
               options={pessoas.map((p) => ({
                 value: p.id,
                 label: p.nome,
@@ -210,10 +245,7 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
             <Field label="Inquilino">
               <SearchableSelect
                 value={form.inquilino_id}
-                onChange={(value) =>
-                  updateField("inquilino_id", value)
-                }
-                placeholder="Selecione o inquilino"
+                onChange={(v) => updateField("inquilino_id", v)}
                 options={pessoas.map((p) => ({
                   value: p.id,
                   label: p.nome,
@@ -226,15 +258,14 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
 
       {/* IMÓVEL */}
       <Card className="p-5">
-        <h4 className="font-semibold text-sm mb-4 tracking-wide">
-          Imóvel
-        </h4>
-
         <Field label="Selecione o imóvel">
           <SearchableSelect
             value={form.imovel_id}
-            onChange={(value) => updateField("imovel_id", value)}
-            placeholder="Buscar imóvel..."
+            onChange={(value) => {
+              updateField("imovel_id", value);
+              const imv = imoveis.find((i) => i.id === value);
+              setImovelSelecionado(imv || null);
+            }}
             options={imoveis.map((i) => ({
               value: i.id,
               label: i.titulo,
@@ -245,10 +276,6 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
 
       {/* TEMPLATE */}
       <Card className="p-5">
-        <h4 className="font-semibold text-sm mb-4 tracking-wide">
-          Template do Contrato
-        </h4>
-
         <Field label="Modelo de Contrato">
           <Select
             value={form.template_id}
@@ -296,7 +323,13 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
             />
           </Field>
 
-          <Field label="% Taxa de Administração">
+          <Field
+            label={
+              form.tipo === "venda"
+                ? "% Comissão"
+                : "% Taxa de Administração"
+            }
+          >
             <Input
               type="number"
               value={form.taxa_administracao_percent}

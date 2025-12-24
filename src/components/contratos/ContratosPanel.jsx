@@ -49,6 +49,39 @@ export default function CRMContratosPanel({
   });
 
   /* ===========================================
+      SINCRONIZA VIGÊNCIA DOS CONTRATOS
+  ============================================ */
+
+  const syncVigencia = useCallback(async (contratos) => {
+    const hoje = new Date().toISOString().split("T")[0];
+
+    const elegiveis = contratos.filter(
+      (c) =>
+        c.status === "assinado" &&
+        c.data_inicio &&
+        c.data_inicio <= hoje
+    );
+
+    if (!elegiveis.length) return;
+
+    for (const c of elegiveis) {
+      try {
+        await fetch("/api/contratos/actions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "ativar_vigencia",
+            contrato_id: c.id,
+          }),
+        });
+      } catch {
+        // silencioso: não quebra a tela
+      }
+    }
+  }, []);
+
+
+  /* ===========================================
      LOAD DATA (fonte única)
   ============================================ */
   const loadData = useCallback(async () => {
@@ -71,6 +104,7 @@ export default function CRMContratosPanel({
       if (!pRes.ok) throw new Error(pJson.error);
 
       setContratos(cJson.data || []);
+      syncVigencia(cJson.data || []);
       setStatusList(cJson.status_enum || []);
       setImoveis(iJson.data || []);
       setPessoas(pJson.data || []);
@@ -79,7 +113,7 @@ export default function CRMContratosPanel({
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, syncVigencia]);
 
   useEffect(() => {
     loadData();
@@ -114,6 +148,7 @@ export default function CRMContratosPanel({
     });
   }, [contratos, filters]);
 
+  
   /* ===========================================
      UI
   ============================================ */

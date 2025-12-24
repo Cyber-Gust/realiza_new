@@ -29,7 +29,12 @@ export async function GET(req) {
       *,
       imoveis(*),
       proprietario:proprietario_id(*),
-      inquilino:inquilino_id(*)
+      inquilino:inquilino_id(*),
+      corretor_venda:corretor_venda_id(
+        id,
+        nome_completo,
+        email
+      )
     `)
     .order("created_at", { ascending: false });
 

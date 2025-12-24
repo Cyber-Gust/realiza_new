@@ -1,21 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  BarChart3,
-  RotateCcw,
-  TrendingUp,
-  TrendingDown,
-  Wallet,
-} from "lucide-react";
+import { BarChart3, RotateCcw, Wallet } from "lucide-react";
 
 import { Card } from "@/components/admin/ui/Card";
 import { Button } from "@/components/admin/ui/Button";
 import Badge from "@/components/admin/ui/Badge";
 import { useToast } from "@/contexts/ToastContext";
-
 import FinanceiroResumo from "./FinanceiroResumo";
 import { formatCurrency } from "@/utils/formatters";
+import { Input } from "../admin/ui/Form";
 
 export default function FluxoCaixaPanel() {
   const toast = useToast();
@@ -23,6 +17,9 @@ export default function FluxoCaixaPanel() {
   const [dados, setDados] = useState([]);
   const [meta, setMeta] = useState({});
   const [loading, setLoading] = useState(true);
+
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
 
   /* =========================
      LOAD
@@ -34,6 +31,7 @@ export default function FluxoCaixaPanel() {
       const res = await fetch("/api/financeiro?type=fluxo", {
         cache: "no-store",
       });
+
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
@@ -51,52 +49,61 @@ export default function FluxoCaixaPanel() {
   }, []);
 
   /* =========================
-     CLASSIFICAÇÃO CONTÁBIL
+     REGRAS DE NEGÓCIO
   ========================== */
 
-  const receitas = useMemo(
-    () =>
-      dados.filter((d) =>
-        [
-          "receita_aluguel",
-          "taxa_adm_imobiliaria",
-          "receita_venda_imovel",
-        ].includes(d.tipo)
-      ),
-    [dados]
-  );
+  const isReceita = (tipo) =>
+    [
+      "receita_aluguel",
+      "taxa_adm_imobiliaria",
+      "receita_venda_imovel",
+    ].includes(tipo);
 
-  const despesas = useMemo(
-    () =>
-      dados.filter(
-        (d) =>
-          ![
-            "receita_aluguel",
-            "taxa_adm_imobiliaria",
-            "receita_venda_imovel",
-          ].includes(d.tipo)
-      ),
-    [dados]
-  );
+  const limparFiltros = () => {
+      setDataInicio("");
+      setDataFim("");
+    };
 
   /* =========================
-     INDICADORES
+     FILTRO – SOMENTE PAGOS
   ========================== */
 
-  const totalReceitas = useMemo(
-    () => receitas.reduce((sum, r) => sum + Number(r.valor || 0), 0),
-    [receitas]
-  );
+  const dadosFiltrados = useMemo(() => {
+    return dados
+      .filter((d) => d.status === "pago")
+      .filter((d) => {
+        const data = new Date(d.data_pagamento);
+        const inicio = dataInicio ? new Date(dataInicio) : null;
+        const fim = dataFim ? new Date(dataFim) : null;
 
-  const totalDespesas = useMemo(
-    () => despesas.reduce((sum, d) => sum + Number(d.valor || 0), 0),
-    [despesas]
-  );
+        if (inicio && data < inicio) return false;
+        if (fim && data > fim) return false;
+
+        return true;
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.data_pagamento) - new Date(b.data_pagamento)
+      );
+  }, [dados, dataInicio, dataFim]);
+
+  /* =========================
+     KPIs
+  ========================== */
+
+  const totalReceitas = useMemo(() => {
+    return dadosFiltrados
+      .filter((d) => isReceita(d.tipo))
+      .reduce((sum, r) => sum + Number(r.valor || 0), 0);
+  }, [dadosFiltrados]);
+
+  const totalDespesas = useMemo(() => {
+    return dadosFiltrados
+      .filter((d) => !isReceita(d.tipo))
+      .reduce((sum, d) => sum + Number(d.valor || 0), 0);
+  }, [dadosFiltrados]);
 
   const saldo = totalReceitas - totalDespesas;
-
-  const statusSaldo =
-    saldo > 0 ? "positivo" : saldo < 0 ? "negativo" : "neutro";
 
   /* =========================
      RENDER
@@ -107,7 +114,7 @@ export default function FluxoCaixaPanel() {
 
       {/* HEADER */}
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold flex items-center gap-2 text-foreground">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
           <BarChart3 size={18} />
           Fluxo de Caixa
         </h3>
@@ -118,64 +125,89 @@ export default function FluxoCaixaPanel() {
         </Button>
       </div>
 
-      {/* KPIs / RESUMO EXECUTIVO */}
-      <FinanceiroResumo meta={meta} />
-
-      {/* CARD PRINCIPAL */}
-      <Card className="p-4 space-y-3">
-
-        <div className="flex justify-between items-center text-sm">
-          <span className="flex items-center gap-2">
-            <TrendingUp size={14} className="text-green-600" />
-            Total de Receitas
-          </span>
-          <span className="font-semibold text-green-600">
-            {formatCurrency(totalReceitas)}
-          </span>
+      {/* FILTRO POR DATA */}
+      <Card className="p-3 flex gap-3 items-end">
+        <div className="flex flex-col text-sm">
+          <label>Data início</label>
+          <Input
+            type="date"
+            value={dataInicio}
+            onChange={(e) => setDataInicio(e.target.value)}
+          />
         </div>
 
-        <div className="flex justify-between items-center text-sm">
-          <span className="flex items-center gap-2">
-            <TrendingDown size={14} className="text-red-600" />
-            Total de Despesas
-          </span>
-          <span className="font-semibold text-red-600">
-            {formatCurrency(totalDespesas)}
-          </span>
+        <div className="flex flex-col text-sm">
+          <label>Data fim</label>
+          <Input
+            type="date"
+            value={dataFim}
+            onChange={(e) => setDataFim(e.target.value)}
+          />
         </div>
 
-        <div className="border-t border-border pt-3 flex justify-between items-center">
-          <span className="flex items-center gap-2 font-medium">
-            <Wallet size={16} />
-            Saldo do Período
-          </span>
+        <Button
+          variant="secondary"
+          onClick={limparFiltros}
+          disabled={!dataInicio && !dataFim}
+        >
+          Limpar filtros
+        </Button>
+      </Card>
 
-          <div className="flex items-center gap-2">
-            <span
-              className={`text-lg font-bold ${
-                saldo >= 0 ? "text-green-600" : "text-red-600"
-              }`}
-            >
-              {formatCurrency(saldo)}
-            </span>
+      {/* RESUMO */}
+      <FinanceiroResumo
+        dados={dadosFiltrados}
+        isReceita={isReceita}
+      />
 
-            <Badge
-              status={
-                statusSaldo === "positivo"
-                  ? "success"
-                  : statusSaldo === "negativo"
-                  ? "danger"
-                  : "default"
-              }
-            >
-              {statusSaldo === "positivo"
-                ? "Superávit"
-                : statusSaldo === "negativo"
-                ? "Déficit"
-                : "Equilíbrio"}
-            </Badge>
-          </div>
-        </div>
+      {/* EXTRATO BANCÁRIO */}
+      <Card className="p-0 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted">
+            <tr>
+              <th className="p-2 text-left">Data</th>
+              <th className="p-2 text-left">Descrição</th>
+              <th className="p-2 text-right">Entrada</th>
+              <th className="p-2 text-right">Saída</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {dadosFiltrados.map((d) => {
+              const receita = isReceita(d.tipo);
+
+              return (
+                <tr key={d.id} className="border-b last:border-0">
+                  <td className="p-2">
+                    {new Date(d.data_pagamento).toLocaleDateString()}
+                  </td>
+
+                  <td className="p-2">{d.descricao}</td>
+
+                  <td className="p-2 text-right font-medium text-green-600">
+                    {receita ? formatCurrency(d.valor) : "—"}
+                  </td>
+
+                  <td className="p-2 text-right font-medium text-red-600">
+                    {!receita ? formatCurrency(d.valor) : "—"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </Card>
+
+      {/* SALDO FINAL */}
+      <Card className="p-4 flex justify-between items-center">
+        <span className="flex items-center gap-2 font-medium">
+          <Wallet size={16} />
+          Saldo do período
+        </span>
+
+        <Badge status={saldo >= 0 ? "success" : "danger"}>
+          {formatCurrency(saldo)}
+        </Badge>
       </Card>
     </div>
   );
