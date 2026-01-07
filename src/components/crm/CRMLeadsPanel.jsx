@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+ import { useCallback } from "react";
 import {
   User2,
   Plus,
@@ -56,7 +57,7 @@ export default function CRMLeadsPanel() {
   /* ============================================================
      LOAD
   ============================================================ */
-  const loadAll = async () => {
+  const loadAll = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -80,11 +81,11 @@ export default function CRMLeadsPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     loadAll();
-  }, []);
+  }, [loadAll]);
 
   /* ============================================================
      FILTRAGEM

@@ -1,158 +1,232 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { Loader2, Save, X } from "lucide-react";
 
 // UI
 import { Button } from "@/components/admin/ui/Button";
-import {
-  Input,
-  Textarea,
-  Select,
-  Label,
-  FormError,
-} from "@/components/admin/ui/Form";
+import { Card } from "@/components/admin/ui/Card";
+import { Input, Label, Select, Textarea } from "@/components/admin/ui/Form";
+import SearchableSelect from "../admin/ui/SearchableSelect";
 
-// Toast correto
+
+// Toast
 import { useToast } from "@/contexts/ToastContext";
 
-import { Loader2 } from "lucide-react";
-
-export default function OrdemServicoForm({ ordem, onClose, onSaved }) {
-  const [form, setForm] = useState({
-    imovel_id: "",
-    contrato_id: "",
-    descricao_problema: "",
-    status: "aberta",
-  });
-
-  const [saving, setSaving] = useState(false);
-  const [imoveis, setImoveis] = useState([]);
-
+export default function OrdemServicoForm({
+  open,
+  onClose,
+  reload,
+  editingOS = null,
+}) {
   const toast = useToast();
 
-  useEffect(() => {
-    if (ordem) setForm(ordem);
-    loadImoveis();
-  }, [ordem]);
+  const isEditing = !!editingOS?.id;
 
-  const loadImoveis = async () => {
+  const [loading, setLoading] = useState(false);
+  const [loadingImoveis, setLoadingImoveis] = useState(true);
+
+  const [descricao, setDescricao] = useState("");
+  const [imovelId, setImovelId] = useState("");
+  const [nome, setNome] = useState("");
+  const [contratoId, setContratoId] = useState("");
+
+  const [imoveis, setImoveis] = useState([]);
+
+  /* ===============================
+      LOAD IMÓVEIS
+  =============================== */
+
+  const loadImoveis = useCallback(async () => {
+    setLoadingImoveis(true);
     try {
-      const res = await fetch("/api/imoveis/list", { cache: "no-store" });
+      const res = await fetch("/api/imoveis?ativo=true", {
+        cache: "no-store",
+      });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Falha ao buscar imóveis");
+      if (!res.ok) throw new Error(json.error);
 
-      setImoveis(
-        (json.data || []).map((i) => ({
-          label: i.titulo_curto || i.titulo || i.endereco_cidade || "Sem nome",
-          value: i.id,
-        }))
-      );
+      setImoveis(json.data || []);
     } catch (err) {
       toast.error("Erro ao carregar imóveis", err.message);
+    } finally {
+      setLoadingImoveis(false);
     }
-  };
+  }, [toast]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
+  /* ===============================
+      INIT
+  =============================== */
 
-  const handleSubmit = async (e) => {
+  useEffect(() => {
+    if (open) loadImoveis();
+  }, [open, loadImoveis]);
+
+  useEffect(() => {
+    if (editingOS) {
+      setNome(editingOS.nome || "");
+      setDescricao(editingOS.descricao_problema || "");
+      setImovelId(editingOS.imovel_id || "");
+      setContratoId(editingOS.contrato_id || "");
+    } else {
+      setNome("");
+      setDescricao("");
+      setImovelId("");
+      setContratoId("");
+    }
+  }, [editingOS, open]);
+
+  /* ===============================
+      SUBMIT
+  =============================== */
+
+  async function handleSubmit(e) {
     e.preventDefault();
-    setSaving(true);
+
+    if (!nome || !descricao || !imovelId) {
+      toast.error("Nome, descrição e imóvel são obrigatórios");
+      return;
+    }
+
+    setLoading(true);
 
     try {
-      const method = ordem ? "PUT" : "POST";
+      const payload = {
+        nome,
+        descricao_problema: descricao,
+        imovel_id: imovelId,
+        contrato_id: contratoId || null,
+      };
+
       const res = await fetch("/api/manutencao/ordens-servico", {
-        method,
+        method: isEditing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          contrato_id: form.contrato_id || null,
-        }),
+        body: JSON.stringify(
+          isEditing
+            ? { id: editingOS.id, ...payload }
+            : payload
+        ),
       });
 
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
       toast.success(
-        ordem ? "Ordem de serviço atualizada!" : "Ordem de serviço criada!",
-        ""
+        isEditing
+          ? "Ordem de serviço atualizada"
+          : "Ordem de serviço criada"
       );
 
-      onSaved?.();
+      reload?.();
       onClose?.();
     } catch (err) {
-      toast.error("Erro ao salvar", err.message);
+      toast.error("Erro ao salvar OS", err.message);
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
-  };
+  }
+
+  const imovelOptions = imoveis.map((i) => ({
+    value: i.id,
+    label: `${i.titulo} — ${i.codigo_ref}`,
+  }));
+
+  /* ===============================
+      UI
+  =============================== */
+
+  if (!open) return null;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Imóvel */}
-      <div className="space-y-1">
-        <Label>Imóvel</Label>
-        <Select
-          name="imovel_id"
-          value={form.imovel_id}
-          onChange={handleChange}
-          required
-        >
-          <option value="">Selecione o imóvel...</option>
-          {imoveis.map((i) => (
-            <option key={i.value} value={i.value}>
-              {i.label}
-            </option>
-          ))}
-        </Select>
-      </div>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+      <Card className="w-full max-w-2xl p-6 bg-panel-card border-border rounded-xl animate-in fade-in zoom-in-95">
 
-      {/* Descrição */}
-      <div className="space-y-1">
-        <Label>Descrição do problema</Label>
-        <Textarea
-          name="descricao_problema"
-          value={form.descricao_problema}
-          onChange={handleChange}
-          required
-        />
-      </div>
+        {/* HEADER */}
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">
+            {isEditing ? "Editar Ordem de Serviço" : "Nova Ordem de Serviço"}
+          </h3>
 
-      {/* Status */}
-      <div className="space-y-1">
-        <Label>Status</Label>
-        <Select
-          name="status"
-          value={form.status}
-          onChange={handleChange}
-        >
-          <option value="aberta">Aberta</option>
-          <option value="orcamento">Orçamento</option>
-          <option value="aprovada_pelo_inquilino">Aprovada pelo Inquilino</option>
-          <option value="aprovada_pelo_proprietario">
-            Aprovada pelo Proprietário
-          </option>
-          <option value="em_execucao">Em Execução</option>
-          <option value="concluida">Concluída</option>
-          <option value="cancelada">Cancelada</option>
-        </Select>
-      </div>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={onClose}
+            disabled={loading}
+          >
+            <X size={18} />
+          </Button>
+        </div>
 
-      {/* Botão */}
-      <Button type="submit" disabled={saving} className="w-full">
-        {saving ? (
-          <>
-            <Loader2 className="animate-spin mr-2" />
-            Salvando...
-          </>
-        ) : ordem ? (
-          "Atualizar Ordem de Serviço"
-        ) : (
-          "Criar Ordem de Serviço"
-        )}
-      </Button>
-    </form>
+        <form onSubmit={handleSubmit} className="space-y-5">
+
+          {/* NOME DA OS */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Nome da OS *</label>
+            <Input
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              placeholder="Ex: Vazamento no banheiro social"
+            />
+          </div>
+
+          {/* DESCRIÇÃO */}
+          <div className="space-y-1">
+            <Label className="text-sm font-medium">Descrição do problema *</Label>
+            <Textarea
+              rows={4}
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              placeholder="Descreva o problema encontrado no imóvel..."
+            />
+          </div>
+
+          {/* IMÓVEL */}
+          <div className="space-y-1">
+            <Label className="text-sm font-medium">Imóvel *</Label>
+            <SearchableSelect
+              value={imovelId}
+              onChange={(value) => setImovelId(value)}
+              options={imovelOptions}
+              placeholder={
+                loadingImoveis
+                  ? "Carregando imóveis..."
+                  : "Selecione um imóvel"
+              }
+            />
+          </div>
+
+          {/* AÇÕES */}
+          <div className="flex gap-2 pt-4">
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-1/2"
+              onClick={onClose}
+              disabled={loading}
+            >
+              Cancelar
+            </Button>
+
+            <Button
+              type="submit"
+              className="w-1/2 flex items-center justify-center gap-2"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save size={16} />
+                  {isEditing ? "Atualizar" : "Criar"}
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </Card>
+    </div>
   );
 }

@@ -197,7 +197,7 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
   return (
     <div className="space-y-8">
       {/* DADOS GERAIS */}
-      <Card className="p-5">
+
         <Field label="Tipo de Contrato">
           <Select
             value={form.tipo}
@@ -208,10 +208,8 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
             <option value="administracao">Administração</option>
           </Select>
         </Field>
-      </Card>
 
       {/* PARTICIPANTES */}
-      <Card className="p-5">
         <h4 className="font-semibold text-sm mb-4 tracking-wide">
           Participantes
         </h4>
@@ -254,10 +252,8 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
             </Field>
           )}
         </div>
-      </Card>
 
       {/* IMÓVEL */}
-      <Card className="p-5">
         <Field label="Selecione o imóvel">
           <SearchableSelect
             value={form.imovel_id}
@@ -272,10 +268,8 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
             }))}
           />
         </Field>
-      </Card>
 
       {/* TEMPLATE */}
-      <Card className="p-5">
         <Field label="Modelo de Contrato">
           <Select
             value={form.template_id}
@@ -304,10 +298,8 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
             />
           </div>
         )}
-      </Card>
 
       {/* FINANCEIRO */}
-      <Card className="p-5">
         <h4 className="font-semibold text-sm mb-4 tracking-wide">
           Financeiro
         </h4>
@@ -371,10 +363,8 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
             </>
           )}
         </div>
-      </Card>
 
       {/* VIGÊNCIA */}
-      <Card className="p-5">
         <h4 className="font-semibold text-sm mb-4 tracking-wide">
           Vigência
         </h4>
@@ -400,7 +390,6 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
             />
           </Field>
         </div>
-      </Card>
 
       {/* BOTÕES */}
       <div className="flex justify-end gap-2">

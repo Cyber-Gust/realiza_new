@@ -11,7 +11,8 @@
     "transacao_tipo": ["receita_aluguel","receita_venda_imovel","taxa_adm_imobiliaria","repasse_proprietario","comissao_corretor","despesa_manutencao","pagamento_iptu","pagamento_condominio"],
     "transacao_status": ["pendente", "pago", "atrasado", "cancelado"],
     "transacao_natureza": ["entrada", "saida"],
-    "os_status": ["aberta", "orcamento", "aprovada_pelo_inquilino", "aprovada_pelo_proprietario", "em_execucao", "concluida", "cancelada"]
+    "os_status": ["aberta", "orcamento", "aprovada_pelo_inquilino", "aprovada_pelo_proprietario", "em_execucao", "concluida", "cancelada"],
+    "vistoria_status" : ["pendente", "realizada", "incompleta", "cancelada"]
   },
 
   "buckets": {
@@ -400,7 +401,10 @@
     { "name": "data_vistoria", "type": "date", "nullable": false },
     { "name": "laudo_descricao", "type": "text", "nullable": true },
     { "name": "documento_laudo_url", "type": "text", "nullable": true },
-    { "name": "created_at", "type": "timestamptz", "nullable": true, "default": "now()" }
+    { "name": "created_at", "type": "timestamptz", "nullable": true, "default": "now()" },
+    { "name": "updated_at", "type": "timestamptz", "nullable": true },
+    { "name": "status", "type": "vistoria_status", "nullable": false },
+    { "name": "fotos_json", "type": "jsonb", "nullable": true }
   ]
 }
 

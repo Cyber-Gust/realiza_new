@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { Loader2, Save, X } from "lucide-react";
 
 // UI
 import { Button } from "@/components/admin/ui/Button";
+import { Card } from "@/components/admin/ui/Card";
+import SearchableSelect from "@/components/admin/ui/SearchableSelect";
 import {
   Input,
-  Textarea,
   Select,
   Label,
 } from "@/components/admin/ui/Form";
@@ -14,233 +16,217 @@ import {
 // Toast
 import { useToast } from "@/contexts/ToastContext";
 
-import { Loader2, Upload } from "lucide-react";
+export default function VistoriaForm({
+  open,
+  editingVistoria = null,
+  onClose,
+  reload,
+}) {
+  const toast = useToast();
+  const isEditing = !!editingVistoria?.id;
 
-export default function VistoriaForm({ vistoria, onClose, onSaved }) {
+  const [loading, setLoading] = useState(false);
+  const [imoveis, setImoveis] = useState([]);
+
   const [form, setForm] = useState({
     imovel_id: "",
     contrato_id: "",
     tipo: "",
     data_vistoria: "",
-    laudo_descricao: "",
-    documento_laudo_url: "",
   });
 
-  const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [imoveis, setImoveis] = useState([]);
-
-  const toast = useToast();
-
-  useEffect(() => {
-    if (vistoria) setForm(vistoria);
-    loadImoveis();
-  }, [vistoria]);
-
-  const loadImoveis = async () => {
+  /* ===============================
+      LOAD IMÓVEIS
+  =============================== */
+  const loadImoveis = useCallback(async () => {
     try {
-      const res = await fetch("/api/imoveis/list", { cache: "no-store" });
+      const res = await fetch("/api/imoveis?ativo=true", {
+        cache: "no-store",
+      });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Falha ao buscar imóveis");
+      if (!res.ok) throw new Error(json.error);
 
-      setImoveis(
-        (json.data || []).map((i) => ({
-          label: i.titulo_curto || i.titulo || i.endereco_cidade || "Sem nome",
-          value: i.id,
-        }))
-      );
+      setImoveis(json.data || []);
     } catch (err) {
       toast.error("Erro ao carregar imóveis", err.message);
     }
-  };
+  }, [toast]);
 
+  /* ===============================
+      INIT
+  =============================== */
+  useEffect(() => {
+    if (!open) return;
+
+    loadImoveis();
+
+    if (editingVistoria) {
+      setForm({
+        imovel_id: editingVistoria.imovel_id || "",
+        contrato_id: editingVistoria.contrato_id || "",
+        tipo: editingVistoria.tipo || "",
+        data_vistoria: editingVistoria.data_vistoria || "",
+      });
+    } else {
+      setForm({
+        imovel_id: "",
+        contrato_id: "",
+        tipo: "",
+        data_vistoria: "",
+      });
+    }
+  }, [open, editingVistoria, loadImoveis]);
+
+  /* ===============================
+      HELPERS
+  =============================== */
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((p) => ({ ...p, [name]: value }));
   };
 
-  // =======================================================
-  // 🔹 UPLOAD PARA O BUCKET
-  // =======================================================
-  const handleUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    try {
-      const folder = form.contrato_id || form.imovel_id;
-      if (!folder) throw new Error("Selecione um imóvel antes de enviar o arquivo.");
-
-      const filePath = `${folder}/vistoria_${Date.now()}_${file.name}`;
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("path", filePath);
-      formData.append("bucket", "documentos_vistorias");
-
-      const uploadRes = await fetch("/api/storage/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const uploadJson = await uploadRes.json();
-      if (!uploadRes.ok) throw new Error(uploadJson.error);
-
-      setForm((prev) => ({ ...prev, documento_laudo_url: uploadJson.url }));
-      toast.success("Laudo anexado com sucesso!", "");
-    } catch (err) {
-      toast.error("Falha ao enviar arquivo", err.message);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  // =======================================================
-  // 🔹 SUBMIT
-  // =======================================================
+  /* ===============================
+      SUBMIT
+  =============================== */
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSaving(true);
+
+    if (!form.imovel_id || !form.tipo || !form.data_vistoria) {
+      toast.error("Imóvel, tipo e data são obrigatórios");
+      return;
+    }
 
     try {
-      const method = vistoria ? "PUT" : "POST";
+      setLoading(true);
 
       const res = await fetch("/api/manutencao/vistorias", {
-        method,
+        method: isEditing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          ...(isEditing && { id: editingVistoria.id }),
           ...form,
           contrato_id: form.contrato_id || null,
-          documento_laudo_url: form.documento_laudo_url || null,
         }),
       });
 
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Falha ao salvar");
+      if (!res.ok) throw new Error(json.error);
 
       toast.success(
-        vistoria ? "Vistoria atualizada!" : "Vistoria criada!",
-        ""
+        isEditing
+          ? "Vistoria atualizada com sucesso"
+          : "Vistoria criada com sucesso"
       );
 
-      onSaved?.();
+      reload?.();
       onClose?.();
     } catch (err) {
-      toast.error("Erro ao salvar", err.message);
+      toast.error("Erro ao salvar vistoria", err.message);
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
   };
 
+  const imovelOptions = imoveis.map((i) => ({
+    value: i.id,
+    label: `${i.titulo} — ${i.codigo_ref}`,
+  }));
+
+  /* ===============================
+      UI
+  =============================== */
+  if (!open) return null;
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {/* 🔸 Imóvel */}
-      <div className="space-y-1">
-        <Label>Imóvel</Label>
-        <Select
-          name="imovel_id"
-          value={form.imovel_id}
-          onChange={handleChange}
-          required
-        >
-          <option value="">Selecione o imóvel...</option>
-          {imoveis.map((i) => (
-            <option key={i.value} value={i.value}>
-              {i.label}
-            </option>
-          ))}
-        </Select>
-      </div>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+      <Card className="w-full max-w-xl p-6 bg-panel-card border-border rounded-xl">
 
-      {/* 🔸 Tipo */}
-      <div className="space-y-1">
-        <Label>Tipo de Vistoria</Label>
-        <Select
-          name="tipo"
-          value={form.tipo}
-          onChange={handleChange}
-          required
-        >
-          <option value="">Selecione...</option>
-          <option value="entrada">Entrada</option>
-          <option value="saida">Saída</option>
-          <option value="preventiva">Preventiva</option>
-          <option value="outra">Outra</option>
-        </Select>
-      </div>
+        {/* HEADER */}
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">
+            {isEditing ? "Editar Vistoria" : "Nova Vistoria"}
+          </h3>
 
-      {/* 🔸 Data */}
-      <Input
-        label="Data da Vistoria"
-        type="date"
-        name="data_vistoria"
-        value={form.data_vistoria}
-        onChange={handleChange}
-        required
-      />
+          <Button size="icon" variant="ghost" onClick={onClose}>
+            <X size={18} />
+          </Button>
+        </div>
 
-      {/* 🔸 Descrição */}
-      <div className="space-y-1">
-        <Label>Descrição do Laudo</Label>
-        <Textarea
-          name="laudo_descricao"
-          value={form.laudo_descricao}
-          onChange={handleChange}
-        />
-      </div>
+        <form onSubmit={handleSubmit} className="space-y-5">
 
-      {/* 🔸 Upload */}
-      <div className="space-y-1">
-        <Label>Documento do Laudo</Label>
+          {/* IMÓVEL */}
+          <div className="space-y-1">
+            <Label>Imóvel *</Label>
+            <SearchableSelect
+              value={form.imovel_id}
+              onChange={(value) =>
+                setForm((p) => ({ ...p, imovel_id: value }))
+              }
+              options={imovelOptions}
+              placeholder="Selecione um imóvel"
+            />
+          </div>
 
-        {form.documento_laudo_url ? (
-          <div className="flex items-center justify-between border p-2 rounded-md">
-            <a
-              href={form.documento_laudo_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 text-sm hover:underline"
+          {/* TIPO */}
+          <div className="space-y-1">
+            <Label>Tipo *</Label>
+            <Select
+              name="tipo"
+              value={form.tipo}
+              onChange={handleChange}
             >
-              Ver documento
-            </a>
+              <option value="">Selecione</option>
+              <option value="entrada">Entrada</option>
+              <option value="saida">Saída</option>
+              <option value="preventiva">Preventiva</option>
+              <option value="outra">Outra</option>
+            </Select>
+          </div>
 
+          {/* DATA */}
+          <div className="space-y-1">
+            <Label>Data da Vistoria *</Label>
+          <Input
+            label="Data da Vistoria *"
+            type="date"
+            name="data_vistoria"
+            value={form.data_vistoria}
+            onChange={handleChange}
+          />
+          </div>
+
+          {/* AÇÕES */}
+          <div className="flex gap-2 pt-4">
             <Button
               type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() =>
-                setForm((p) => ({ ...p, documento_laudo_url: "" }))
-              }
+              variant="secondary"
+              className="w-1/2"
+              onClick={onClose}
+              disabled={loading}
             >
-              Remover
+              Cancelar
+            </Button>
+
+            <Button
+              type="submit"
+              className="w-1/2 flex items-center justify-center gap-2"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save size={16} />
+                  {isEditing ? "Atualizar" : "Criar"}
+                </>
+              )}
             </Button>
           </div>
-        ) : (
-          <label className="flex items-center justify-center border border-dashed p-4 rounded-md cursor-pointer hover:bg-muted">
-            <Upload size={16} className="mr-2" />
-            {uploading ? "Enviando..." : "Anexar Laudo (PDF/Imagem)"}
-            <input
-              type="file"
-              accept=".pdf,image/*"
-              className="hidden"
-              onChange={handleUpload}
-            />
-          </label>
-        )}
-      </div>
-
-      {/* 🔸 Botão Salvar */}
-      <Button type="submit" disabled={saving || uploading} className="w-full">
-        {saving ? (
-          <>
-            <Loader2 className="animate-spin mr-2" />
-            Salvando...
-          </>
-        ) : vistoria ? (
-          "Atualizar Vistoria"
-        ) : (
-          "Criar Vistoria"
-        )}
-      </Button>
-    </form>
+        </form>
+      </Card>
+    </div>
   );
 }

@@ -80,6 +80,12 @@ encerrado: "bg-rose-300 text-rose-900 border-rose-400 dark:bg-rose-700 dark:text
   concluida: "bg-green-300 text-green-900 border-green-400 dark:bg-green-700 dark:text-green-100 dark:border-green-500",
   cancelada: "bg-red-200 text-red-900 border-red-300 dark:bg-red-700 dark:text-red-100 dark:border-red-500",
 
+  // --- STATUS VISTORIA ---
+  pendente: "bg-slate-200 text-slate-800 border-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:border-slate-500",
+  incompleta: "bg-amber-200 text-amber-900 border-amber-300 dark:bg-amber-700 dark:text-amber-100 dark:border-amber-500",
+  realizada: "bg-emerald-300 text-emerald-900 border-emerald-400 dark:bg-emerald-700 dark:text-emerald-100 dark:border-emerald-500",
+  cancelada: "bg-red-300 text-red-900 border-red-400 dark:bg-red-700 dark:text-red-100 dark:border-red-500",
+  
   // --- STATUS PROPOSTA ---
   pendente: "bg-amber-200 text-amber-800 border-amber-300 dark:bg-amber-700 dark:text-amber-100 dark:border-amber-500",
   aceita: "bg-green-300 text-green-900 border-green-400 dark:bg-green-700 dark:text-green-100 dark:border-green-500",

@@ -1,23 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import {
+  Wrench,
+  Plus,
+  Edit,
+  Trash2,
+  Loader2,
+  Search,
+} from "lucide-react";
 
 // UI
-import { Card } from "@/components/admin/ui/Card";
 import { Button } from "@/components/admin/ui/Button";
+import { Card } from "@/components/admin/ui/Card";
 import Badge from "@/components/admin/ui/Badge";
 import { Select } from "@/components/admin/ui/Form";
+import {
+  Table,
+  TableHeader,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/admin/ui/Table";
+import Modal from "@/components/admin/ui/Modal";
 
 // Toast
 import { useToast } from "@/contexts/ToastContext";
-
-import {
-  Loader2,
-  Plus,
-  Wrench,
-  Edit,
-  Trash2,
-} from "lucide-react";
 
 export default function OrdensServicoPanel({
   onAdd,
@@ -25,15 +33,23 @@ export default function OrdensServicoPanel({
   onDelete,
   onSelect,
 }) {
-  const [ordens, setOrdens] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("todas");
-
   const toast = useToast();
 
-  const loadOrdens = async () => {
+  const [loading, setLoading] = useState(true);
+  const [ordens, setOrdens] = useState([]);
+
+  const [filters, setFilters] = useState({
+    status: "",
+    search: "",
+  });
+
+  /* ===============================
+      LOAD
+  =============================== */
+
+  const loadOrdens = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const res = await fetch("/api/manutencao/ordens-servico", {
         cache: "no-store",
       });
@@ -47,81 +63,168 @@ export default function OrdensServicoPanel({
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     loadOrdens();
-  }, []);
+  }, [loadOrdens]);
 
-  const filtered =
-    filter === "todas"
-      ? ordens
-      : ordens.filter((o) => o.status === filter);
+  /* ===============================
+      FILTROS
+  =============================== */
+
+  const filtered = useMemo(() => {
+    return ordens.filter((o) => {
+      if (filters.status && o.status !== filters.status) return false;
+
+      if (filters.search) {
+        const s = filters.search.toLowerCase();
+
+        const match =
+          o.nome?.toLowerCase().includes(s) ||
+          o.descricao_problema?.toLowerCase().includes(s) ||
+          o.imovel?.titulo?.toLowerCase().includes(s) ||
+          o.imovel?.codigo_ref?.toLowerCase().includes(s);
+
+        if (!match) return false;
+      }
+
+      return true;
+    });
+  }, [ordens, filters]);
+
+  /* ===============================
+      UI
+  =============================== */
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <Wrench size={18} /> Ordens de Serviço
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-150">
+
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+        <h3 className="text-xl font-semibold flex items-center gap-2">
+          <Wrench size={20} /> Ordens de Serviço
         </h3>
 
-        <div className="flex items-center gap-2">
-  
-        {/* Filtro com Select do DS */}
-        <Select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="w-40"
+        <Button
+          onClick={() => onAdd?.(loadOrdens)}
+          className="flex items-center gap-2"
         >
-          <option value="todas">Todas</option>
-          <option value="aberta">Abertas</option>
-          <option value="orcamento">Orçamento</option>
-          <option value="em_execucao">Em Execução</option>
-          <option value="concluida">Concluídas</option>
-          <option value="cancelada">Canceladas</option>
-        </Select>
-
-        <Button onClick={onAdd} className="flex items-center gap-2">
           <Plus size={16} /> Nova OS
         </Button>
       </div>
-      </div>
 
-      {/* Lista */}
+      {/* FILTROS */}
+      <Card className="p-4 bg-panel-card rounded-xl border-border shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+
+          {/* Buscar */}
+          <div className="flex items-center gap-2 border border-border rounded-md px-3 py-2">
+            <Search size={14} className="text-muted-foreground" />
+            <input
+              placeholder="Buscar por descrição ou imóvel..."
+              value={filters.search}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, search: e.target.value }))
+              }
+              className="bg-transparent outline-none text-sm w-full"
+            />
+          </div>
+
+          {/* Status */}
+          <Select
+            value={filters.status}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, status: e.target.value }))
+            }
+          >
+            <option value="">Status</option>
+            <option value="aberta">Aberta</option>
+            <option value="orcamento">Orçamento</option>
+            <option value="aprovada_pelo_inquilino">
+              Aprovada pelo Inquilino
+            </option>
+            <option value="aprovada_pelo_proprietario">
+              Aprovada pelo Proprietário
+            </option>
+            <option value="em_execucao">Em Execução</option>
+            <option value="concluida">Concluída</option>
+            <option value="cancelada">Cancelada</option>
+          </Select>
+
+          {/* Reset */}
+          <Button
+            variant="secondary"
+            onClick={() =>
+              setFilters({
+                status: "",
+                search: "",
+              })
+            }
+          >
+            Limpar filtros
+          </Button>
+        </div>
+      </Card>
+
+      {/* LISTA */}
       {loading ? (
-        <div className="flex justify-center items-center py-10 text-muted-foreground">
+        <div className="flex justify-center items-center py-14 text-muted-foreground">
           <Loader2 className="animate-spin mr-2" /> Carregando...
         </div>
       ) : filtered.length === 0 ? (
-        <p className="p-4 text-center text-muted-foreground">
-          Nenhuma OS encontrada.
-        </p>
+        <Card className="p-6 text-center text-muted-foreground bg-panel-card border-border rounded-xl">
+          Nenhuma ordem de serviço encontrada.
+        </Card>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filtered.map((os) => (
-            <Card
-              key={os.id}
-              className="p-4 space-y-2 hover:shadow-lg transition cursor-pointer"
-              onClick={() => onSelect(os.id)}
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="font-semibold text-foreground">
-                    {os.imovel?.titulo || "Imóvel não informado"}
-                  </h4>
-                  <p className="text-sm text-muted-foreground">
-                    {os.descricao_problema?.slice(0, 60)}...
-                  </p>
-                </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nome</TableHead>
+              <TableHead>Imóvel</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Data</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
 
-                <div className="flex gap-1">
+          <tbody>
+            {filtered.map((os) => (
+              <TableRow
+                key={os.id}
+                className="cursor-pointer hover:bg-muted/20 transition"
+                onClick={() => onSelect?.(os.id, loadOrdens)}
+              >
+                <TableCell className="font-medium">
+                  {os.nome || "—"}
+                </TableCell>
+
+                <TableCell className="font-medium">
+                  <div className="flex flex-col">
+                    <span>{os.imovel?.titulo || "Imóvel não informado"}</span>
+                    <span className="text-xs text-muted-foreground">
+                      Código: {os.imovel?.codigo_ref || "—"}
+                    </span>
+                  </div>
+                </TableCell>
+
+                <TableCell>
+                  <Badge status={os.status}>
+                    {os.status?.replaceAll("_", " ")}
+                  </Badge>
+                </TableCell>
+
+                <TableCell>
+                  {new Date(os.created_at).toLocaleDateString("pt-BR")}
+                </TableCell>
+
+                <TableCell className="text-right flex justify-end gap-2">
                   <Button
                     size="icon"
                     variant="ghost"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onEdit(os);
+                      onEdit?.(os, loadOrdens);
                     }}
                   >
                     <Edit size={16} />
@@ -132,25 +235,19 @@ export default function OrdensServicoPanel({
                     variant="ghost"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onDelete(os);
+                      onDelete?.(os, loadOrdens); // 🔥 só isso
                     }}
                   >
                     <Trash2 size={16} className="text-red-500" />
                   </Button>
-                </div>
-              </div>
-
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>
-                  {new Date(os.created_at).toLocaleDateString("pt-BR")}
-                </span>
-
-                <Badge status={os.status}>{os.status}</Badge>
-              </div>
-            </Card>
-          ))}
-        </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </tbody>
+        </Table>
       )}
+
+     
     </div>
   );
 }

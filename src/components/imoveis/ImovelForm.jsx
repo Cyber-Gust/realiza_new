@@ -637,7 +637,7 @@ export default function ImovelForm({ data = {}, onChange }) {
     );
   }, [corretores, form.corretor_id]);
 
-  const options1a10 = Array.from({ length: 10 }, (_, i) => i);
+  const options1a10 = Array.from({ length: 11 }, (_, i) => i);
 
   /* ============================================================
      AQUI TERMINA A PRIMEIRA PARTE
