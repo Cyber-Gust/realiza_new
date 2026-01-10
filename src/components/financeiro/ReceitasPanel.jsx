@@ -257,10 +257,10 @@ export default function ReceitasPanel() {
   return (
     <div className="space-y-4">
       {/* HEADER */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
         <h3 className="text-lg font-semibold">Receitas</h3>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={carregar} disabled={loading}>
             <RotateCcw size={16} /> Atualizar
           </Button>

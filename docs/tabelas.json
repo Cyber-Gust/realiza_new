@@ -20,7 +20,8 @@
     "documentos_kyc": "documentos pessoais de clientes (RG/CPF)",
     "documentos_contratos": "contratos assinados entre partes",
     "documentos_vistorias": "laudos de vistorias de entrada/saída",
-    "documentos_compliance": "documentos de regularização dos imóveis"
+    "documentos_compliance": "documentos de regularização dos imóveis",
+    "perfil_fotos": "fotos de perfil dos usuários"
   }
 }
 
@@ -339,6 +340,9 @@
     { "name": "endereco_estado", "type": "text", "nullable": true },
     { "name": "data_nascimento", "type": "date", "nullable": true },
     { "name": "ativo", "type": "bool", "nullable": true, "default": "true" },
+    { "name": "assinatura_provider", "type": "text", "nullable": true },
+    { "name": "assinatura_token", "type": "text", "nullable": true },
+    { "name": "assinatura_ativa", "type": "bool", "nullable": true, "default": "false" },
     { "name": "updated_at", "type": "timestamptz", "nullable": true, "default": "now()" }
   ]
 }

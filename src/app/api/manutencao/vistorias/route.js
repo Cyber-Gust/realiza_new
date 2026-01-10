@@ -115,16 +115,15 @@ export async function PUT(req) {
     const contentType = req.headers.get("content-type") || "";
 
     /* ===============================
-       UPLOAD (FormData)
+      UPLOAD (FormData)
     =============================== */
     if (contentType.includes("multipart/form-data")) {
       const form = await req.formData();
 
       const id = form.get("id");
       const tipo = form.get("tipo"); // "laudo" | "foto"
-      const file = form.get("file");
 
-      if (!id || !file || !tipo) {
+      if (!id || !tipo) {
         return NextResponse.json(
           { error: "Dados de upload incompletos." },
           { status: 400 }
@@ -151,58 +150,119 @@ export async function PUT(req) {
         );
       }
 
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const ext = file.name.split(".").pop();
-      const filename = `${vistoria.imovel_id}/${tipo}_${Date.now()}.${ext}`;
-
-      const bucket =
-        tipo === "laudo" ? "documentos_vistorias" : "vistorias_fotos";
-
-      const { error: uploadError } = await supabase.storage
-        .from(bucket)
-        .upload(filename, buffer, {
-          contentType: file.type,
-          upsert: true,
-        });
-
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(filename);
-
-      let updates = {};
-
+      /* ===============================
+        LAUDO (1 arquivo)
+      =============================== */
       if (tipo === "laudo") {
-        updates.documento_laudo_url = urlData.publicUrl;
-      }
+        const file = form.get("file");
 
-      if (tipo === "foto") {
-        const fotos = vistoria.fotos_json || [];
-        fotos.push({
-          id: crypto.randomUUID(),
+        if (!file) {
+          return NextResponse.json(
+            { error: "Arquivo do laudo não enviado." },
+            { status: 400 }
+          );
+        }
+
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const ext = file.name.split(".").pop();
+        const filename = `${vistoria.imovel_id}/laudo_${Date.now()}.${ext}`;
+
+        const { error } = await supabase.storage
+          .from("documentos_vistorias")
+          .upload(filename, buffer, {
+            contentType: file.type,
+            upsert: true,
+          });
+
+        if (error) throw error;
+
+        const { data: urlData } = supabase.storage
+          .from("documentos_vistorias")
+          .getPublicUrl(filename);
+
+        await supabase
+          .from("vistorias")
+          .update({
+            documento_laudo_url: urlData.publicUrl,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", id);
+
+        return NextResponse.json({
+          message: "Laudo enviado com sucesso.",
           url: urlData.publicUrl,
-          created_at: new Date().toISOString(),
         });
-        updates.fotos_json = fotos;
       }
 
-      const merged = { ...vistoria, ...updates };
-      const novoStatus = calcularStatus(merged);
+      /* ===============================
+        FOTOS (MÚLTIPLAS)
+      =============================== */
+      if (tipo === "foto") {
+        const files = form.getAll("files");
 
-      await supabase
-        .from("vistorias")
-        .update({
-          ...updates,
-          status: novoStatus,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", id);
+        if (!files.length) {
+          return NextResponse.json(
+            { error: "Nenhuma foto enviada." },
+            { status: 400 }
+          );
+        }
 
-      return NextResponse.json({
-        message: "Upload realizado com sucesso.",
-        url: urlData.publicUrl,
-      });
+        const novasFotos = [];
+
+        for (const file of files) {
+          const buffer = Buffer.from(await file.arrayBuffer());
+          const ext = file.name.split(".").pop();
+          const filename = `${vistoria.imovel_id}/foto_${Date.now()}_${crypto.randomUUID()}.${ext}`;
+
+          const { error } = await supabase.storage
+            .from("vistorias_fotos")
+            .upload(filename, buffer, {
+              contentType: file.type,
+              upsert: false,
+            });
+
+          if (error) throw error;
+
+          const { data: urlData } = supabase.storage
+            .from("vistorias_fotos")
+            .getPublicUrl(filename);
+
+          novasFotos.push({
+            id: crypto.randomUUID(),
+            url: urlData.publicUrl,
+            created_at: new Date().toISOString(),
+          });
+        }
+
+        const fotosAtualizadas = [
+          ...(vistoria.fotos_json || []),
+          ...novasFotos,
+        ];
+
+        const novoStatus = calcularStatus({
+          ...vistoria,
+          fotos_json: fotosAtualizadas,
+        });
+
+        await supabase
+          .from("vistorias")
+          .update({
+            fotos_json: fotosAtualizadas,
+            status: novoStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", id);
+
+        return NextResponse.json({
+          message: "Fotos adicionadas com sucesso.",
+          total: novasFotos.length,
+        });
+      }
+
+      return NextResponse.json(
+        { error: "Tipo de upload inválido." },
+        { status: 400 }
+      );
     }
 
     /* ===============================

@@ -126,7 +126,7 @@ export default function FluxoCaixaPanel() {
       </div>
 
       {/* FILTRO POR DATA */}
-      <Card className="p-3 flex gap-3 items-end">
+      <Card className="p-3 flex flex-wrap gap-3 items-end">
         <div className="flex flex-col text-sm">
           <label>Data início</label>
           <Input
@@ -146,6 +146,7 @@ export default function FluxoCaixaPanel() {
         </div>
 
         <Button
+        
           variant="secondary"
           onClick={limparFiltros}
           disabled={!dataInicio && !dataFim}

@@ -21,7 +21,6 @@ export const navItems = [
   { name: "Financeiro", href: "/admin/financeiro", icon: CircleDollarSign },
   { name: "Aluguéis", href: "/admin/alugueis", icon: CalendarClock },
   { name: "Manutenção", href: "/admin/manutencao", icon: Wrench },
-  { name: "Marketing", href: "/admin/marketing", icon: Megaphone },
   { name: "Configurações", href: "/admin/configuracoes", icon: Settings },
 ];
 

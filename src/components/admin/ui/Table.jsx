@@ -85,4 +85,14 @@ const TableCell = ({ className, children, ...props }) => (
   </td>
 );
 
-export { Table, TableHeader, TableRow, TableHead, TableCell };
+// BODY - ADICIONE ESTE AQUI
+const TableBody = ({ className, children, ...props }) => (
+  <tbody
+    className={cn("[&_tr:last-child]:border-0", className)}
+    {...props}
+  >
+    {children}
+  </tbody>
+);
+
+export { Table, TableHeader, TableBody, TableRow, TableHead, TableCell };

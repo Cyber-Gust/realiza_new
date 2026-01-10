@@ -13,6 +13,7 @@ import {
   Wrench,
 } from "lucide-react";
 
+import { Card } from "@/components/admin/ui/Card";
 import { Button } from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 import Badge from "@/components/admin/ui/Badge";
@@ -247,12 +248,12 @@ export default function DespesasPanel() {
   return (
     <div className="space-y-4">
       {/* HEADER */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
         <h3 className="text-lg font-semibold">Despesas</h3>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={carregar} disabled={loading}>
-            <RotateCcw size={16} /> Atualizar
+            Atualizar
           </Button>
 
           <Button
@@ -271,12 +272,12 @@ export default function DespesasPanel() {
           </Button>
 
           <Button onClick={() => setOpenForm(true)}>
-            <Plus size={16} /> Nova Despesa
+            Nova Despesa
           </Button>
         </div>
       </div>
-
       {/* FILTROS */}
+      <Card className="p-4">
       <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
         <Select
           value={filters.status}
@@ -333,6 +334,7 @@ export default function DespesasPanel() {
           }
         />
       </div>
+      </Card>
 
       {/* TABELA */}
       <div className="overflow-hidden rounded-xl border border-border shadow-sm">

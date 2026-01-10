@@ -18,8 +18,6 @@ import {
 import AlertasPanel from "@/components/alugueis/AlertasPanel";
 import CarteiraPanel from "@/components/alugueis/CarteiraPanel";
 import InadimplenciaPanel from "@/components/alugueis/InadimplenciaPanel";
-import RenovacaoPanel from "@/components/alugueis/RenovacaoPanel";
-import RescisaoPanel from "@/components/alugueis/RescisaoPanel";
 import TimelinePanel from "@/components/alugueis/TimelinePanel";
 
 export default function AlugueisPage() {
@@ -35,8 +33,7 @@ export default function AlugueisPage() {
         </h1>
 
         <p className="text-muted-foreground text-sm max-w-2xl">
-          Gestão completa dos contratos de locação: alertas, carteira, inadimplência, renovações,
-          rescisões e linha do tempo operacional.
+          Gestão completa dos contratos de locação: alertas, carteira, inadimplência e linha do tempo operacional.
         </p>
       </div>  
 
@@ -45,9 +42,9 @@ export default function AlugueisPage() {
           <TabsList className="bg-muted p-1 flex gap-2">
             <TabsTrigger value="alertas">Alertas</TabsTrigger>
             <TabsTrigger value="carteira">Carteira</TabsTrigger>
-            <TabsTrigger value="iandimplencia">Inadimplencia</TabsTrigger>
-            <TabsTrigger value="renovacao">Renovacao</TabsTrigger>
-            <TabsTrigger value="rescisao">Rescisao</TabsTrigger>
+            <TabsTrigger value="inadimplencia">Inadimplencia</TabsTrigger>
+           {/* <TabsTrigger value="renovacao">Renovacao</TabsTrigger> */}
+           {/* <TabsTrigger value="rescisao">Rescisao</TabsTrigger> */}
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
 
          </TabsList>
@@ -70,18 +67,6 @@ export default function AlugueisPage() {
           <TabsContent value="inadimplencia" currentValue={tab}>
             <Card className="p-6">
               <InadimplenciaPanel />
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="renovacao" currentValue={tab}>
-            <Card className="p-6">
-              <RenovacaoPanel />
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="rescisao" currentValue={tab}>
-            <Card className="p-6">
-              <RescisaoPanel />
             </Card>
           </TabsContent>
 
