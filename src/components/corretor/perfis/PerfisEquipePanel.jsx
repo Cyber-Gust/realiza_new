@@ -1,31 +1,25 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   UserCog,
-  Plus,
   Loader2,
-  Edit,
-  Trash2,
   Search,
   RefreshCcw,
-  AlertTriangle,
 } from "lucide-react";
 
 import Image from "next/image";
 
 import { Button } from "@/components/admin/ui/Button";
 import { Card } from "@/components/admin/ui/Card";
-import Modal from "@/components/admin/ui/Modal";
 
-import { Input, Select } from "@/components/admin/ui/Form";
+import { Select } from "@/components/admin/ui/Form";
 import { Table, TableHead, TableHeader, TableRow, TableCell } from "@/components/admin/ui/Table";
 
 import { useToast } from "@/contexts/ToastContext";
 
-import PerfilFormEquipe from "./PerfilFormEquipe";
 import PerfisEquipeDrawer from "./PerfisEquipeDrawer";
-import Badge from "../admin/ui/Badge";
+import Badge from "../../admin/ui/Badge";
 
 export default function PerfisEquipePanel() {
   const toast = useToast();
@@ -33,16 +27,8 @@ export default function PerfisEquipePanel() {
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Form modal
-  const [openForm, setOpenForm] = useState(false);
-  const [editing, setEditing] = useState(null);
-
   // Drawer
   const [openDrawer, setOpenDrawer] = useState(null);
-
-  // Modal delete
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
 
   // Filtros
   const [filters, setFilters] = useState({
@@ -57,7 +43,7 @@ export default function PerfisEquipePanel() {
     return "/" + foto;
   };
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -74,11 +60,11 @@ export default function PerfisEquipePanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   /* ========================================================================
      FILTRAGEM
@@ -105,38 +91,6 @@ export default function PerfisEquipePanel() {
   }, [profiles, filters]);
 
   /* ========================================================================
-     HANDLER DELETE
-  ======================================================================== */
-
-  const handleConfirmDelete = async () => {
-    try {
-      setDeleting(true);
-
-      const res = await fetch("/api/perfis/delete", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: deleteTarget.id,
-          type: "equipe",
-        }),
-        credentials: "include",
-      });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-
-      toast.success("Perfil removido com sucesso!");
-
-      setDeleteTarget(null);
-      load(); // recarregar lista
-    } catch (err) {
-      toast.error("Erro ao remover: " + err.message);
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  /* ========================================================================
      RENDER
   ======================================================================== */
 
@@ -148,13 +102,6 @@ export default function PerfisEquipePanel() {
         <h3 className="text-xl font-semibold flex items-center gap-2 text-foreground tracking-tight">
           <UserCog size={20} /> Equipe cadastrada
         </h3>
-
-        <Button
-          onClick={() => setOpenForm(true)}
-          className="flex items-center gap-2"
-        >
-          <Plus size={16} /> Novo membro
-        </Button>
       </div>
 
       {/* FILTROS */}
@@ -213,7 +160,6 @@ export default function PerfisEquipePanel() {
               <TableHead>E-mail</TableHead>
               <TableHead>Telefone</TableHead>
               <TableHead>Cargo</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
 
@@ -250,70 +196,11 @@ export default function PerfisEquipePanel() {
                   <Badge status={p.role} />
                 </TableCell>
 
-                {/* AÇÕES */}
-                <TableCell className="text-right flex justify-end gap-2">
-
-                  {/* Admin NÃO tem ações */}
-                  {p.role !== "admin" && (
-                    <>
-
-                      {/* EDITAR */}
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditing(p);
-                          setOpenForm(true);
-                        }}
-                      >
-                        <Edit size={16} />
-                      </Button>
-
-                      {/* REMOVER */}
-                      {p.role === "corretor" && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteTarget(p);
-                          }}
-                        >
-                          <Trash2 size={16} className="text-red-600" />
-                        </Button>
-                      )}
-
-                    </>
-                  )}
-
-                </TableCell>
-
               </TableRow>
             ))}
           </tbody>
         </Table>
       )}
-
-      {/* FORM DE CRIAÇÃO / EDIÇÃO */}
-      <Modal
-        isOpen={openForm}
-        onClose={() => {
-          setOpenForm(false);
-          setEditing(null);
-        }}
-        title={editing ? "Editar membro da equipe" : "Novo membro da equipe"}
-      >
-        <PerfilFormEquipe
-          modo={editing ? "edit" : "create"}
-          dadosIniciais={editing || {}}
-          onSuccess={() => {
-            setOpenForm(false);
-            setEditing(null);
-            load();
-          }}
-        />
-      </Modal>
 
       {/* DRAWER */}
       {openDrawer && (
@@ -328,54 +215,6 @@ export default function PerfisEquipePanel() {
           reload={load}
         />
       )}
-
-      {/* MODAL CONFIRMAR DELETE */}
-      <Modal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        title="Remover membro"
-      >
-        {deleteTarget && (
-          <div className="space-y-5">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="text-red-500 mt-1" />
-              <div>
-                <p>
-                  Remover o membro <strong>{deleteTarget.nome_completo}</strong>?
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Cargo: {deleteTarget.role}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="secondary"
-                className="w-1/2"
-                onClick={() => setDeleteTarget(null)}
-              >
-                Cancelar
-              </Button>
-
-              <Button
-                className="w-1/2 bg-red-600 hover:bg-red-700"
-                onClick={handleConfirmDelete}
-                disabled={deleting}
-              >
-                {deleting ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin" /> Removendo...
-                  </>
-                ) : (
-                  "Confirmar"
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
     </div>
   );
 }

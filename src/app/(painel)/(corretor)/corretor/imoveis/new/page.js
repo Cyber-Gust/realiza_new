@@ -1,6 +1,6 @@
 "use client";
 
-import ImovelForm from "@/components/imoveis/ImovelForm";
+import ImovelForm from "@/components/corretor/imoveis/ImovelForm";
 
 import { Button } from "@/components/admin/ui/Button";
 import { useToast } from "@/contexts/ToastContext";
@@ -29,7 +29,7 @@ export default function NovoImovelPage() {
       if (!res.ok) throw new Error(data.error || "Falha ao cadastrar imóvel");
 
       toast.success("Imóvel cadastrado com sucesso!");
-      router.push(`/admin/imoveis/${data.data.id}`);
+      router.push(`/corretor/imoveis/${data.data.id}`);
     } catch (err) {
       toast.error(err.message);
     } finally {

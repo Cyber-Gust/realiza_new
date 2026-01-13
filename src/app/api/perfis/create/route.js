@@ -38,7 +38,7 @@ export async function POST(req) {
 
     const currentRole = currentUser.user_metadata?.role;
 
-    if (currentRole !== "admin") {
+    if (currentRole !== "admin" && currentRole !== "corretor") {
       return NextResponse.json(
         { error: "Apenas administradores podem criar perfis de equipe." },
         { status: 403 }
@@ -132,30 +132,33 @@ export async function POST(req) {
     // 🏡 PERSONAS
     // ============================================================
     else if (type === "personas") {
-      if (!payload.nome) {
-        return NextResponse.json(
-          { error: "Nome é obrigatório." },
-          { status: 400 }
-        );
-      }
-
-      payload.tipo = payload.tipo || "cliente";
-
-      delete payload.id;
-
-      payload.created_at = new Date().toISOString();
-      payload.updated_at = new Date().toISOString();
-
-      const { data: personaData, error: personaError } = await service
-        .from("personas")
-        .insert([payload])
-        .select()
-        .single();
-
-      if (personaError) throw personaError;
-
-      data = personaData;
+    if (!payload.nome) {
+      return NextResponse.json(
+        { error: "Nome é obrigatório." },
+        { status: 400 }
+      );
     }
+
+    payload.tipo = payload.tipo || "cliente";
+
+    // 🔐 DONO DO REGISTRO (quem criou)
+    payload.corretor_id = currentUser.id;
+
+    delete payload.id;
+
+    payload.created_at = new Date().toISOString();
+    payload.updated_at = new Date().toISOString();
+
+    const { data: personaData, error: personaError } = await service
+      .from("personas")
+      .insert([payload])
+      .select()
+      .single();
+
+    if (personaError) throw personaError;
+
+    data = personaData;
+  }
 
     else {
       return NextResponse.json(

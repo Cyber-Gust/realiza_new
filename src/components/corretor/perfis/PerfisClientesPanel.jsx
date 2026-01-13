@@ -1,15 +1,12 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   User2,
   Plus,
   Loader2,
-  Edit,
   Search,
   RefreshCcw,
-  Trash2,
-  AlertTriangle,
 } from "lucide-react";
 
 import { Button } from "@/components/admin/ui/Button";
@@ -31,11 +28,8 @@ export default function PerfisClientesPanel() {
 
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
   // Modal form
   const [openForm, setOpenForm] = useState(false);
-  const [editing, setEditing] = useState(null);
 
   // Drawer
   const [openDrawer, setOpenDrawer] = useState(null);
@@ -45,30 +39,6 @@ export default function PerfisClientesPanel() {
     search: "",
     origem: "",
   });
-
-  const handleConfirmDelete = async () => {
-    try {
-      setDeleting(true);
-
-      const res = await fetch("/api/perfis/delete", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: deleteTarget.id, type: "clientes" }),
-        credentials: "include",
-      });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-
-      toast.success("Cliente removido com sucesso!");
-      setDeleteTarget(null);
-      load();
-    } catch (err) {
-      toast.error("Erro ao remover: " + err.message);
-    } finally {
-      setDeleting(false);
-    }
-  };
 
   const getImageSrc = (foto) => {
     if (!foto || typeof foto !== "string") return "/placeholder-avatar.png";
@@ -86,11 +56,11 @@ export default function PerfisClientesPanel() {
   /* ========================================================================
      LOAD CLIENTES
   ======================================================================== */
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
 
-      const res = await fetch("/api/perfis/list?type=clientes", {
+      const res = await fetch("/api/corretor/perfis/list?type=clientes", {
         cache: "no-store",
       });
 
@@ -106,11 +76,11 @@ export default function PerfisClientesPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   /* ========================================================================
      FILTERED LIST
@@ -209,7 +179,6 @@ export default function PerfisClientesPanel() {
               <TableHead>E-mail</TableHead>
               <TableHead>Telefone</TableHead>
               <TableHead>Origem</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
 
@@ -246,35 +215,6 @@ export default function PerfisClientesPanel() {
                 <TableCell>
                   <Badge status={c.origem || "Manual"} />
                 </TableCell>
-
-                <TableCell className="text-right flex justify-end gap-2">
-
-                  {/* EDITAR */}
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditing(c);
-                      setOpenForm(true);
-                    }}
-                  >
-                    <Edit size={16} />
-                  </Button>
-
-                  {/* REMOVER */}
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteTarget(c);
-                    }}
-                  >
-                    <Trash2 size={16} className="text-red-600" />
-                  </Button>
-
-                </TableCell>
               </TableRow>
             ))}
           </tbody>
@@ -286,66 +226,17 @@ export default function PerfisClientesPanel() {
         isOpen={openForm}
         onClose={() => {
           setOpenForm(false);
-          setEditing(null);
         }}
-        title={editing ? "Editar Cliente" : "Novo Cliente"}
+        title={"Novo Cliente"}
       >
         <PerfilFormCliente
-          modo={editing ? "edit" : "create"}
-          dadosIniciais={editing || {}}
+          modo={"create"}
           onSuccess={() => {
             setOpenForm(false);
-            setEditing(null);
             load();
           }}
         />
       </Modal>
-
-      <Modal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        title="Remover Cliente"
-      >
-        {deleteTarget && (
-          <div className="space-y-5">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="text-red-500 mt-1" />
-              <div>
-                <p>
-                  Remover <strong>{deleteTarget.nome}</strong>?
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Origem: {deleteTarget.origem || "Manual"}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="secondary"
-                className="w-1/2"
-                onClick={() => setDeleteTarget(null)}
-              >
-                Cancelar
-              </Button>
-
-              <Button
-                className="w-1/2 bg-red-600 hover:bg-red-700"
-                onClick={handleConfirmDelete}
-                disabled={deleting}
-              >
-                {deleting ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin" /> Removendo...
-                  </>
-                ) : (
-                  "Confirmar"
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>  
 
       {/* DRAWER */}
       {openDrawer && (
@@ -353,7 +244,6 @@ export default function PerfisClientesPanel() {
           clienteId={openDrawer}
           onClose={() => setOpenDrawer(null)}
           onEdit={(c) => {
-            setEditing(c);
             setOpenDrawer(null);
             setOpenForm(true);
           }}

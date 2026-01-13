@@ -9,6 +9,7 @@ import { Input } from "./Form";
 export default function SearchableSelect({
   value,
   onChange,
+  disabled = false,
   options = [],
   placeholder = "Selecione...",
   className,
@@ -19,7 +20,7 @@ export default function SearchableSelect({
   const [coords, setCoords] = useState(null);
 
   const triggerRef = useRef(null);
-  const dropdownRef = useRef(null); // ⭐ novo: referência pro dropdown (portal)
+  const dropdownRef = useRef(null);
 
   // 🔥 Normalizar tudo para string
   const normalizedValue = value != null ? String(value) : "";
@@ -54,7 +55,6 @@ export default function SearchableSelect({
       const triggerEl = triggerRef.current;
       const dropdownEl = dropdownRef.current;
 
-      // Se clicou no trigger ou dentro do dropdown, **não** fecha
       if (
         (triggerEl && triggerEl.contains(e.target)) ||
         (dropdownEl && dropdownEl.contains(e.target))
@@ -62,7 +62,6 @@ export default function SearchableSelect({
         return;
       }
 
-      // Clicou totalmente fora → fecha
       setOpen(false);
     };
 
@@ -77,17 +76,35 @@ export default function SearchableSelect({
     };
   }, [open]);
 
+  /* ============================================================
+     🔒 HANDLERS COM PERMISSÃO
+  ============================================================ */
+  const toggleOpen = () => {
+    if (disabled) return;
+    setOpen((prev) => !prev);
+  };
+
+  const handleSelect = (val) => {
+    if (disabled) return;
+    onChange(String(val));
+    setOpen(false);
+    setFilter("");
+  };
+
   return (
     <>
       <div ref={triggerRef} className="relative">
         <div
           className={cn(
-            "flex h-11 w-full items-center justify-between rounded-xl border bg-background/80 backdrop-blur-sm px-3 py-2 text-sm cursor-pointer",
-            "transition-all duration-300 hover:border-primary/40 active:scale-[0.99]",
+            "flex h-11 w-full items-center justify-between rounded-xl border bg-background/80 backdrop-blur-sm px-3 py-2 text-sm",
+            "transition-all duration-300 active:scale-[0.99]",
             error ? "border-red-500" : "border-input focus:border-primary",
+            disabled
+              ? "opacity-60 cursor-not-allowed"
+              : "cursor-pointer hover:border-primary/40",
             className
           )}
-          onClick={() => setOpen((prev) => !prev)}
+          onClick={toggleOpen}
         >
           <span className={cn(!normalizedValue && "text-muted-foreground")}>
             {
@@ -105,10 +122,11 @@ export default function SearchableSelect({
         </div>
       </div>
 
-      {open && coords &&
+      {/* 🔒 Dropdown só abre se NÃO estiver disabled */}
+      {open && !disabled && coords &&
         createPortal(
           <div
-            ref={dropdownRef} // ⭐ agora sabemos se o clique foi dentro do dropdown
+            ref={dropdownRef}
             style={{
               position: "absolute",
               top: coords.top,
@@ -124,7 +142,12 @@ export default function SearchableSelect({
                 <Input
                   placeholder="Buscar..."
                   value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
+                  onChange={(e) => {
+                    if (disabled) return;
+                    setFilter(e.target.value);
+                  }}
+                  disabled={disabled}
+                  readOnly={disabled}
                   className="pr-9"
                 />
                 <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
@@ -142,14 +165,12 @@ export default function SearchableSelect({
               {filtered.map((opt) => (
                 <div
                   key={opt.value}
-                  onClick={() => {
-                    // 🔥 garante que sempre passa string
-                    onChange(String(opt.value));
-                    setOpen(false);
-                    setFilter("");
-                  }}
+                  onClick={() => handleSelect(opt.value)}
                   className={cn(
-                    "px-4 py-2 text-sm cursor-pointer hover:bg-primary/10 active:bg-primary/20",
+                    "px-4 py-2 text-sm",
+                    disabled
+                      ? "cursor-not-allowed"
+                      : "cursor-pointer hover:bg-primary/10 active:bg-primary/20",
                     opt.value === normalizedValue && "bg-primary/20"
                   )}
                 >

@@ -1,15 +1,12 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   UsersRound,
   Plus,
   Loader2,
-  Edit,
-  Trash2,
   Search,
   RefreshCcw,
-  AlertTriangle,
 } from "lucide-react";
 
 import { Button } from "@/components/admin/ui/Button";
@@ -23,7 +20,7 @@ import { useToast } from "@/contexts/ToastContext";
 
 import PerfilFormPersonas from "./PerfilFormPersonas";
 import PerfisPersonasDrawer from "./PerfisPersonasDrawer";
-import Badge from "../admin/ui/Badge";
+import Badge from "../../admin/ui/Badge";
 import Image from "next/image";
 
 const PERSONA_TIPOS = ["proprietario", "inquilino"];
@@ -35,12 +32,9 @@ export default function PerfisPersonasPanel() {
   const [loading, setLoading] = useState(true);
 
   const [openForm, setOpenForm] = useState(false);
-  const [editing, setEditing] = useState(null);
 
   const [openDrawer, setOpenDrawer] = useState(null);
 
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
 
   const [filters, setFilters] = useState({
     search: "",
@@ -54,35 +48,31 @@ export default function PerfisPersonasPanel() {
     return "/" + foto;
   };
 
-  const load = async () => {
-    try {
-      setLoading(true);
+  const load = useCallback(async () => {
+      try {
+          setLoading(true);
+          const res = await fetch("/api/perfis/list?type=personas", {
+              cache: "no-store",
+          });
 
-      const res = await fetch("/api/perfis/list?type=personas", {
-        cache: "no-store",
-      });
+          const json = await res.json();
+          if (!res.ok) throw new Error(json.error);
 
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
+          const lista = (json.data || []).filter((p) =>
+              ["proprietario", "inquilino"].includes(p.tipo)
+          );
 
-      let lista = (json.data || []).filter((p) =>
-        ["proprietario", "inquilino"].includes(p.tipo)
-      );
-
-      setPersonas(lista);
-    } catch (err) {
-      toast.error("Erro ao carregar pessoas: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+          setPersonas(lista);
+      } catch (err) {
+          toast.error("Erro ao carregar pessoas: " + err.message);
+      } finally {
+          setLoading(false);
+      }
+  }, [toast]); // Array vazio se setLoading e setPersonas forem estáveis (padrão do useState)
 
   useEffect(() => {
-    async function run() {
-      await load();
-    }
-    run();
-  }, []);
+      load();
+  }, [load]);
 
   const filtered = useMemo(() => {
     return personas.filter((p) => {
@@ -103,36 +93,7 @@ export default function PerfisPersonasPanel() {
 
       return true;
     });
-  }, [personas, filters]);
-
-  // DELETE
-  const handleConfirmDelete = async () => {
-    try {
-      setDeleting(true);
-
-      const res = await fetch("/api/perfis/delete", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: deleteTarget.id,
-          type: "personas",
-        }),
-        credentials: "include",
-      });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-
-      toast.success("Cadastro removido com sucesso!");
-
-      setDeleteTarget(null);
-      load();
-    } catch (err) {
-      toast.error("Erro ao remover: " + err.message);
-    } finally {
-      setDeleting(false);
-    }
-  };
+  }, [personas, filters])
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-200 overflow-x-hidden max-w-full">
@@ -207,7 +168,6 @@ export default function PerfisPersonasPanel() {
               <TableHead>E-mail</TableHead>
               <TableHead>Telefone</TableHead>
               <TableHead>Tipo</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
 
@@ -250,33 +210,6 @@ export default function PerfisPersonasPanel() {
                   <Badge status={p.tipo} />
                 </TableCell>
 
-                {/* AÇÕES */}
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditing(p);
-                        setOpenForm(true);
-                      }}
-                    >
-                      <Edit size={16} />
-                    </Button>
-
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteTarget(p);
-                      }}
-                    >
-                      <Trash2 size={16} className="text-red-600" />
-                    </Button>
-                  </div>
-                </TableCell>
               </TableRow>
             ))}
           </tbody>
@@ -289,16 +222,13 @@ export default function PerfisPersonasPanel() {
         isOpen={openForm}
         onClose={() => {
           setOpenForm(false);
-          setEditing(null);
         }}
-        title={editing ? "Editar Pessoa" : "Novo Cadastro"}
+        title={"Novo Cadastro"}
       >
         <PerfilFormPersonas
-          modo={editing ? "edit" : "create"}
-          dadosIniciais={editing || {}}
+          modo={"create"}
           onSuccess={() => {
             setOpenForm(false);
-            setEditing(null);
             load();
           }}
         />
@@ -310,60 +240,12 @@ export default function PerfisPersonasPanel() {
           personaId={openDrawer}
           onClose={() => setOpenDrawer(null)}
           onEdit={(p) => {
-            setEditing(p);
             setOpenDrawer(null);
             setOpenForm(true);
           }}
           reload={load}
         />
       )}
-
-      {/* CONFIRM DELETE */}
-      <Modal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        title="Remover Pessoa"
-      >
-        {deleteTarget && (
-          <div className="space-y-5">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="text-red-500 mt-1" />
-              <div>
-                <p>
-                  Remover <strong>{deleteTarget.nome}</strong>?
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Tipo: {deleteTarget.tipo}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="secondary"
-                className="w-1/2"
-                onClick={() => setDeleteTarget(null)}
-              >
-                Cancelar
-              </Button>
-
-              <Button
-                className="w-1/2 bg-red-600 hover:bg-red-700"
-                onClick={handleConfirmDelete}
-                disabled={deleting}
-              >
-                {deleting ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin" /> Removendo...
-                  </>
-                ) : (
-                  "Confirmar"
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
 
     </div>
   );

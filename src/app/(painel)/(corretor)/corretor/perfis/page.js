@@ -7,9 +7,9 @@ import { Card } from "@/components/admin/ui/Card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/admin/ui/Tabs";
 
 // Painéis
-import PerfisEquipePanel from "@/components/perfis/PerfisEquipePanel";
-import PerfisPersonasPanel from "@/components/perfis/PerfisPersonasPanel";
-import PerfisClientesPanel from "@/components/perfis/PerfisClientesPanel";
+import PerfisEquipePanel from "@/components/corretor/perfis/PerfisEquipePanel";
+import PerfisPersonasPanel from "@/components/corretor/perfis/PerfisPersonasPanel";
+import PerfisClientesPanel from "@/components/corretor/perfis/PerfisClientesPanel";
 
 export default function PerfisPage() {
   const [tab, setTab] = useState("equipe");

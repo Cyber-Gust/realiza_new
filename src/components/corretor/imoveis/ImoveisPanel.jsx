@@ -415,7 +415,7 @@ function ImoveisTable({ data = [] }) {
               <Button
                 size="sm"
                 onClick={() =>
-                  router.push(`/admin/imoveis/${i.id}`)
+                  router.push(`/corretor/imoveis/${i.id}`)
                 }
               >
                 Ver Detalhes

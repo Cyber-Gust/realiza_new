@@ -4,7 +4,7 @@ import { Button } from "@/components/admin/ui/Button";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import ImoveisPanel from "@/components/imoveis/ImoveisPanel"; 
+import ImoveisPanel from "@/components/corretor/imoveis/ImoveisPanel"; 
 
 export default function ImoveisPage() {
   const router = useRouter();
@@ -26,7 +26,7 @@ export default function ImoveisPage() {
         </div>
 
         <Button
-          onClick={() => router.push("/admin/imoveis/new")}
+          onClick={() => router.push("/corretor/imoveis/new")}
           className="flex items-center gap-2"
         >
           <Plus size={16} /> Novo Imóvel

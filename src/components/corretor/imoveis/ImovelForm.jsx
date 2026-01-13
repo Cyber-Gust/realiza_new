@@ -268,7 +268,7 @@ function slugify(value) {
     .replace(/^-+|-+$/g, "");
 }
 
-export default function ImovelForm({ data = {}, onChange }) {
+export default function ImovelForm({ data = {}, onChange, disabled = false }) {
   const [form, setForm] = useState(() => {
     const random = Math.floor(1000 + Math.random() * 9000);
     return {
@@ -286,6 +286,10 @@ export default function ImovelForm({ data = {}, onChange }) {
   const [autoTitulo, setAutoTitulo] = useState(!data?.titulo);
   const [autoSlug, setAutoSlug] = useState(!data?.slug);
   const [autoDescricao, setAutoDescricao] = useState(!data?.descricao);
+
+  const inputProps = disabled ? { disabled: true } : {};
+  const selectProps = disabled ? { disabled: true } : {};
+  const switchProps = disabled ? { disabled: true } : {};  
 
   const didMount = useRef(false);
 
@@ -688,6 +692,7 @@ export default function ImovelForm({ data = {}, onChange }) {
           <div>
             <Label>Proprietário</Label>
             <SearchableSelect
+              disabled={disabled}
               options={personas}
               value={form.proprietario_id ? String(form.proprietario_id) : ""}
               onChange={(val) => handleChange("proprietario_id", val || null)}
@@ -707,6 +712,7 @@ export default function ImovelForm({ data = {}, onChange }) {
           <div>
             <Label>Corretor Responsável</Label>
             <SearchableSelect
+              disabled={disabled}
               options={corretores}
               value={form.corretor_id ? String(form.corretor_id) : ""}
               onChange={(val) => handleChange("corretor_id", val || null)}
@@ -725,6 +731,7 @@ export default function ImovelForm({ data = {}, onChange }) {
           <div>
             <Label>Tipo de Imóvel</Label>
             <Select
+                    {...selectProps}
               value={form.tipo ?? ""}
               onChange={(e) => handleChange("tipo", e.target.value)}
             >
@@ -742,6 +749,7 @@ export default function ImovelForm({ data = {}, onChange }) {
           <div>
             <Label>Status</Label>
             <Select
+                    {...selectProps}
               value={form.status ?? "disponivel"}
               onChange={(e) => handleChange("status", e.target.value)}
             >
@@ -820,6 +828,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>CEP</Label>
                   <Input
+                    {...inputProps}
                     value={form.endereco_cep || ""}
                     onChange={(e) =>
                       handleChange("endereco_cep", e.target.value)
@@ -832,6 +841,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div className="md:col-span-2">
                   <Label>Logradouro</Label>
                   <Input
+                    {...inputProps}
                     value={form.endereco_logradouro || ""}
                     onChange={(e) =>
                       handleChange("endereco_logradouro", e.target.value)
@@ -842,6 +852,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Número</Label>
                   <Input
+                    {...inputProps}
                     value={form.endereco_numero || ""}
                     onChange={(e) =>
                       handleChange("endereco_numero", e.target.value)
@@ -854,6 +865,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Estado (UF)</Label>
                   <Select
+                    {...selectProps}
                     value={form.endereco_estado || ""}
                     onChange={(e) => {
                       const uf = e.target.value;
@@ -877,6 +889,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Cidade</Label>
                   <Select
+                    {...selectProps}
                     value={form.endereco_cidade || ""}
                     onChange={(e) => {
                       const cidade = e.target.value;
@@ -899,6 +912,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Bairro</Label>
                   <Select
+                    {...selectProps}
                     value={form.endereco_bairro || ""}
                     onChange={(e) =>
                       handleChange("endereco_bairro", e.target.value)
@@ -927,6 +941,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Área Total (m²)</Label>
                   <Input
+                    {...inputProps}
                     type="text"
                     inputMode="numeric"
                     placeholder="0,00"
@@ -940,6 +955,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Área Construída (m²)</Label>
                   <Input
+                    {...inputProps}
                     type="text"
                     inputMode="numeric"
                     placeholder="0,00"
@@ -953,6 +969,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Testada (m)</Label>
                   <Input
+                    {...inputProps}
                     type="text"
                     inputMode="numeric"
                     placeholder="0,00"
@@ -966,6 +983,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Profundidade (m)</Label>
                   <Input
+                    {...inputProps}
                     type="text"
                     inputMode="numeric"
                     placeholder="0,00"
@@ -988,6 +1006,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Quartos</Label>
                   <Select
+                    {...selectProps}
                     value={form.quartos ?? ""}
                     onChange={(e) =>
                       handleChangeNumero("quartos", e.target.value)
@@ -1007,6 +1026,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Suítes</Label>
                   <Select
+                    {...selectProps}
                     value={form.suites ?? ""}
                     onChange={(e) =>
                       handleChangeNumero("suites", e.target.value)
@@ -1026,6 +1046,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Banheiros</Label>
                   <Select
+                    {...selectProps}
                     value={form.banheiros ?? ""}
                     onChange={(e) =>
                       handleChangeNumero("banheiros", e.target.value)
@@ -1045,6 +1066,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Vagas de Garagem</Label>
                   <Select
+                    {...selectProps}
                     value={form.vagas_garagem ?? ""}
                     onChange={(e) =>
                       handleChangeNumero("vagas_garagem", e.target.value)
@@ -1073,6 +1095,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Sala(s)</Label>
                   <Select
+                    {...selectProps}
                     value={form.caracteristicas_fisicas?.sala ?? ""}
                     onChange={(e) =>
                       handleChangeCaracteristicaFisica("sala", e.target.value)
@@ -1087,6 +1110,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Closet(s)</Label>
                   <Select
+                    {...selectProps}
                     value={form.caracteristicas_fisicas?.closet ?? ""}
                     onChange={(e) =>
                       handleChangeCaracteristicaFisica("closet", e.target.value)
@@ -1101,6 +1125,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Lavabo(s)</Label>
                   <Select
+                    {...selectProps}
                     value={form.caracteristicas_fisicas?.lav ?? ""}
                     onChange={(e) => handleChangeCaracteristicaFisica("lav", e.target.value)}
                   >
@@ -1113,6 +1138,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Cozinha(s)</Label>
                   <Select
+                    {...selectProps}
                     value={form.caracteristicas_fisicas?.cozinha ?? ""}
                     onChange={(e) => handleChangeCaracteristicaFisica("cozinha", e.target.value)}
                   >
@@ -1124,6 +1150,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Copa(s)</Label>
                   <Select
+                    {...selectProps}
                     value={form.caracteristicas_fisicas?.copa ?? ""}
                     onChange={(e) => handleChangeCaracteristicaFisica("copa", e.target.value)}
                   >
@@ -1136,6 +1163,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Área de Serviço</Label>
                   <Select
+                    {...selectProps}
                     value={form.caracteristicas_fisicas?.area_servico ?? ""}
                     onChange={(e) =>
                       handleChangeCaracteristicaFisica("area_servico", e.target.value)
@@ -1149,6 +1177,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Lavanderia</Label>
                   <Select
+                    {...selectProps}
                     value={form.caracteristicas_fisicas?.lavanderia ?? ""}
                     onChange={(e) =>
                       handleChangeCaracteristicaFisica("lavanderia", e.target.value)
@@ -1163,6 +1192,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Varanda(s)</Label>
                   <Select
+                    {...selectProps}
                     value={form.caracteristicas_fisicas?.varanda ?? ""}
                     onChange={(e) =>
                       handleChangeCaracteristicaFisica("varanda", e.target.value)
@@ -1177,6 +1207,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Escritório(s)</Label>
                   <Select
+                    {...selectProps}
                     value={form.caracteristicas_fisicas?.escritorio ?? ""}
                     onChange={(e) =>
                       handleChangeCaracteristicaFisica("escritorio", e.target.value)
@@ -1190,6 +1221,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Quintal(is)</Label>
                   <Select
+                    {...selectProps}
                     value={form.caracteristicas_fisicas?.quintal ?? ""}
                     onChange={(e) =>
                       handleChangeCaracteristicaFisica("quintal", e.target.value)
@@ -1211,6 +1243,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 {/* PET FRIENDLY */}
                 <div className="flex items-center gap-3">
                   <Switch
+                    {...switchProps}
                     checked={!!form.pet_friendly}
                     onCheckedChange={(v) => handleChange("pet_friendly", v)}
                   />
@@ -1220,6 +1253,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 {/* MOBILIADO */}
                 <div className="flex items-center gap-3">
                   <Switch
+                    {...switchProps}
                     checked={!!form.mobiliado}
                     onCheckedChange={(v) => handleChange("mobiliado", v)}
                   />
@@ -1229,6 +1263,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 {/* ELEVADOR */}
                 <div className="flex items-center gap-3">
                   <Switch
+                    {...switchProps}
                     checked={!!form.elevador}
                     onCheckedChange={(v) => handleChange("elevador", v)}
                   />
@@ -1238,6 +1273,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 {/* PISCINA */}
                 <div className="flex items-center gap-3">
                   <Switch
+                    {...switchProps}
                     checked={!!form.piscina}
                     onCheckedChange={(v) => handleChange("piscina", v)}
                   />
@@ -1247,6 +1283,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 {/* ÁREA GOURMET */}
                 <div className="flex items-center gap-3">
                   <Switch
+                    {...switchProps}
                     checked={!!form.area_gourmet}
                     onCheckedChange={(v) => handleChange("area_gourmet", v)}
                   />
@@ -1284,7 +1321,8 @@ export default function ImovelForm({ data = {}, onChange }) {
                             key={item}
                             className="flex items-center gap-3 cursor-pointer p-3 rounded-xl"
                           >
-                            <input
+                            <Input
+                    {...inputProps}
                               type="checkbox"
                               checked={checked}
                               onChange={(e) =>
@@ -1320,7 +1358,8 @@ export default function ImovelForm({ data = {}, onChange }) {
                             key={item}
                             className="flex items-center gap-3 cursor-pointer p-3 rounded-xl"
                           >
-                            <input
+                            <Input
+                    {...inputProps}
                               type="checkbox"
                               checked={checked}
                               onChange={(e) =>
@@ -1358,6 +1397,7 @@ export default function ImovelForm({ data = {}, onChange }) {
             <div className="space-y-2">
               <Label>Nome do Condomínio (opcional)</Label>
               <Input
+                    {...inputProps}
                 value={form.condominio || ""}
                 onChange={(e) => handleChange("condominio", e.target.value)}
               />
@@ -1378,6 +1418,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                   <div>
                     <Label>Preço de Venda (R$)</Label>
                     <Input
+                    {...inputProps}
                       type="text"
                       inputMode="numeric"
                       placeholder="R$ 0,00"  // Placeholder que indica o formato
@@ -1389,6 +1430,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                   <div>
                     <Label>Comissão de Venda (%)</Label>
                     <Select
+                    {...selectProps}
                       value={form.comissao_venda_percent ?? ""}
                       onChange={(e) =>
                         handleChangeNumero("comissao_venda_percent", e.target.value)
@@ -1404,6 +1446,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                   <div>
                     <Label>Valor da Comissão (R$)</Label>
                     <Input
+                    {...inputProps}
                       readOnly
                       value={
                         comissaoVendaValor
@@ -1424,6 +1467,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                   <div>
                     <Label>Preço de Locação (R$)</Label>
                     <Input
+                    {...inputProps}
                       type="text"
                       inputMode="numeric"
                       placeholder="R$ 0,00"
@@ -1441,6 +1485,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                   <div>
                     <Label>Comissão de Locação (%)</Label>
                     <Select
+                    {...selectProps}
                       value={form.comissao_locacao_percent ?? ""}
                       onChange={(e) =>
                         handleChangeNumero("comissao_locacao_percent", e.target.value)
@@ -1454,6 +1499,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                   <div>
                     <Label>Valor da Comissão (R$)</Label>
                     <Input
+                    {...inputProps}
                       readOnly
                       value={
                         comissaoLocacaoValor
@@ -1471,6 +1517,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                     <div>
                       <Label>Inquilino</Label>
                       <SearchableSelect
+                        disabled={disabled}
                         options={personas}
                         value={form.inquilino_id ? String(form.inquilino_id) : ""}
                         onChange={(val) => handleChange("inquilino_id", val || null)}
@@ -1498,6 +1545,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Valor Condomínio (R$)</Label>
                   <Input
+                    {...inputProps}
                     type="text"
                     inputMode="numeric"
                     placeholder="R$ 0,00"
@@ -1515,6 +1563,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Valor IPTU (R$)</Label>
                   <Input
+                    {...inputProps}
                     type="text"
                     inputMode="numeric"
                     placeholder="R$ 0,00"
@@ -1545,6 +1594,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Situação</Label>
                   <Select
+                    {...selectProps}
                     value={form.situacao_documentacao || ""}
                     onChange={(e) => handleChange("situacao_documentacao", e.target.value)}
                   >
@@ -1557,6 +1607,7 @@ export default function ImovelForm({ data = {}, onChange }) {
 
                 <div className="flex items-center gap-2 mt-6">
                   <Switch
+                    {...switchProps}
                     checked={!!form.aceita_permuta}
                     onCheckedChange={(v) => handleChange("aceita_permuta", v)}
                   />
@@ -1572,6 +1623,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 <div>
                   <Label>Localização da Chave</Label>
                   <Input
+                    {...inputProps}
                     value={form.chaves_localizacao || ""}
                     onChange={(e) => handleChange("chaves_localizacao", e.target.value)}
                   />
@@ -1590,6 +1642,7 @@ export default function ImovelForm({ data = {}, onChange }) {
               <div className="md:col-span-2">
                 <Label>Título</Label>
                 <Input
+                    {...inputProps}
                   value={form.titulo || ""}
                   onChange={(e) => {
                     setAutoTitulo(false);
@@ -1601,6 +1654,7 @@ export default function ImovelForm({ data = {}, onChange }) {
               <div>
                 <Label>Código de Referência</Label>
                 <Input
+                    {...inputProps}
                   value={form.codigo_ref || ""}
                   onChange={(e) => handleChange("codigo_ref", e.target.value)}
                 />
@@ -1611,6 +1665,7 @@ export default function ImovelForm({ data = {}, onChange }) {
               <div>
                 <Label>Slug</Label>
                 <Input
+                    {...inputProps}
                   value={form.slug || ""}
                   onChange={(e) => {
                     setAutoSlug(false);
@@ -1622,6 +1677,7 @@ export default function ImovelForm({ data = {}, onChange }) {
               <div className="md:col-span-2">
                 <Label>Título Curto</Label>
                 <Input
+                    {...inputProps}
                   value={form.titulo_curto || ""}
                   onChange={(e) => handleChange("titulo_curto", e.target.value)}
                 />
@@ -1654,7 +1710,8 @@ export default function ImovelForm({ data = {}, onChange }) {
                       key={cat}
                       className="flex items-center gap-3 p-2 rounded-xl cursor-pointer hover:bg-gray-100"
                     >
-                      <input
+                      <Input
+                    {...inputProps}
                         type="checkbox"
                         checked={checked}
                         onChange={(e) => {

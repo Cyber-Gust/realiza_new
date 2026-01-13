@@ -15,12 +15,8 @@ import {
   Mail,
   MapPin,
   ScrollText,
-  BadgeInfo,
-  Pencil,
   User2,
   Building2,
-  Trash2,
-  AlertTriangle
 } from "lucide-react";
 import Image from "next/image";
 import Modal from "@/components/admin/ui/Modal";
@@ -28,17 +24,12 @@ import Modal from "@/components/admin/ui/Modal";
 export default function PerfisPersonasDrawer({
   personaId,
   onClose,
-  onEdit,
-  reload,
 }) {
   const [persona, setPersona] = useState(null);
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   // modal de remoção
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-
   const toast = useToast();
 
   const getImageSrc = (foto) => {
@@ -75,33 +66,6 @@ export default function PerfisPersonasDrawer({
 
   const root = document.getElementById("drawer-root");
   if (!root) return null;
-
-  // CONFIRM DELETE
-  const handleConfirmDelete = async () => {
-    try {
-      setDeleting(true);
-
-      const res = await fetch("/api/perfis/delete", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: persona.id, type: "personas" }),
-        credentials: "include",
-      });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-
-      toast.success("Cadastro removido com sucesso!");
-
-      setDeleteTarget(null);
-      onClose();
-      reload?.();
-    } catch (err) {
-      toast.error("Erro ao remover: " + err.message);
-    } finally {
-      setDeleting(false);
-    }
-  };
 
   return createPortal(
     <>
@@ -198,80 +162,10 @@ export default function PerfisPersonasDrawer({
                 </Card>
               )}
 
-              {/* AÇÕES */}
-              <div className="flex gap-2">
-
-                {/* REMOVER */}
-                <Button
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white flex items-center justify-center gap-2"
-                  onClick={() => setDeleteTarget(persona)}
-                >
-                  <Trash2 size={16} className="text-white" />
-                  Remover
-                </Button>
-
-                {/* EDITAR */}
-                <Button
-                  className="flex-1 flex items-center justify-center gap-2"
-                  onClick={() => onEdit?.(persona)}
-                >
-                  <Pencil size={16} />
-                  Editar Cadastro
-                </Button>
-
-              </div>
-
             </div>
           )}
         </div>
       </div>
-
-      {/* MODAL CONFIRMAR DELETE */}
-      <Modal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        title="Remover Pessoa"
-      >
-        {deleteTarget && (
-          <div className="space-y-5">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="text-red-500 mt-1" />
-              <div>
-                <p>
-                  Remover <strong>{deleteTarget.nome}</strong>?
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Tipo: {deleteTarget.tipo}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="secondary"
-                className="w-1/2"
-                onClick={() => setDeleteTarget(null)}
-              >
-                Cancelar
-              </Button>
-
-              <Button
-                className="w-1/2 bg-red-600 hover:bg-red-700"
-                onClick={handleConfirmDelete}
-                disabled={deleting}
-              >
-                {deleting ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin" /> Removendo...
-                  </>
-                ) : (
-                  "Confirmar"
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
     </>,
     root
   );

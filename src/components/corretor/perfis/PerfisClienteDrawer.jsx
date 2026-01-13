@@ -16,22 +16,15 @@ import {
   MapPin,
   Info,
   ScrollText,
-  Pencil,
-  Trash2,
   User2,
   Building2,
-  AlertTriangle,
 } from "lucide-react";
-import Modal from "@/components/admin/ui/Modal";
 import Image from "next/image";
 
 export default function PerfisClienteDrawer({ clienteId, onClose, onEdit, reload }) {
   const [cliente, setCliente] = useState(null);
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
-
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
 
   const toast = useToast();
 
@@ -67,31 +60,6 @@ export default function PerfisClienteDrawer({ clienteId, onClose, onEdit, reload
   const root = document.getElementById("drawer-root");
   if (!root) return null;
 
-  // --- DELETE CLIENTE ---
-  const handleConfirmDelete = async () => {
-    try {
-      setDeleting(true);
-
-      const res = await fetch("/api/perfis/delete", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: cliente.id, type: "clientes" }),
-        credentials: "include",
-      });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-
-      toast.success("Cliente removido com sucesso!");
-      setDeleteTarget(null);
-      onClose();
-      reload?.();
-    } catch (err) {
-      toast.error("Erro ao remover: " + err.message);
-    } finally {
-      setDeleting(false);
-    }
-  };
 
   return createPortal(
     <>
@@ -188,80 +156,10 @@ export default function PerfisClienteDrawer({ clienteId, onClose, onEdit, reload
                 </Card>
               )}
 
-              {/* AÇÕES */}
-              <div className="flex gap-2">
-
-                {/* REMOVER */}
-                <Button
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white flex items-center justify-center gap-2"
-                  onClick={() => setDeleteTarget(cliente)}
-                >
-                  <Trash2 size={16} className="text-white" />
-                  Remover
-                </Button>
-
-                {/* EDITAR */}
-                <Button
-                  className="flex-1 flex items-center justify-center gap-2"
-                  onClick={() => onEdit?.(cliente)}
-                >
-                  <Pencil size={16} />
-                  Editar Cliente
-                </Button>
-
-              </div>
-
             </div>
           )}
         </div>
       </div>
-
-      {/* MODAL DELETAR */}
-      <Modal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        title="Remover Cliente"
-      >
-        {deleteTarget && (
-          <div className="space-y-5">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="text-red-500 mt-1" />
-              <div>
-                <p>
-                  Remover o cliente <strong>{deleteTarget.nome}</strong>?
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Origem: {deleteTarget.origem || "Manual"}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="secondary"
-                className="w-1/2"
-                onClick={() => setDeleteTarget(null)}
-              >
-                Cancelar
-              </Button>
-
-              <Button
-                className="w-1/2 bg-red-600 hover:bg-red-700"
-                onClick={handleConfirmDelete}
-                disabled={deleting}
-              >
-                {deleting ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin" /> Removendo...
-                  </>
-                ) : (
-                  "Confirmar"
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
     </>,
     root
   );

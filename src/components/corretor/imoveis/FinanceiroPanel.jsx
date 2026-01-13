@@ -13,11 +13,11 @@ import { Button } from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 import { useToast } from "@/contexts/ToastContext";
 
-import PrecoHistoricoChart from "@/components/imoveis/PrecoHistoricoChart";
-import VacanciaWidget from "@/components/imoveis/VacanciaWidget";
+import PrecoHistoricoChart from "./PrecoHistoricoChart";
+import VacanciaWidget from "./VacanciaWidget";
 
 import { createClient } from "@/lib/supabase/client";
-import { Input, Label, Select } from "../admin/ui/Form";
+import { Input, Label, Select } from "@/components/admin/ui/Form";
 
 /* ============================================================
    💰 UTILITÁRIO MONETÁRIO
@@ -34,7 +34,7 @@ export const parseCurrencyToNumber = (raw) => {
   return Number(digits) / 100;
 };
 
-export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
+export default function FinanceiroPanel({ imovel, onUpdateImovel, disabled = false }) {
   const { success, error } = useToast();
 
   const [historico, setHistorico] = useState([]);
@@ -85,7 +85,9 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
      📝 REGISTRAR AJUSTE
   ============================================================ */
   const registrarAjuste = async () => {
+    if (disabled) return;
     const valorNumerico = parseCurrencyToNumber(ajuste.valor);
+    
 
     if (!valorNumerico || valorNumerico <= 0)
       return error("Atenção", "Informe um valor válido");
@@ -136,6 +138,7 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
      🔄 DISPONIBILIDADE
   ============================================================ */
   const atualizarDisponibilidade = async (novaDisponibilidade) => {
+    if (disabled) return;
     try {
       const r = await fetch(`/api/imoveis/${imovel.id}`, {
         method: "PUT",
@@ -187,13 +190,14 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
           <Select
             value={imovel.disponibilidade ?? "venda"}
             onChange={(e) => atualizarDisponibilidade(e.target.value)}
+            disabled={disabled}
           >
             <option value="venda">Venda</option>
             <option value="locacao">Locação</option>
             <option value="ambos">Ambos</option>
           </Select>
 
-          <Button onClick={() => setOpenModal(true)}>
+          <Button onClick={() => setOpenModal(true)} disabled={disabled}>
             Registrar Ajuste
           </Button>
         </CardContent>
@@ -230,7 +234,7 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
 
       {/* 🪟 MODAL */}
       <Modal
-        isOpen={openModal}
+        isOpen={openModal && !disabled}
         onClose={() => setOpenModal(false)}
         title="Registrar Ajuste de Preço"
         footer={
@@ -238,7 +242,9 @@ export default function FinanceiroPanel({ imovel, onUpdateImovel }) {
             <Button variant="secondary" onClick={() => setOpenModal(false)}>
               Cancelar
             </Button>
-            <Button onClick={registrarAjuste}>Salvar</Button>
+            <Button onClick={registrarAjuste} disabled={disabled}>
+              Salvar
+            </Button>
           </div>
         }
       >

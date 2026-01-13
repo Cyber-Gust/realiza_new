@@ -15,7 +15,7 @@ import {
 
 import { Button, buttonVariants } from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
-import { Input, Label } from "../admin/ui/Form";
+import { Input, Label } from "@/components/admin/ui/Form";
 import { useToast } from "@/contexts/ToastContext";
 
 /* ------------------------- DND KIT ------------------------- */
@@ -58,7 +58,7 @@ function SortableItem({ id, children }) {
 /* ------------------------------------------------------------
    COMPONENTE PRINCIPAL
 ------------------------------------------------------------ */
-export default function MidiaPanel({ imovel }) {
+export default function MidiaPanel({ imovel, disabled = false }) {
   const toast = useToast();
 
   const [files, setFiles] = useState([]);
@@ -136,6 +136,7 @@ export default function MidiaPanel({ imovel }) {
      ⭐ DEFINIR PRINCIPAL
   ============================================================ */
   const handleSetPrincipal = async (url) => {
+   if (disabled) return;
     const principalFile = files.find(f => f.url === url);
     if (!principalFile) return;
 
@@ -169,6 +170,7 @@ export default function MidiaPanel({ imovel }) {
      🔼 UPLOAD
   ============================================================ */
   const handleUpload = async (e) => {
+    if (disabled) return;
     const selected = Array.from(e.target.files || []);
     if (!selected.length) return;
 
@@ -240,6 +242,7 @@ export default function MidiaPanel({ imovel }) {
   );
 
   const handleDragEnd = async ({ active, over }) => {
+    if (disabled) return;
     if (!over || active.id === over.id) return;
 
     const oldIndex = gallery.findIndex(f => f.url === active.id);
@@ -280,6 +283,7 @@ export default function MidiaPanel({ imovel }) {
      🗑 REMOVER
   ============================================================ */
   const confirmDelete = async () => {
+    if (disabled) return;
     if (!deleteTarget) return;
     setDeleting(true);
 
@@ -337,10 +341,13 @@ export default function MidiaPanel({ imovel }) {
           </span>
 
           <Label
-            htmlFor="midiaUploader"
+            htmlFor={disabled ? undefined : "midiaUploader"}
             className={clsx(
               buttonVariants({ variant: "secondary" }),
-              "cursor-pointer gap-2"
+              "gap-2",
+              disabled
+                ? "opacity-60 cursor-not-allowed"
+                : "cursor-pointer"
             )}
           >
             {uploading ? <Loader2 className="animate-spin" /> : <Upload />}
@@ -349,6 +356,7 @@ export default function MidiaPanel({ imovel }) {
               id="midiaUploader"
               type="file"
               multiple
+              disabled={disabled}
               onChange={handleUpload}
               className="hidden"
             />
@@ -388,6 +396,7 @@ export default function MidiaPanel({ imovel }) {
                       <Button
                         size="sm"
                         variant="destructive"
+                        disabled={disabled}
                         onClick={() => setDeleteTarget(principalFile)}
                       >
                         <Trash2 size={14} />
@@ -412,6 +421,7 @@ export default function MidiaPanel({ imovel }) {
                         <Button
                           size="sm"
                           variant="secondary"
+                          disabled={disabled}
                           onClick={() => handleSetPrincipal(f.url)}
                         >
                           Tornar principal
@@ -420,6 +430,7 @@ export default function MidiaPanel({ imovel }) {
                         <Button
                           size="sm"
                           variant="destructive"
+                          disabled={disabled}
                           onClick={() => setDeleteTarget(f)}
                         >
                           <Trash2 size={14} />
@@ -435,7 +446,7 @@ export default function MidiaPanel({ imovel }) {
       </CardContent>
 
       <Modal
-        isOpen={!!deleteTarget}
+        isOpen={!!deleteTarget && !disabled}
         onClose={() => setDeleteTarget(null)}
         title="Excluir mídia"
       >
@@ -449,7 +460,7 @@ export default function MidiaPanel({ imovel }) {
             className="w-full"
             variant="destructive"
             onClick={confirmDelete}
-            disabled={deleting}
+            disabled={deleting || disabled}
           >
             {deleting ? "Removendo..." : "Confirmar"}
           </Button>

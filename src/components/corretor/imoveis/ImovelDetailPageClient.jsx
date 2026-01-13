@@ -6,11 +6,11 @@ import { Card } from "@/components/admin/ui/Card";
 
 import { useUser } from "@/contexts/UserContext";
 
-import ImovelForm from "@/components/imoveis/ImovelForm";
-import FinanceiroPanel from "@/components/imoveis/FinanceiroPanel";
-import MidiaPanel from "@/components/imoveis/MidiaPanel";
-import CompliancePanel from "@/components/imoveis/CompliancePanel";
-import ChavesDialog from "@/components/imoveis/ChavesDialog";
+import ImovelForm from "./ImovelForm";
+import FinanceiroPanel from "./FinanceiroPanel";
+import MidiaPanel from "./MidiaPanel";
+import CompliancePanel from "./CompliancePanel";
+import ChavesDialog from "./ChavesDialog";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/admin/ui/Tabs";
 import { Button } from "@/components/admin/ui/Button";
@@ -20,8 +20,8 @@ import { useToast } from "@/contexts/ToastContext";
 import useModal from "@/hooks/useModal";
 
 import { formatCurrency } from "@/utils/formatters";
-import { BackButton } from "../admin/ui/BackButton";
-import Modal from "../admin/ui/Modal";
+import { BackButton } from "@/components/admin/ui/BackButton";
+import Modal from "@/components/admin/ui/Modal";
 
 export default function ImovelDetailPageClient({ imovelId }) {
   const { user, profile } = useUser();
@@ -33,6 +33,10 @@ export default function ImovelDetailPageClient({ imovelId }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const router = useRouter();
+
+  const isAdmin = profile?.role === "admin";
+  const isOwner = imovel?.corretor_id === user?.id;
+  const canEdit = isAdmin || isOwner;
 
   const [tab, setTab] = useState("cadastro");
 
@@ -140,6 +144,12 @@ export default function ImovelDetailPageClient({ imovelId }) {
       {/* HEADER */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
+          {!canEdit && (
+            <p className="text-sm text-yellow-600 flex items-center gap-2">
+              <AlertTriangle size={14} />
+              Você não pode editar este imóvel
+            </p>
+          )}
           <h1 className="text-3xl font-semibold tracking-tight">
             {imovel.titulo || "Imóvel sem título"}
           </h1>
@@ -155,7 +165,7 @@ export default function ImovelDetailPageClient({ imovelId }) {
           {tab !== "midia" && (
             <Button
               onClick={salvarAlteracoes}
-              disabled={saving}
+              disabled={!canEdit || saving}
               className="flex items-center gap-2"
             >
               <Save size={16} />
@@ -175,6 +185,7 @@ export default function ImovelDetailPageClient({ imovelId }) {
 
           <Button
             onClick={() => setDeleteTarget(imovel)}
+            disabled={!canEdit}
             variant="destructive"
             className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white"
           >
@@ -195,19 +206,19 @@ export default function ImovelDetailPageClient({ imovelId }) {
         </TabsList>
 
         <TabsContent value="cadastro" className="mt-4">
-          <ImovelForm data={imovel} onChange={setImovel} />
+          <ImovelForm data={imovel} onChange={setImovel} disabled={!canEdit} />
         </TabsContent>
 
         <TabsContent value="financeiro" className="mt-4">
-          <FinanceiroPanel imovel={imovel} onUpdateImovel={setImovel} />
+          <FinanceiroPanel imovel={imovel} onUpdateImovel={setImovel} disabled={!canEdit} />
         </TabsContent>
 
         <TabsContent value="midia" className="mt-4">
-          <MidiaPanel imovel={imovel} />
+          <MidiaPanel imovel={imovel} disabled={!canEdit} />
         </TabsContent>
 
         <TabsContent value="compliance" className="mt-4">
-          <CompliancePanel imovelId={imovelId} />
+          <CompliancePanel imovelId={imovelId} disabled={!canEdit} />
         </TabsContent>
       </Tabs>
 

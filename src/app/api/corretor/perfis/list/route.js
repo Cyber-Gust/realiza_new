@@ -1,6 +1,6 @@
 // src/app/api/perfis/list/route.js
 import { NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient, createClient } from "@/lib/supabase/server";
 
 /**
  * Listagem unificada:
@@ -132,47 +132,63 @@ export async function GET(req) {
         👤 CLIENTES — subset da tabela personas
     ============================================================ */
     else if (type === "clientes") {
-      let query = supabase
-        .from("personas")
-        .select(
-          `
-            id,
-            nome,
-            email,
-            telefone,
-            cpf_cnpj,
-            tipo,
-            endereco_cep,
-            endereco_logradouro,
-            endereco_numero,
-            endereco_bairro,
-            endereco_cidade,
-            endereco_estado,
-            data_nascimento,
-            rg,
-            estado_civil,
-            profissao,
-            origem,
-            tags,
-            observacoes,
-            ativo,
-            updated_at
-          `
-        )
-        .eq("tipo", "cliente")
-        .order("updated_at", { ascending: false });
+    // 🔐 Cliente normal (corretor)
+    const supabaseUser = await createClient();
 
-      if (id) query = query.eq("id", id);
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseUser.auth.getUser();
 
-      const { data: rows, error } = await query;
-      if (error) throw error;
-
-      data = rows.map((p) => ({
-        ...p,
-        type: "clientes",
-        contato_telefone: p.telefone || null,
-      }));
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Usuário não autenticado." },
+        { status: 401 }
+      );
     }
+
+    let query = supabaseUser
+      .from("personas")
+      .select(
+        `
+          id,
+          nome,
+          email,
+          telefone,
+          cpf_cnpj,
+          tipo,
+          endereco_cep,
+          endereco_logradouro,
+          endereco_numero,
+          endereco_bairro,
+          endereco_cidade,
+          endereco_estado,
+          data_nascimento,
+          rg,
+          estado_civil,
+          profissao,
+          origem,
+          tags,
+          observacoes,
+          ativo,
+          updated_at
+        `
+      )
+      .eq("tipo", "cliente")
+      .eq("corretor_id", user.id) // 🔥 FILTRO CRÍTICO
+      .order("updated_at", { ascending: false });
+
+    if (id) query = query.eq("id", id);
+
+    const { data: rows, error } = await query;
+    if (error) throw error;
+
+    data = rows.map((p) => ({
+      ...p,
+      type: "clientes",
+      contato_telefone: p.telefone || null,
+    }));
+  }
 
     /* ============================================================
         ❌ TIPO INVÁLIDO

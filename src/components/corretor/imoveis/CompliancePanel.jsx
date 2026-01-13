@@ -44,7 +44,7 @@ const DOC_TIPOS = [
   { label: "Habite-se", value: "habite_se" },
 ];
 
-export default function CompliancePanel({ imovelId }) {
+export default function CompliancePanel({ imovelId, disabled = false }) {
   const toast = useToast();
 
   const [doc, setDoc] = useState({
@@ -92,6 +92,7 @@ export default function CompliancePanel({ imovelId }) {
   }, [fetchList]);
 
   const handleUpload = async () => {
+    if (disabled) return;
     if (!isValid) {
       toast.error("Atenção", "Preencha todos os campos.");
       return;
@@ -158,6 +159,7 @@ export default function CompliancePanel({ imovelId }) {
   };
 
   const confirmDelete = async () => {
+    if (disabled) return;
     if (!selectedDoc) return;
 
     try {
@@ -187,6 +189,7 @@ export default function CompliancePanel({ imovelId }) {
   };
 
   const handleSaveEdit = async () => {
+    if (disabled) return;
     if (!editDoc) return;
 
     try {
@@ -233,6 +236,7 @@ export default function CompliancePanel({ imovelId }) {
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Select
+              disabled={disabled}
               value={doc.tipo}
               onChange={(e) => setDoc({ ...doc, tipo: e.target.value })}
             >
@@ -246,6 +250,7 @@ export default function CompliancePanel({ imovelId }) {
 
             <Input
               type="date"
+              disabled={disabled}
               value={doc.validade || ""}
               onChange={(e) => setDoc({ ...doc, validade: e.target.value })}
               iconLeft={<CalendarDays className="h-4 w-4 opacity-60" />}
@@ -253,27 +258,30 @@ export default function CompliancePanel({ imovelId }) {
 
             <div className="flex items-center">
               <label
-                htmlFor="file-upload"
-                className="flex items-center gap-2 cursor-pointer bg-accent text-white px-4 py-2 rounded
-                          hover:bg-accent/90 transition font-medium shadow-sm"
+                className={cn(
+                  "flex items-center gap-2 bg-accent text-white px-4 py-2 rounded transition font-medium shadow-sm",
+                  disabled
+                    ? "opacity-60 cursor-not-allowed"
+                    : "cursor-pointer hover:bg-accent/90"
+                )}
               >
                 <Upload size={16} />
-                Selecionar arquivo
-              </label>
+                {doc.file ? doc.file.name : "Selecionar arquivo"}
 
-              <input
-                id="file-upload"
-                type="file"
-                className="hidden"
-                onChange={(e) =>
-                  setDoc({ ...doc, file: e.target.files?.[0] ?? null })
-                }
-              />
+                <input
+                  type="file"
+                  disabled={disabled}
+                  className="hidden"
+                  onChange={(e) =>
+                    setDoc({ ...doc, file: e.target.files?.[0] ?? null })
+                  }
+                />
+              </label>
             </div>
 
             <Button
               onClick={handleUpload}
-              disabled={!isValid || loading}
+              disabled={disabled || !isValid || loading}
               className="flex items-center gap-2"
             >
               {loading ? (
@@ -295,7 +303,7 @@ export default function CompliancePanel({ imovelId }) {
                 variant="secondary"
                 size="sm"
                 onClick={fetchList}
-                disabled={loading}
+                disabled={loading || disabled}
                 className="flex items-center gap-1"
               >
                 <RefreshCw size={14} /> Atualizar
@@ -367,6 +375,7 @@ export default function CompliancePanel({ imovelId }) {
                             <Button
                               variant="ghost"
                               size="icon"
+                              disabled={disabled}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setEditDoc(d);
@@ -378,6 +387,7 @@ export default function CompliancePanel({ imovelId }) {
                             <Button
                               variant="ghost"
                               size="icon"
+                              disabled={disabled}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 requestDelete(d);
@@ -398,7 +408,7 @@ export default function CompliancePanel({ imovelId }) {
       </Card>
 
       <Modal
-        isOpen={deleteModal.open}
+        isOpen={deleteModal.open && !disabled}
         onClose={deleteModal.closeModal}
         title="Excluir documento"
         footer={
@@ -431,7 +441,7 @@ export default function CompliancePanel({ imovelId }) {
       </Modal>
 
       <Modal
-        isOpen={!!editDoc}
+        isOpen={!!editDoc && !disabled}
         onClose={() => setEditDoc(null)}
         title="Editar validade"
         footer={
@@ -440,7 +450,7 @@ export default function CompliancePanel({ imovelId }) {
               Cancelar
             </Button>
 
-            <Button onClick={handleSaveEdit} disabled={savingEdit}>
+            <Button onClick={handleSaveEdit} disabled={savingEdit || disabled}>
               {savingEdit ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
