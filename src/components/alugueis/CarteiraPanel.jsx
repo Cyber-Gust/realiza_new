@@ -10,7 +10,6 @@ import {
   DollarSign,
   ArrowUpRight,
   Search,
-  Loader2,
   FilterX
 } from "lucide-react";
 

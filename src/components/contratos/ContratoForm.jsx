@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/admin/ui/Button";
-import { Card } from "@/components/admin/ui/Card";
 import { Label, Input, Select, Textarea } from "@/components/admin/ui/Form";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";

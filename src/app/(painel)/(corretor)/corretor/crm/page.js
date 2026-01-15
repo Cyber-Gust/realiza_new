@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/admin/ui/Card";
+import { Card } from "@/components/admin/ui/Card";
 
 import {
   Tabs,

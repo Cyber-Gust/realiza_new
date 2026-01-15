@@ -6,8 +6,6 @@ import {
   CalendarDays,
   Loader2,
   Plus,
-  Edit,
-  Trash2,
   AlertTriangle,
   MapPin,
   ChevronLeft,
@@ -16,7 +14,6 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/admin/ui/Button";
-import { Card } from "@/components/admin/ui/Card";
 import Modal from "@/components/admin/ui/Modal";
 import { useToast } from "@/contexts/ToastContext";
 import CRMAgendaForm from "./CRMAgendaForm";

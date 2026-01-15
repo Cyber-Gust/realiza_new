@@ -11,7 +11,6 @@ import {
   Building2,
   Search,
   FilterX,
-  ArrowUpDown,
   CalendarX
 } from "lucide-react";
 

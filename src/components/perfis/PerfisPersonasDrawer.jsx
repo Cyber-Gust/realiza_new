@@ -15,7 +15,6 @@ import {
   Mail,
   MapPin,
   ScrollText,
-  BadgeInfo,
   Pencil,
   User2,
   Building2,
