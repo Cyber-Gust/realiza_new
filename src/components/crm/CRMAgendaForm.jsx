@@ -57,7 +57,7 @@ export default function CRMAgendaForm({ onSaved, onClose, evento = null }) {
         toast.error("Erro ao carregar dados", err.message);
       }
     })();
-  }, []);
+  }, [toast]);
 
   /* ============================================================
       Filtro de personas por tipo

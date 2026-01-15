@@ -101,7 +101,7 @@ export default function CRMPropostasPanel() {
     } catch (err) {
       toast.error("Erro ao carregar filtros: " + err.message);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     loadLists();
@@ -139,7 +139,7 @@ export default function CRMPropostasPanel() {
     } finally {
       setLoading(false);
     }
-  }, [queryString]);
+  }, [toast, queryString]);
 
   useEffect(() => {
     loadPropostas();

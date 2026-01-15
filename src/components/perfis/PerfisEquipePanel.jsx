@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   UserCog,
   Plus,
@@ -57,7 +57,7 @@ export default function PerfisEquipePanel() {
     return "/" + foto;
   };
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -74,11 +74,11 @@ export default function PerfisEquipePanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   /* ========================================================================
      FILTRAGEM

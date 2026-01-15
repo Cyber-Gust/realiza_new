@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   UsersRound,
   Plus,
@@ -54,7 +54,7 @@ export default function PerfisPersonasPanel() {
     return "/" + foto;
   };
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -75,14 +75,14 @@ export default function PerfisPersonasPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     async function run() {
       await load();
     }
     run();
-  }, []);
+  }, [load]);
 
   const filtered = useMemo(() => {
     return personas.filter((p) => {

@@ -40,7 +40,7 @@ export default function CRMPropostaDetailDrawer({ propostaId, onClose, onEdit })
     } finally {
       setLoading(false);
     }
-  }, [propostaId]);
+  }, [propostaId, toast]);
 
   useEffect(() => setMounted(true), []);
   useEffect(() => {

@@ -95,7 +95,7 @@ export default function CRMPropostaForm({ onSaved, onClose, proposta = null }) {
     };
 
     loadLists();
-  }, []);
+  }, [toast]);
 
   /* ============================================================
      Mascara BRL

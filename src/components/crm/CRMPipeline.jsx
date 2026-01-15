@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -114,7 +114,7 @@ export default function CRMPipeline() {
     })
   );
 
-  const loadPipeline = async () => {
+  const loadPipeline = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch("/api/crm/pipeline", { cache: "no-store" });
@@ -126,11 +126,11 @@ export default function CRMPipeline() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     loadPipeline();
-  }, []);
+  }, [loadPipeline]);
 
   const handleMoveLead = async (leadId, fromStage, toStage) => {
     leadId = String(leadId);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   User2,
   Plus,
@@ -86,7 +86,7 @@ export default function PerfisClientesPanel() {
   /* ========================================================================
      LOAD CLIENTES
   ======================================================================== */
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -106,11 +106,11 @@ export default function PerfisClientesPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   /* ========================================================================
      FILTERED LIST

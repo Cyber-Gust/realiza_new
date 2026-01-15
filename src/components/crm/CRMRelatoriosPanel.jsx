@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 
 import {
   Loader2,
@@ -199,7 +199,7 @@ export default function CRMRelatoriosPanel() {
   /* ============================================================
      Load KPIs
   ============================================================ */
-  const loadKpis = async () => {
+  const loadKpis = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -217,7 +217,7 @@ export default function CRMRelatoriosPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast, queryString]);
 
   /* ============================================================
      Effects
@@ -228,7 +228,7 @@ export default function CRMRelatoriosPanel() {
 
   useEffect(() => {
     loadKpis();
-  }, [queryString]);
+  }, [loadKpis]);
 
   const resetFiltros = () =>
     setFiltros({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/admin/ui/Button";
 import { Input, Textarea, Select, Label } from "@/components/admin/ui/Form";
 import { useToast } from "@/contexts/ToastContext";
@@ -61,7 +61,7 @@ export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
     };
 
     loadCorretores();
-  }, []);
+  }, [toast]);
 
   /* ============================================================
      Limpa Payload

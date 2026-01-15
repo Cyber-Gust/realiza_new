@@ -61,7 +61,7 @@ export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
     };
 
     loadCorretores();
-  }, []);
+  }, [toast]);
 
   /* ============================================================
      Limpa Payload
