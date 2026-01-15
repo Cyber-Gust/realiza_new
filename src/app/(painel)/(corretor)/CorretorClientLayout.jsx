@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 import { Sidebar } from "@/components/corretor/layout/Sidebar";
 import { Header } from "@/components/corretor/layout/Header";
-import { Footer } from "@/components/corretor/layout/Footer";
+import { Footer } from "@/components/admin/layout/Footer";
 
 import { ToastProvider } from "@/contexts/ToastContext";
 import { UserProvider } from "@/contexts/UserContext";
