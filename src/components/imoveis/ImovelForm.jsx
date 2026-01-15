@@ -80,6 +80,7 @@ export const BAIRROS_POR_CIDADE = {
     "Guarda-Mor",
     "Jardim América",
     "Jardim Colônia (Colônia do Marçal)",
+    "Jardim das Acácias",
     "Jardim Montese",
     "Jardim Paulo Campos",
     "Lava Pés",
@@ -133,7 +134,13 @@ export const BAIRROS_POR_CIDADE = {
     "Vila São Vicente (Colônia do Marçal)"
   ],
 
-  "Santa Cruz de Minas": ["Centro", "Porto Real", "Bela vista"]
+  "Santa Cruz de Minas": ["Centro", "Porto Real", "Bela vista"],
+
+  "Tiradentes": ["Centro", "Cuiabá", "Bandeirantes 1", "Bandeirantes 2", "Elvas", "Condomínio Alto dos Cuiabás",
+  "Condomínio Tiradentes Ville", "Água Santas", "Cesar de Pina", "Mococa", "Alto da Torre",
+  "Candonga", "Capote", "Cascalho", "Pacu", "Parque das Abelhas", "Santíssima Trindade", "Varzea"  
+  ],
+
 };
 
 /* ============================================================
@@ -178,6 +185,14 @@ export const caracteristicasUnidade = [
   "Portão Eletrônico",
   "Circuito de Segurança",
   "Sistema de Alarme",
+  "Mezanino",
+  "Suite Master",
+  "Acabamento em Granito",
+  "Vidro Temperado",
+  "Topografia Plana",
+  "Base para 2º Andar",
+  "Acabamento em Blindex",
+  "Cozinha Integrada",
   "CFTV",
   "Teto Rebaixado em Gesso",
   "Depósito Privativo",
@@ -898,21 +913,21 @@ export default function ImovelForm({ data = {}, onChange }) {
 
                 <div>
                   <Label>Bairro</Label>
-                  <Select
+
+                  <Input
+                    list="bairros-list"
+                    placeholder="Selecione ou digite..."
                     value={form.endereco_bairro || ""}
                     onChange={(e) =>
                       handleChange("endereco_bairro", e.target.value)
                     }
-                  >
-                    <option value="" hidden>
-                      Selecione...
-                    </option>
+                  />
+
+                  <datalist id="bairros-list">
                     {bairroOptions.map((bairro) => (
-                      <option key={bairro} value={bairro}>
-                        {bairro}
-                      </option>
+                      <option key={bairro} value={bairro} />
                     ))}
-                  </Select>
+                  </datalist>
                 </div>
               </div>
             </div>
@@ -1005,7 +1020,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                 </div>
 
                 <div>
-                  <Label>Suítes</Label>
+                  <Label>Sendo Suítes</Label>
                   <Select
                     value={form.suites ?? ""}
                     onChange={(e) =>
