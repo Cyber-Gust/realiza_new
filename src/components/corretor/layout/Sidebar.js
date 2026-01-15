@@ -7,8 +7,8 @@ import { useState } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard, Home, UsersRound, UserCog, FileText,
-  CircleDollarSign, CalendarClock, Wrench, Megaphone, Settings,
+  LayoutDashboard, Home, UsersRound, UserCog,
+  CalendarDays, Settings,
   PanelLeftClose, LogOut, ChevronRight, Menu
 } from "lucide-react";
 
@@ -18,6 +18,8 @@ export const navItems = [
   { name: "Imóveis", href: "/corretor/imoveis", icon: Home },
   { name: "Perfis", href: "/corretor/perfis", icon: UserCog },
   { name: "Configurações", href: "/corretor/configuracoes", icon: Settings },
+  { name: "Agenda", href: "/admin/agenda", icon: CalendarDays },
+
 ];
 
 export function Sidebar({ isCollapsed, setIsCollapsed }) {

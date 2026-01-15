@@ -5,15 +5,13 @@ import {
   Plus,
   RotateCcw,
   Lock,
-  ArrowDownRight,
+  Home,
+  ArrowUpRight,
   Edit,
   Trash2,
   CheckCircle,
-  UserCheck,
-  Wrench,
 } from "lucide-react";
 
-import { Card } from "@/components/admin/ui/Card";
 import { Button } from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
 import Badge from "@/components/admin/ui/Badge";
@@ -30,16 +28,16 @@ import { useToast } from "@/contexts/ToastContext";
 import { formatBRL, formatDateBR, parseCurrencyToNumber } from "@/utils/currency";
 import { labelStatus, labelTipo } from "@/utils/financeiro.constants";
 
-const MODULO = "COMUM";
+const MODULO = "ALUGUEL";
 
-export default function DespesasPanel() {
+export default function ReceitasPanel() {
   const toast = useToast();
 
   /* =========================
      STATES
   ========================== */
   const [dados, setDados] = useState([]);
-  const [corretores, setCorretores] = useState([]);
+  const [imoveis, setImoveis] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [filters, setFilters] = useState({
@@ -54,14 +52,17 @@ export default function DespesasPanel() {
   const [editingId, setEditingId] = useState(null);
   const [toDelete, setToDelete] = useState(null);
   const [isAutomatica, setIsAutomatica] = useState(false);
-  const [isPaga, setIsPaga] = useState(false);
 
   const [form, setForm] = useState({
     tipo: "",
-    profile_id: "",
+    imovel_id: "",
+    contrato_id: "",
     valor: "",
     data_vencimento: "",
     descricao: "",
+    competencia: "",
+    forma_recebimento: "",
+    observacoes: "",
     origem: "manual",
   });
 
@@ -72,7 +73,7 @@ export default function DespesasPanel() {
     try {
       setLoading(true);
 
-      const res = await fetch(`/api/financeiro/despesas?modulo=${MODULO}`, {
+      const res = await fetch(`/api/financeiro/receitas?modulo=${MODULO}`, {
         cache: "no-store",
       });
 
@@ -81,24 +82,22 @@ export default function DespesasPanel() {
 
       setDados(json.data || []);
     } catch (err) {
-      toast.error("Erro ao carregar despesas", err.message);
+      toast.error("Erro ao carregar receitas", err.message);
     } finally {
       setLoading(false);
     }
   }, [toast]);
 
-  const carregarCorretores = useCallback(async () => {
-    const res = await fetch("/api/perfis/list?type=equipe", {
-      cache: "no-store",
-    });
+  const carregarImoveis = useCallback(async () => {
+    const res = await fetch("/api/imoveis?status=vendido", { cache: "no-store" });
     const json = await res.json();
-    if (res.ok) setCorretores(json.data || []);
+    if (res.ok) setImoveis(json.data || []);
   }, []);
 
   useEffect(() => {
     carregar();
-    carregarCorretores();
-  }, [carregar, carregarCorretores]);
+    carregarImoveis();
+  }, [carregar, carregarImoveis]);
 
   /* =========================
      HELPERS
@@ -106,41 +105,34 @@ export default function DespesasPanel() {
   const resetForm = () => {
     setForm({
       tipo: "",
-      profile_id: "",
+      imovel_id: "",
+      contrato_id: "",
       valor: "",
       data_vencimento: "",
       descricao: "",
+      competencia: "",
+      forma_recebimento: "",
+      observacoes: "",
       origem: "manual",
     });
 
     setEditingId(null);
     setIsAutomatica(false);
-    setIsPaga(false);
   };
 
   const badgeTipo = (tipo) => {
-    if (tipo === "comissao_corretor") {
+    if (tipo === "receita_venda_imovel") {
       return (
-        <Badge status="comissao_corretor">
-          <UserCheck size={12} className="mr-1" />
-          Comissão
+        <Badge status="receita_venda_imovel">
+          <Home size={12} className="mr-1" /> Venda
         </Badge>
       );
     }
 
-    if (tipo === "repasse_proprietario") {
-      return (
-        <Badge status="repasse_proprietario">
-          <ArrowDownRight size={12} className="mr-1" />
-          Repasse
-        </Badge>
-      );
-    }
-
+    // fallback: se tiver algum tipo novo no futuro
     return (
-      <Badge status="despesa_manutencao">
-        <Wrench size={12} className="mr-1" />
-        Custo
+      <Badge status="receita_servico">
+        <ArrowUpRight size={12} className="mr-1" /> Receita
       </Badge>
     );
   };
@@ -149,11 +141,11 @@ export default function DespesasPanel() {
     if (origem === "automatica") {
       return (
         <Badge status="automatica">
-          <Lock size={12} className="mr-1" />
-          Automática
+          <Lock size={12} className="mr-1" /> Automático
         </Badge>
       );
     }
+
     return <Badge status="manual">Manual</Badge>;
   };
 
@@ -167,25 +159,29 @@ export default function DespesasPanel() {
         return;
       }
 
-      if (form.tipo === "comissao_corretor" && !form.profile_id) {
-        toast.error("Corretor obrigatório.");
+      if (form.tipo === "receita_venda_imovel" && !form.imovel_id) {
+        toast.error("Imóvel obrigatório para venda.");
         return;
       }
 
       const payload = {
         tipo: form.tipo,
         modulo_financeiro: MODULO,
-        natureza: "saida",
-        profile_id: form.tipo === "comissao_corretor" ? form.profile_id : null,
+        imovel_id: form.imovel_id || null,
+        contrato_id: form.contrato_id || null,
         valor: parseCurrencyToNumber(form.valor),
         data_vencimento: form.data_vencimento,
         descricao: form.descricao || labelTipo(form.tipo),
+        natureza: "entrada",
         dados_cobranca_json: {
-          origem: form.origem || "manual",
+          competencia: form.competencia,
+          forma_recebimento: form.forma_recebimento,
+          observacoes: form.observacoes,
+          origem: form.origem,
         },
       };
 
-      const res = await fetch("/api/financeiro/despesas", {
+      const res = await fetch("/api/financeiro/receitas", {
         method: editingId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(editingId ? { id: editingId, ...payload } : payload),
@@ -194,8 +190,7 @@ export default function DespesasPanel() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
-      toast.success(editingId ? "Despesa atualizada" : "Despesa criada");
-
+      toast.success(editingId ? "Receita atualizada" : "Receita criada");
       setOpenForm(false);
       resetForm();
       carregar();
@@ -204,19 +199,19 @@ export default function DespesasPanel() {
     }
   };
 
-  const marcarComoPago = async (d) => {
+  const marcarComoPago = async (r) => {
     try {
-      await fetch("/api/financeiro/despesas", {
+      await fetch("/api/financeiro/receitas", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: d.id,
+          id: r.id,
           status: "pago",
           data_pagamento: new Date().toISOString().split("T")[0],
         }),
       });
 
-      toast.success("Despesa marcada como paga");
+      toast.success("Receita marcada como paga");
       carregar();
     } catch {
       toast.error("Erro ao confirmar pagamento");
@@ -225,32 +220,35 @@ export default function DespesasPanel() {
 
   const cancelar = async () => {
     try {
-      await fetch("/api/financeiro/despesas", {
+      await fetch("/api/financeiro/receitas", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: toDelete.id, status: "cancelado" }),
+        body: JSON.stringify({
+          id: toDelete.id,
+          status: "cancelado",
+        }),
       });
 
-      toast.success("Despesa cancelada");
+      toast.success("Receita cancelada");
       setToDelete(null);
       carregar();
     } catch {
-      toast.error("Erro ao cancelar despesa");
+      toast.error("Erro ao cancelar receita");
     }
   };
 
   /* =========================
      FILTERED DATA
   ========================== */
-  const dadosFiltrados = dados.filter((d) => {
-    if (filters.status && d.status !== filters.status) return false;
-    if (filters.tipo && d.tipo !== filters.tipo) return false;
+  const dadosFiltrados = dados.filter((r) => {
+    if (filters.status && r.status !== filters.status) return false;
+    if (filters.tipo && r.tipo !== filters.tipo) return false;
 
-    const origem = d.dados_cobranca_json?.origem;
+    const origem = r.dados_cobranca_json?.origem;
     if (filters.origem && origem !== filters.origem) return false;
 
-    if (filters.dataInicio && d.data_vencimento < filters.dataInicio) return false;
-    if (filters.dataFim && d.data_vencimento > filters.dataFim) return false;
+    if (filters.dataInicio && r.data_vencimento < filters.dataInicio) return false;
+    if (filters.dataFim && r.data_vencimento > filters.dataFim) return false;
 
     return true;
   });
@@ -262,12 +260,11 @@ export default function DespesasPanel() {
     <div className="space-y-4">
       {/* HEADER */}
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
-        <h3 className="text-lg font-semibold">Despesas</h3>
+        <h3 className="text-lg font-semibold">Receitas</h3>
 
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={carregar} disabled={loading}>
-            <RotateCcw size={16} />
-            Atualizar
+            <RotateCcw size={16} /> Atualizar
           </Button>
 
           <Button
@@ -286,63 +283,56 @@ export default function DespesasPanel() {
           </Button>
 
           <Button onClick={() => setOpenForm(true)}>
-            <Plus size={16} /> Nova Despesa
+            <Plus size={16} /> Nova Receita
           </Button>
         </div>
       </div>
 
       {/* FILTROS */}
-      <Card className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          <Select
-            value={filters.status}
-            onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
-          >
-            <option value="">Status</option>
-            <option value="pendente">Pendente</option>
-            <option value="pago">Pago</option>
-            <option value="cancelado">Cancelado</option>
-            <option value="atrasado">Atrasado</option>
-          </Select>
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <Select
+          value={filters.status}
+          onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
+        >
+          <option value="">Status</option>
+          <option value="pendente">Pendente</option>
+          <option value="pago">Pago</option>
+          <option value="cancelado">Cancelado</option>
+          <option value="atrasado">Atrasado</option>
+        </Select>
 
-          <Select
-            value={filters.tipo}
-            onChange={(e) => setFilters((f) => ({ ...f, tipo: e.target.value }))}
-          >
-            <option value="">Tipo</option>
+        <Select
+          value={filters.tipo}
+          onChange={(e) => setFilters((f) => ({ ...f, tipo: e.target.value }))}
+        >
+          <option value="">Tipo</option>
+          <option value="receita_aluguel">Receita de Aluguel</option>
+          <option value="taxa_adm_imobiliaria">Taxa Adm Imobiliária</option>
+          <option value="multa_atraso">Multa</option>
+          <option value="juros_atraso">Juros</option>
+        </Select>
 
-            {/* SOMENTE TIPOS DO FINANCEIRO COMUM */}
-            <option value="comissao_corretor">Comissão</option>
-            <option value="despesa_manutencao">Manutenção</option>
-            <option value="despesa_operacional">Operacional</option>
-            <option value="pagamento_iptu">IPTU</option>
-            <option value="pagamento_condominio">Condomínio</option>
-          </Select>
+        <Select
+          value={filters.origem}
+          onChange={(e) => setFilters((f) => ({ ...f, origem: e.target.value }))}
+        >
+          <option value="">Origem</option>
+          <option value="manual">Manual</option>
+          <option value="automatica">Automática</option>
+        </Select>
 
-          <Select
-            value={filters.origem}
-            onChange={(e) => setFilters((f) => ({ ...f, origem: e.target.value }))}
-          >
-            <option value="">Origem</option>
-            <option value="manual">Manual</option>
-            <option value="automatica">Automática</option>
-          </Select>
+        <Input
+          type="date"
+          value={filters.dataInicio}
+          onChange={(e) => setFilters((f) => ({ ...f, dataInicio: e.target.value }))}
+        />
 
-          <Input
-            type="date"
-            value={filters.dataInicio}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, dataInicio: e.target.value }))
-            }
-          />
-
-          <Input
-            type="date"
-            value={filters.dataFim}
-            onChange={(e) => setFilters((f) => ({ ...f, dataFim: e.target.value }))}
-          />
-        </div>
-      </Card>
+        <Input
+          type="date"
+          value={filters.dataFim}
+          onChange={(e) => setFilters((f) => ({ ...f, dataFim: e.target.value }))}
+        />
+      </div>
 
       {/* TABELA */}
       <div className="overflow-hidden rounded-xl border border-border shadow-sm">
@@ -350,8 +340,7 @@ export default function DespesasPanel() {
           <TableHeader>
             <TableRow>
               <TableHead>Tipo</TableHead>
-              <TableHead>Responsável</TableHead>
-              <TableHead>Imóvel</TableHead>
+              <TableHead>Código Casa</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Valor</TableHead>
               <TableHead>Vencimento</TableHead>
@@ -363,74 +352,71 @@ export default function DespesasPanel() {
           <tbody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                  Carregando despesas...
+                <TableCell colSpan={7} className="text-center py-6">
+                  Carregando...
                 </TableCell>
               </TableRow>
             ) : dadosFiltrados.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
-                  Nenhuma despesa encontrada com os filtros atuais.
+                <TableCell colSpan={7} className="text-center py-6">
+                  Nenhuma receita encontrada.
                 </TableCell>
               </TableRow>
             ) : (
-              dadosFiltrados.map((d) => {
-                const origem = d.dados_cobranca_json?.origem;
+              dadosFiltrados.map((r) => {
+                const origem = r.dados_cobranca_json?.origem;
                 const automatica = origem === "automatica";
-                const paga = d.status === "pago";
+
+                const podeReceber = r.status === "pendente" || r.status === "atrasado";
 
                 return (
-                  <TableRow key={d.id}>
-                    <TableCell>{badgeTipo(d.tipo)}</TableCell>
+                  <TableRow key={r.id}>
+                    <TableCell>{badgeTipo(r.tipo)}</TableCell>
+                    <TableCell>{r.imovel?.codigo_ref || "-"}</TableCell>
 
                     <TableCell>
-                      {d.profile?.nome_completo ||
-                        d.contrato?.proprietario?.nome ||
-                        "Imobiliária"}
+                      <Badge status={r.status}>{labelStatus(r.status)}</Badge>
                     </TableCell>
 
-                    <TableCell>{d.imovel ? `${d.imovel.codigo_ref}` : "—"}</TableCell>
-
-                    <TableCell>
-                      <Badge status={d.status}>{labelStatus(d.status)}</Badge>
+                    <TableCell className="font-medium text-green-600">
+                      {formatBRL(r.valor)}
                     </TableCell>
 
-                    <TableCell className="font-medium text-red-600">
-                      {formatBRL(d.valor)}
-                    </TableCell>
-
-                    <TableCell>{formatDateBR(d.data_vencimento)}</TableCell>
-
+                    <TableCell>{formatDateBR(r.data_vencimento)}</TableCell>
                     <TableCell>{badgeOrigem(origem)}</TableCell>
 
                     <TableCell className="text-right flex justify-end gap-2">
-                      {!paga && (
+                      {podeReceber && (
                         <Button
                           size="sm"
                           className="bg-green-600 hover:bg-green-700 text-white"
-                          onClick={() => marcarComoPago(d)}
+                          onClick={() => marcarComoPago(r)}
                         >
                           <CheckCircle size={16} className="mr-1" />
-                          Pagar
+                          Confirmar recebimento
                         </Button>
                       )}
 
                       <Button
                         size="icon"
                         variant="ghost"
-                        disabled={automatica || paga}
+                        disabled={automatica}
                         onClick={() => {
-                          setEditingId(d.id);
+                          setEditingId(r.id);
                           setIsAutomatica(automatica);
-                          setIsPaga(paga);
 
                           setForm({
-                            tipo: d.tipo,
-                            profile_id: d.profile_id || "",
-                            valor: formatBRL(d.valor),
-                            data_vencimento: (d.data_vencimento || "").slice(0, 10),
-                            descricao: d.descricao || "",
-                            origem: origem || "manual",
+                            tipo: r.tipo,
+                            imovel_id: r.imovel_id || "",
+                            contrato_id: r.contrato_id || "",
+                            valor: formatBRL(r.valor),
+                            data_vencimento: r.data_vencimento,
+                            descricao: r.descricao,
+                            competencia: r.dados_cobranca_json?.competencia || "",
+                            forma_recebimento:
+                              r.dados_cobranca_json?.forma_recebimento || "",
+                            observacoes: r.dados_cobranca_json?.observacoes || "",
+                            origem,
                           });
 
                           setOpenForm(true);
@@ -442,8 +428,7 @@ export default function DespesasPanel() {
                       <Button
                         size="icon"
                         variant="ghost"
-                        disabled={paga || automatica}
-                        onClick={() => setToDelete(d)}
+                        onClick={() => setToDelete(r)}
                       >
                         <Trash2 size={16} className="text-red-500" />
                       </Button>
@@ -463,7 +448,7 @@ export default function DespesasPanel() {
           setOpenForm(false);
           resetForm();
         }}
-        title={editingId ? "Editar Despesa" : "Nova Despesa"}
+        title={editingId ? "Editar Receita" : "Nova Receita"}
         footer={
           <div className="flex gap-2 w-full">
             <Button
@@ -487,43 +472,39 @@ export default function DespesasPanel() {
           <div>
             <Label>Tipo *</Label>
             <Select
-              disabled={isAutomatica || isPaga}
+              disabled={isAutomatica}
               value={form.tipo}
               onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value }))}
             >
               <option value="">Selecione</option>
 
               {/* SOMENTE TIPOS DO FINANCEIRO COMUM */}
-              <option value="comissao_corretor">Comissão</option>
-              <option value="despesa_manutencao">Manutenção</option>
-              <option value="pagamento_iptu">IPTU</option>
-              <option value="pagamento_condominio">Condomínio</option>
-              <option value="despesa_operacional">Operacional</option>
+              <option value="receita_venda_imovel">Venda de Imóvel</option>
+              <option value="receita_servico">Receita de Serviço</option>
+              <option value="taxa_laudo_avaliacao">Taxa de Laudo/Avaliação</option>
             </Select>
           </div>
 
-          {form.tipo === "comissao_corretor" && (
-            <div>
-              <Label>Corretor *</Label>
-              <Select
-                disabled={isAutomatica || isPaga}
-                value={form.profile_id}
-                onChange={(e) => setForm((f) => ({ ...f, profile_id: e.target.value }))}
-              >
-                <option value="">Selecione</option>
-                {corretores.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome_completo}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          )}
+          <div>
+            <Label>Imóvel</Label>
+            <Select
+              disabled={isAutomatica}
+              value={form.imovel_id}
+              onChange={(e) => setForm((f) => ({ ...f, imovel_id: e.target.value }))}
+            >
+              <option value="">Selecione</option>
+              {imoveis.map((i) => (
+                <option key={i.id} value={i.id}>
+                  {i.titulo}
+                </option>
+              ))}
+            </Select>
+          </div>
 
           <div>
             <Label>Valor *</Label>
             <Input
-              disabled={isAutomatica || isPaga}
+              disabled={isAutomatica}
               value={form.valor}
               onChange={(e) =>
                 setForm((f) => ({
@@ -538,7 +519,6 @@ export default function DespesasPanel() {
             <Label>Data de Vencimento *</Label>
             <Input
               type="date"
-              disabled={isPaga}
               value={form.data_vencimento}
               onChange={(e) =>
                 setForm((f) => ({
@@ -552,7 +532,6 @@ export default function DespesasPanel() {
           <div>
             <Label>Descrição</Label>
             <Input
-              disabled={isPaga}
               value={form.descricao}
               onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
             />
@@ -564,11 +543,11 @@ export default function DespesasPanel() {
       <Modal
         isOpen={!!toDelete}
         onClose={() => setToDelete(null)}
-        title="Cancelar Despesa"
+        title="Cancelar Receita"
       >
         <div className="space-y-4">
           <p>
-            Deseja realmente <strong>cancelar</strong> esta despesa de{" "}
+            Deseja realmente <strong>cancelar</strong> esta receita de{" "}
             <strong>{formatBRL(toDelete?.valor)}</strong>?
           </p>
 
@@ -576,8 +555,9 @@ export default function DespesasPanel() {
             <Button variant="secondary" onClick={() => setToDelete(null)}>
               Voltar
             </Button>
+
             <Button className="bg-red-600 hover:bg-red-700" onClick={cancelar}>
-              Cancelar Despesa
+              Cancelar Receita
             </Button>
           </div>
         </div>

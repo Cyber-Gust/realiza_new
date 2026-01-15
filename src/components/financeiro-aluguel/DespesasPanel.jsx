@@ -30,7 +30,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { formatBRL, formatDateBR, parseCurrencyToNumber } from "@/utils/currency";
 import { labelStatus, labelTipo } from "@/utils/financeiro.constants";
 
-const MODULO = "COMUM";
+const MODULO = "ALUGUEL";
 
 export default function DespesasPanel() {
   const toast = useToast();
@@ -312,7 +312,7 @@ export default function DespesasPanel() {
             <option value="">Tipo</option>
 
             {/* SOMENTE TIPOS DO FINANCEIRO COMUM */}
-            <option value="comissao_corretor">Comissão</option>
+            <option value="repasse_proprietario">Comissão</option>
             <option value="despesa_manutencao">Manutenção</option>
             <option value="despesa_operacional">Operacional</option>
             <option value="pagamento_iptu">IPTU</option>

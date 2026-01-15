@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState , useCallback} from "react";
+import { useEffect, useState, useCallback } from "react";
 import { RotateCcw, MailWarning, AlertTriangle } from "lucide-react";
 
 import { Button } from "@/components/admin/ui/Button";
@@ -21,7 +21,7 @@ import { formatBRL, formatDateBR } from "@/utils/currency";
    INADIMPLÊNCIA — RECEITAS EM ATRASO
 ====================================================== */
 
-const MODULO = "COMUM";
+const MODULO = "ALUGUEL";
 
 export default function InadimplenciaPanel() {
   const toast = useToast();
@@ -38,21 +38,24 @@ export default function InadimplenciaPanel() {
   const carregar = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/financeiro/inadimplencia?modulo=${MODULO}`, {
-        cache: "no-store",
-      });
+
+      const res = await fetch(
+        `/api/financeiro/inadimplencia?modulo=${MODULO}`,
+        {
+          cache: "no-store",
+        }
+      );
 
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Erro desconhecido");
+      if (!res.ok) throw new Error(json.error);
 
       setDados(json.data || []);
     } catch (err) {
-      toast.error("Erro ao carregar inadimplência", { description: err.message });
+      toast.error("Erro ao carregar inadimplência", err.message);
     } finally {
       setLoading(false);
     }
   }, [toast]);
-
 
   useEffect(() => {
     carregar();

@@ -13,6 +13,9 @@ const TIPOS_MANUAIS = [
   "outra_receita",
 ];
 
+/* ✅ módulos permitidos no sistema */
+const MODULOS_PERMITIDOS = ["COMUM", "ALUGUEL"];
+
 /* ======================================================
    HELPERS
 ====================================================== */
@@ -43,6 +46,18 @@ async function atualizarAtrasos(supabase) {
     .eq("natureza", "entrada")
     .eq("status", "pendente")
     .lt("data_vencimento", hoje);
+}
+
+/* ✅ resolve módulo via querystring */
+function resolverModulo(url) {
+  const { searchParams } = new URL(url);
+  const modulo = (searchParams.get("modulo") || "COMUM").toUpperCase();
+
+  if (!MODULOS_PERMITIDOS.includes(modulo)) {
+    throw new Error("Módulo financeiro inválido.");
+  }
+
+  return modulo;
 }
 
 /* ======================================================
@@ -95,16 +110,17 @@ async function gerarReceitasAutomaticas(supabase) {
 
   if (!contratos?.length) return;
 
-  const contratoIds = contratos.map(c => c.id);
+  const contratoIds = contratos.map((c) => c.id);
 
   const { data: existentes } = await supabase
     .from("transacoes")
     .select("contrato_id")
     .eq("tipo", "receita_aluguel")
+    .eq("modulo_financeiro", "ALUGUEL")
     .in("contrato_id", contratoIds)
     .eq("dados_cobranca_json->>competencia", competencia);
 
-  const existentesSet = new Set(existentes?.map(e => e.contrato_id));
+  const existentesSet = new Set(existentes?.map((e) => e.contrato_id));
 
   const novas = [];
 
@@ -116,6 +132,7 @@ async function gerarReceitasAutomaticas(supabase) {
       imovel_id: contrato.imovel_id,
       tipo: "receita_aluguel",
       natureza: "entrada",
+      modulo_financeiro: "ALUGUEL",
       status: "pendente",
       valor: Number(contrato.valor_acordado),
       data_vencimento: calcularDataVencimento(
@@ -141,12 +158,18 @@ async function gerarReceitasAutomaticas(supabase) {
    GET — LISTAGEM + GERAÇÃO AUTOMÁTICA
 ====================================================== */
 
-export async function GET() {
+export async function GET(req) {
   const supabase = createServiceClient();
 
   try {
+    const modulo = resolverModulo(req.url);
+
     await atualizarAtrasos(supabase);
-    await gerarReceitasAutomaticas(supabase);
+
+    // ✅ só gera automáticas quando o módulo for ALUGUEL
+    if (modulo === "ALUGUEL") {
+      await gerarReceitasAutomaticas(supabase);
+    }
 
     const { data, error } = await supabase
       .from("transacoes")
@@ -155,6 +178,8 @@ export async function GET() {
         contrato_id,
         imovel_id,
         tipo,
+        natureza,
+        modulo_financeiro,
         status,
         valor,
         descricao,
@@ -165,6 +190,7 @@ export async function GET() {
         imovel:imoveis(codigo_ref, titulo)
       `)
       .eq("natureza", "entrada")
+      .eq("modulo_financeiro", modulo)
       .order("data_vencimento", { ascending: false });
 
     if (error) throw error;
@@ -172,10 +198,7 @@ export async function GET() {
     return NextResponse.json({ data });
   } catch (err) {
     console.error("❌ Receitas GET:", err);
-    return NextResponse.json(
-      { error: err.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
@@ -189,6 +212,15 @@ export async function POST(req) {
   try {
     const body = await req.json();
 
+    // ✅ valida e resolve módulo vindo do front
+    const modulo = (body.modulo_financeiro || "COMUM").toUpperCase();
+    if (!MODULOS_PERMITIDOS.includes(modulo)) {
+      return NextResponse.json(
+        { error: "Módulo financeiro inválido." },
+        { status: 400 }
+      );
+    }
+
     if (TIPOS_AUTOMATICOS.includes(body.tipo)) {
       return NextResponse.json(
         { error: "Receita automática não pode ser criada manualmente." },
@@ -197,19 +229,14 @@ export async function POST(req) {
     }
 
     if (!TIPOS_MANUAIS.includes(body.tipo)) {
-      return NextResponse.json(
-        { error: "Tipo de receita inválido." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Tipo de receita inválido." }, { status: 400 });
     }
 
-    // 🔒 contrato é resolvido pelo imóvel
-    const contratoId = await resolverContratoPorImovel(
-      supabase,
-      body.imovel_id
-    );
+    // 🔒 contrato é resolvido pelo imóvel (se existir imovel_id)
+    const contratoId = await resolverContratoPorImovel(supabase, body.imovel_id);
 
-    if (!contratoId) {
+    // ✅ se vier imovel_id mas não tem contrato vigente, trava
+    if (body.imovel_id && !contratoId) {
       return NextResponse.json(
         { error: "Nenhum contrato vigente encontrado para este imóvel." },
         { status: 409 }
@@ -219,10 +246,11 @@ export async function POST(req) {
     const payload = {
       tipo: body.tipo,
       natureza: "entrada",
+      modulo_financeiro: modulo,
       status: "pendente",
       valor: body.valor,
       imovel_id: body.imovel_id || null,
-      contrato_id: contratoId,
+      contrato_id: contratoId || body.contrato_id || null,
       data_vencimento: body.data_vencimento,
       descricao: body.descricao,
       dados_cobranca_json: {
@@ -242,10 +270,7 @@ export async function POST(req) {
     return NextResponse.json({ data });
   } catch (err) {
     console.error("❌ Receitas POST:", err);
-    return NextResponse.json(
-      { error: err.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
@@ -273,10 +298,7 @@ export async function PUT(req) {
       .single();
 
     if (!atual) {
-      return NextResponse.json(
-        { error: "Receita não encontrada." },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Receita não encontrada." }, { status: 404 });
     }
 
     const origem = atual.dados_cobranca_json?.origem;
@@ -289,10 +311,7 @@ export async function PUT(req) {
     }
 
     if (atual.status === "pago") {
-      return NextResponse.json(
-        { error: "Receita paga é imutável." },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Receita paga é imutável." }, { status: 403 });
     }
 
     const updates = {
@@ -316,10 +335,7 @@ export async function PUT(req) {
     return NextResponse.json({ data });
   } catch (err) {
     console.error("❌ Receitas PUT:", err);
-    return NextResponse.json(
-      { error: err.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import "./calendar.css"; // Certifique-se que o arquivo CSS está na mesma pasta
+import { useState, useEffect, useRef, Callback } from "react";
+import "@/components/agenda/calendar.css"; // Certifique-se que o arquivo CSS está na mesma pasta
 import {
   CalendarDays,
   Loader2,
@@ -19,7 +19,7 @@ import { Button } from "@/components/admin/ui/Button";
 import { Card } from "@/components/admin/ui/Card";
 import Modal from "@/components/admin/ui/Modal";
 import { useToast } from "@/contexts/ToastContext";
-import CRMAgendaForm from "./CRMAgendaForm";
+import CRMAgendaForm from "@/components/agenda/AgendaForm";
 import Badge from "@/components/admin/ui/Badge";
 
 import FullCalendar from "@fullcalendar/react";

@@ -383,6 +383,7 @@
     { "name": "profile_id", "type": "uuid", "nullable": true, "constraint": "FOREIGN KEY", "foreign_table": "profiles", "foreign_column": "id" },
     { "name": "tipo", "type": "transacao_tipo", "nullable": false },
     { "name": "natureza", "type": "transacao_natureza", "nullable": false },
+    { "name": "modulo_financeiro", "type": "modulo_financeiro_enum" , "nullable": false },
     { "name": "status", "type": "transacao_status", "nullable": false, "default": "'pendente'::transacao_status" },
     { "name": "descricao", "type": "text", "nullable": false },
     { "name": "valor", "type": "numeric", "nullable": false },

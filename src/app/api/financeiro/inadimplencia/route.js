@@ -2,6 +2,27 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
 /* ======================================================
+   CONSTANTES
+====================================================== */
+
+const MODULOS_PERMITIDOS = ["COMUM", "ALUGUEL"];
+
+/* ======================================================
+   HELPERS
+====================================================== */
+
+function resolverModulo(url) {
+  const { searchParams } = new URL(url);
+  const modulo = (searchParams.get("modulo") || "COMUM").toUpperCase();
+
+  if (!MODULOS_PERMITIDOS.includes(modulo)) {
+    throw new Error("Módulo financeiro inválido.");
+  }
+
+  return modulo;
+}
+
+/* ======================================================
    🔄 ATUALIZAR RECEITAS EM ATRASO
 ====================================================== */
 async function atualizarAtrasos(supabase) {
@@ -18,10 +39,12 @@ async function atualizarAtrasos(supabase) {
 /* ======================================================
    GET — INADIMPLÊNCIA (RECEITAS EM ATRASO)
 ====================================================== */
-export async function GET() {
+export async function GET(req) {
   const supabase = createServiceClient();
 
   try {
+    const modulo = resolverModulo(req.url);
+
     // 🔒 consistência antes da leitura
     await atualizarAtrasos(supabase);
 
@@ -33,6 +56,8 @@ export async function GET() {
         status,
         data_vencimento,
         descricao,
+        natureza,
+        modulo_financeiro,
 
         imovel:imoveis(
           id,
@@ -56,6 +81,7 @@ export async function GET() {
       `)
       .eq("natureza", "entrada")
       .eq("status", "atrasado")
+      .eq("modulo_financeiro", modulo)
       .order("data_vencimento", { ascending: true });
 
     if (error) throw error;
@@ -64,15 +90,12 @@ export async function GET() {
       data: data || [],
       meta: {
         total: data?.length || 0,
+        modulo,
       },
     });
-
   } catch (err) {
     console.error("❌ Inadimplência GET:", err);
 
-    return NextResponse.json(
-      { error: err.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

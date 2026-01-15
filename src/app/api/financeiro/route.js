@@ -2,8 +2,25 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
 /* ======================================================
+   CONSTANTES
+====================================================== */
+
+const MODULOS_PERMITIDOS = ["COMUM", "ALUGUEL"];
+
+/* ======================================================
    HELPERS
 ====================================================== */
+
+function resolverModulo(url) {
+  const { searchParams } = new URL(url);
+  const modulo = (searchParams.get("modulo") || "COMUM").toUpperCase();
+
+  if (!MODULOS_PERMITIDOS.includes(modulo)) {
+    throw new Error("Módulo financeiro inválido.");
+  }
+
+  return modulo;
+}
 
 async function atualizarAtrasos(supabase) {
   const hoje = new Date().toISOString().split("T")[0];
@@ -16,18 +33,12 @@ async function atualizarAtrasos(supabase) {
 }
 
 function classificarFluxo(transacoes) {
-  const tiposReceita = [
-    "receita_aluguel",
-    "taxa_adm_imobiliaria",
-    "receita_venda_imovel",
-  ];
-
   const receitas = [];
   const despesas = [];
 
   for (const t of transacoes) {
-    if (tiposReceita.includes(t.tipo)) receitas.push(t);
-    else despesas.push(t);
+    if (t.natureza === "entrada") receitas.push(t);
+    if (t.natureza === "saida") despesas.push(t);
   }
 
   return { receitas, despesas };
@@ -50,8 +61,7 @@ function calcularResumo(receitas, despesas) {
     total_receitas: totalReceitas,
     total_despesas: totalDespesas,
     saldo,
-    status_saldo:
-      saldo > 0 ? "positivo" : saldo < 0 ? "negativo" : "neutro",
+    status_saldo: saldo > 0 ? "positivo" : saldo < 0 ? "negativo" : "neutro",
   };
 }
 
@@ -61,15 +71,18 @@ function calcularResumo(receitas, despesas) {
 
 export async function GET(req) {
   const supabase = createServiceClient();
-  const { searchParams } = new URL(req.url);
-  const type = searchParams.get("type") || "fluxo";
 
   try {
+    const { searchParams } = new URL(req.url);
+    const type = searchParams.get("type") || "fluxo";
+
+    const modulo = resolverModulo(req.url);
+
     // 🔄 mantém consistência contábil
     await atualizarAtrasos(supabase);
 
     /* ======================================================
-       BASE — TRANSAÇÕES VÁLIDAS
+       BASE — TRANSAÇÕES VÁLIDAS (JÁ SEPARADAS POR MÓDULO)
     ====================================================== */
     const { data: transacoes, error } = await supabase
       .from("transacoes")
@@ -81,8 +94,10 @@ export async function GET(req) {
         valor,
         data_vencimento,
         data_pagamento,
-        descricao
+        descricao,
+        modulo_financeiro
       `)
+      .eq("modulo_financeiro", modulo)
       .neq("status", "cancelado");
 
     if (error) throw error;
@@ -99,6 +114,7 @@ export async function GET(req) {
         meta: {
           ...resumo,
           total_lancamentos: transacoes.length,
+          modulo,
         },
       });
     }
@@ -110,8 +126,11 @@ export async function GET(req) {
       const { receitas, despesas } = classificarFluxo(transacoes);
       const resumo = calcularResumo(receitas, despesas);
 
+      // 📌 Aqui eu considero inadimplência só de ENTRADAS (faz sentido real)
       const inadimplentes = transacoes.filter(
-        t => t.status === "pendente" || t.status === "atrasado"
+        (t) =>
+          t.natureza === "entrada" &&
+          (t.status === "pendente" || t.status === "atrasado")
       );
 
       return NextResponse.json({
@@ -123,6 +142,7 @@ export async function GET(req) {
             (sum, t) => sum + Number(t.valor || 0),
             0
           ),
+          modulo,
         },
       });
     }
@@ -133,10 +153,9 @@ export async function GET(req) {
     if (type === "lancamentos") {
       return NextResponse.json({
         data: transacoes.sort(
-          (a, b) =>
-            new Date(b.data_vencimento) - new Date(a.data_vencimento)
+          (a, b) => new Date(b.data_vencimento) - new Date(a.data_vencimento)
         ),
-        meta: { total: transacoes.length },
+        meta: { total: transacoes.length, modulo },
       });
     }
 
@@ -146,10 +165,8 @@ export async function GET(req) {
     );
   } catch (err) {
     console.error("❌ Financeiro dashboard:", err);
-    return NextResponse.json(
-      { error: err.message },
-      { status: 500 }
-    );
+
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 

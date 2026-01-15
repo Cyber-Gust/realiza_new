@@ -8,20 +8,23 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, Home, UsersRound, UserCog, FileText,
-  CircleDollarSign, CalendarClock, Wrench, Megaphone, Settings,
-  PanelLeftClose, LogOut, ChevronRight, Menu
+  CircleDollarSign, CalendarClock, Wrench, Settings,
+  PanelLeftClose, LogOut, ChevronRight, Menu, CalendarDays,
+  BadgeDollarSign
 } from "lucide-react";
 
 export const navItems = [
   { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { name: "CRM", href: "/admin/crm", icon: UsersRound },
   { name: "Imóveis", href: "/admin/imoveis", icon: Home },
-  { name: "Perfis", href: "/admin/perfis", icon: UserCog },
   { name: "Contratos", href: "/admin/contratos", icon: FileText },
   { name: "Financeiro", href: "/admin/financeiro", icon: CircleDollarSign },
+  { name: "Financeiro - Aluguéis", href: "/admin/financeiro-aluguel", icon: BadgeDollarSign },
   { name: "Aluguéis", href: "/admin/alugueis", icon: CalendarClock },
   { name: "Manutenção", href: "/admin/manutencao", icon: Wrench },
+  { name: "Perfis", href: "/admin/perfis", icon: UserCog },
   { name: "Configurações", href: "/admin/configuracoes", icon: Settings },
+  { name: "Agenda", href: "/admin/agenda", icon: CalendarDays },
 ];
 
 export function Sidebar({ isCollapsed, setIsCollapsed }) {
@@ -96,7 +99,7 @@ export function Sidebar({ isCollapsed, setIsCollapsed }) {
         {/* NAV */}
         <nav className="flex-1 space-y-1.5 overflow-y-auto px-3 py-4 scrollbar-thin scrollbar-thumb-border/50 scrollbar-track-transparent">
           {navItems.map((item) => {
-            const isActive = pathname.startsWith(item.href);
+            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
             return (
               <Link
                 key={item.name}

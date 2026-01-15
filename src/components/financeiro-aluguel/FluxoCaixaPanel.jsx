@@ -11,12 +11,13 @@ import FinanceiroResumo from "./FinanceiroResumo";
 import { formatCurrency } from "@/utils/formatters";
 import { Input } from "../admin/ui/Form";
 
-const MODULO = "COMUM";
+const MODULO = "ALUGUEL";
 
 const TIPOS_RECEITA = [
-  "receita_venda_imovel",
-  "taxa_laudo_avaliacao",
-  "taxa_servico_imobiliaria",
+  "receita_aluguel",
+  "taxa_adm_imobiliaria",
+  "multa_atraso",
+  "juros_atraso",
 ];
 
 export default function FluxoCaixaPanel() {
@@ -95,7 +96,7 @@ export default function FluxoCaixaPanel() {
 
   const totalReceitas = useMemo(() => {
     return dadosFiltrados
-      .filter((d) => !isReceita(d))
+      .filter((d) => isReceita(d))
       .reduce((sum, r) => sum + Number(r.valor || 0), 0);
   }, [dadosFiltrados]);
 

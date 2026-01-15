@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Plus,
   RotateCcw,
@@ -28,6 +28,8 @@ import { useToast } from "@/contexts/ToastContext";
 import { formatBRL, formatDateBR, parseCurrencyToNumber } from "@/utils/currency";
 import { labelStatus, labelTipo } from "@/utils/financeiro.constants";
 
+const MODULO = "COMUM";
+
 export default function ReceitasPanel() {
   const toast = useToast();
 
@@ -37,6 +39,7 @@ export default function ReceitasPanel() {
   const [dados, setDados] = useState([]);
   const [imoveis, setImoveis] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [filters, setFilters] = useState({
     status: "",
     tipo: "",
@@ -44,7 +47,6 @@ export default function ReceitasPanel() {
     dataInicio: "",
     dataFim: "",
   });
-
 
   const [openForm, setOpenForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -67,32 +69,35 @@ export default function ReceitasPanel() {
   /* =========================
      LOADERS
   ========================== */
-  const carregar = async () => {
+  const carregar = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/financeiro/receitas", { cache: "no-store" });
+
+      const res = await fetch(`/api/financeiro/receitas?modulo=${MODULO}`, {
+        cache: "no-store",
+      });
+
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
+
       setDados(json.data || []);
     } catch (err) {
       toast.error("Erro ao carregar receitas", err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const carregarImoveis = async () => {
-    const res = await fetch("/api/imoveis?status=vendido", {
-      cache: "no-store",
-    });
+  const carregarImoveis = useCallback(async () => {
+    const res = await fetch("/api/imoveis?status=vendido", { cache: "no-store" });
     const json = await res.json();
     if (res.ok) setImoveis(json.data || []);
-  };
+  }, []);
 
   useEffect(() => {
     carregar();
     carregarImoveis();
-  }, []);
+  }, [carregar, carregarImoveis]);
 
   /* =========================
      HELPERS
@@ -101,6 +106,7 @@ export default function ReceitasPanel() {
     setForm({
       tipo: "",
       imovel_id: "",
+      contrato_id: "",
       valor: "",
       data_vencimento: "",
       descricao: "",
@@ -109,6 +115,7 @@ export default function ReceitasPanel() {
       observacoes: "",
       origem: "manual",
     });
+
     setEditingId(null);
     setIsAutomatica(false);
   };
@@ -122,9 +129,10 @@ export default function ReceitasPanel() {
       );
     }
 
+    // fallback: se tiver algum tipo novo no futuro
     return (
-      <Badge status="receita_aluguel">
-        <ArrowUpRight size={12} className="mr-1" /> Aluguel
+      <Badge status="receita_servico">
+        <ArrowUpRight size={12} className="mr-1" /> Receita
       </Badge>
     );
   };
@@ -140,7 +148,6 @@ export default function ReceitasPanel() {
 
     return <Badge status="manual">Manual</Badge>;
   };
-
 
   /* =========================
      ACTIONS
@@ -159,8 +166,9 @@ export default function ReceitasPanel() {
 
       const payload = {
         tipo: form.tipo,
+        modulo_financeiro: MODULO,
         imovel_id: form.imovel_id || null,
-        contrato_id: form.contrato_id,
+        contrato_id: form.contrato_id || null,
         valor: parseCurrencyToNumber(form.valor),
         data_vencimento: form.data_vencimento,
         descricao: form.descricao || labelTipo(form.tipo),
@@ -176,9 +184,7 @@ export default function ReceitasPanel() {
       const res = await fetch("/api/financeiro/receitas", {
         method: editingId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          editingId ? { id: editingId, ...payload } : payload
-        ),
+        body: JSON.stringify(editingId ? { id: editingId, ...payload } : payload),
       });
 
       const json = await res.json();
@@ -232,7 +238,7 @@ export default function ReceitasPanel() {
   };
 
   /* =========================
-      FILTERED DATA
+     FILTERED DATA
   ========================== */
   const dadosFiltrados = dados.filter((r) => {
     if (filters.status && r.status !== filters.status) return false;
@@ -241,14 +247,10 @@ export default function ReceitasPanel() {
     const origem = r.dados_cobranca_json?.origem;
     if (filters.origem && origem !== filters.origem) return false;
 
-    if (filters.dataInicio && r.data_vencimento < filters.dataInicio)
-      return false;
-
-    if (filters.dataFim && r.data_vencimento > filters.dataFim)
-      return false;
+    if (filters.dataInicio && r.data_vencimento < filters.dataInicio) return false;
+    if (filters.dataFim && r.data_vencimento > filters.dataFim) return false;
 
     return true;
-    
   });
 
   /* =========================
@@ -290,9 +292,7 @@ export default function ReceitasPanel() {
       <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
         <Select
           value={filters.status}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, status: e.target.value }))
-          }
+          onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
         >
           <option value="">Status</option>
           <option value="pendente">Pendente</option>
@@ -303,19 +303,17 @@ export default function ReceitasPanel() {
 
         <Select
           value={filters.tipo}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, tipo: e.target.value }))
-          }
+          onChange={(e) => setFilters((f) => ({ ...f, tipo: e.target.value }))}
         >
           <option value="">Tipo</option>
           <option value="receita_venda_imovel">Venda</option>
+          <option value="receita_servico">Serviço</option>
+          <option value="taxa_laudo_avaliacao">Laudo/Avaliação</option>
         </Select>
 
         <Select
           value={filters.origem}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, origem: e.target.value }))
-          }
+          onChange={(e) => setFilters((f) => ({ ...f, origem: e.target.value }))}
         >
           <option value="">Origem</option>
           <option value="manual">Manual</option>
@@ -325,17 +323,13 @@ export default function ReceitasPanel() {
         <Input
           type="date"
           value={filters.dataInicio}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, dataInicio: e.target.value }))
-          }
+          onChange={(e) => setFilters((f) => ({ ...f, dataInicio: e.target.value }))}
         />
 
         <Input
           type="date"
           value={filters.dataFim}
-          onChange={(e) =>
-            setFilters((f) => ({ ...f, dataFim: e.target.value }))
-          }
+          onChange={(e) => setFilters((f) => ({ ...f, dataFim: e.target.value }))}
         />
       </div>
 
@@ -345,7 +339,7 @@ export default function ReceitasPanel() {
           <TableHeader>
             <TableRow>
               <TableHead>Tipo</TableHead>
-              <TableHead>Códico Casa</TableHead>
+              <TableHead>Código Casa</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Valor</TableHead>
               <TableHead>Vencimento</TableHead>
@@ -371,24 +365,22 @@ export default function ReceitasPanel() {
               dadosFiltrados.map((r) => {
                 const origem = r.dados_cobranca_json?.origem;
                 const automatica = origem === "automatica";
-                const isAluguel = r.tipo === "receita_aluguel";
-                const isVenda = r.tipo === "receita_venda_imovel";
-                const podeReceber =
-                  (r.status === "pendente" || r.status === "atrasado") &&
-                  (isAluguel || isVenda);
+
+                const podeReceber = r.status === "pendente" || r.status === "atrasado";
 
                 return (
                   <TableRow key={r.id}>
                     <TableCell>{badgeTipo(r.tipo)}</TableCell>
                     <TableCell>{r.imovel?.codigo_ref || "-"}</TableCell>
+
                     <TableCell>
-                      <Badge status={r.status}>
-                        {labelStatus(r.status)}
-                      </Badge>
+                      <Badge status={r.status}>{labelStatus(r.status)}</Badge>
                     </TableCell>
+
                     <TableCell className="font-medium text-green-600">
                       {formatBRL(r.valor)}
                     </TableCell>
+
                     <TableCell>{formatDateBR(r.data_vencimento)}</TableCell>
                     <TableCell>{badgeOrigem(origem)}</TableCell>
 
@@ -400,7 +392,7 @@ export default function ReceitasPanel() {
                           onClick={() => marcarComoPago(r)}
                         >
                           <CheckCircle size={16} className="mr-1" />
-                          {isAluguel ? "Receber aluguel" : "Confirmar recebimento"}
+                          Confirmar recebimento
                         </Button>
                       )}
 
@@ -411,20 +403,21 @@ export default function ReceitasPanel() {
                         onClick={() => {
                           setEditingId(r.id);
                           setIsAutomatica(automatica);
+
                           setForm({
                             tipo: r.tipo,
                             imovel_id: r.imovel_id || "",
+                            contrato_id: r.contrato_id || "",
                             valor: formatBRL(r.valor),
                             data_vencimento: r.data_vencimento,
                             descricao: r.descricao,
-                            competencia:
-                              r.dados_cobranca_json?.competencia || "",
+                            competencia: r.dados_cobranca_json?.competencia || "",
                             forma_recebimento:
                               r.dados_cobranca_json?.forma_recebimento || "",
-                            observacoes:
-                              r.dados_cobranca_json?.observacoes || "",
+                            observacoes: r.dados_cobranca_json?.observacoes || "",
                             origem,
                           });
+
                           setOpenForm(true);
                         }}
                       >
@@ -467,6 +460,7 @@ export default function ReceitasPanel() {
             >
               Cancelar
             </Button>
+
             <Button className="w-1/2" onClick={handleSave}>
               Salvar
             </Button>
@@ -479,12 +473,14 @@ export default function ReceitasPanel() {
             <Select
               disabled={isAutomatica}
               value={form.tipo}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, tipo: e.target.value }))
-              }
+              onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value }))}
             >
               <option value="">Selecione</option>
+
+              {/* SOMENTE TIPOS DO FINANCEIRO COMUM */}
               <option value="receita_venda_imovel">Venda de Imóvel</option>
+              <option value="receita_servico">Receita de Serviço</option>
+              <option value="taxa_laudo_avaliacao">Taxa de Laudo/Avaliação</option>
             </Select>
           </div>
 
@@ -493,9 +489,7 @@ export default function ReceitasPanel() {
             <Select
               disabled={isAutomatica}
               value={form.imovel_id}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, imovel_id: e.target.value }))
-              }
+              onChange={(e) => setForm((f) => ({ ...f, imovel_id: e.target.value }))}
             >
               <option value="">Selecione</option>
               {imoveis.map((i) => (
@@ -514,9 +508,7 @@ export default function ReceitasPanel() {
               onChange={(e) =>
                 setForm((f) => ({
                   ...f,
-                  valor: formatBRL(
-                    parseCurrencyToNumber(e.target.value)
-                  ),
+                  valor: formatBRL(parseCurrencyToNumber(e.target.value)),
                 }))
               }
             />
@@ -540,9 +532,7 @@ export default function ReceitasPanel() {
             <Label>Descrição</Label>
             <Input
               value={form.descricao}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, descricao: e.target.value }))
-              }
+              onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
             />
           </div>
         </div>
@@ -564,10 +554,8 @@ export default function ReceitasPanel() {
             <Button variant="secondary" onClick={() => setToDelete(null)}>
               Voltar
             </Button>
-            <Button
-              className="bg-red-600 hover:bg-red-700"
-              onClick={cancelar}
-            >
+
+            <Button className="bg-red-600 hover:bg-red-700" onClick={cancelar}>
               Cancelar Receita
             </Button>
           </div>
