@@ -5,7 +5,7 @@ import { Button } from "@/components/admin/ui/Button";
 import { Input, Textarea, Select, Label } from "@/components/admin/ui/Form";
 import { useToast } from "@/contexts/ToastContext";
 import { Loader2 } from "lucide-react";
-import SearchableSelect from "../admin/ui/SearchableSelect";
+import SearchableSelect from "@/components/admin/ui/SearchableSelect";
 
 export default function CRMAgendaForm({ onSaved, onClose, evento = null }) {
   const [leads, setLeads] = useState([]);

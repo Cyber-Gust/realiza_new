@@ -134,7 +134,7 @@ export const BAIRROS_POR_CIDADE = {
     "Vila São Vicente (Colônia do Marçal)"
   ],
 
-  "Santa Cruz de Minas": ["Centro", "Porto Real", "Bela vista"],
+  "Santa Cruz de Minas": ["Centro","Bom Clima", "Rosa Mística", "Cohab", "Porto Real", "Bela vista"],
 
   "Tiradentes": ["Centro", "Cuiabá", "Bandeirantes 1", "Bandeirantes 2", "Elvas", "Condomínio Alto dos Cuiabás",
   "Condomínio Tiradentes Ville", "Água Santas", "Cesar de Pina", "Mococa", "Alto da Torre",
@@ -194,6 +194,7 @@ export const caracteristicasUnidade = [
   "Base para 2º Andar",
   "Acabamento em Blindex",
   "Cozinha Integrada",
+  "Gás Encanado",
   "CFTV",
   "Teto Rebaixado em Gesso",
   "Depósito Privativo",
