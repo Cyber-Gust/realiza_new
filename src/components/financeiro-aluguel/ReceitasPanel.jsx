@@ -89,7 +89,7 @@ export default function ReceitasPanel() {
   }, [toast]);
 
   const carregarImoveis = useCallback(async () => {
-    const res = await fetch("/api/imoveis?status=vendido", { cache: "no-store" });
+    const res = await fetch("/api/imoveis?status=alugado", { cache: "no-store" });
     const json = await res.json();
     if (res.ok) setImoveis(json.data || []);
   }, []);
@@ -121,6 +121,7 @@ export default function ReceitasPanel() {
   };
 
   const badgeTipo = (tipo) => {
+    // ✅ Venda (mantido)
     if (tipo === "receita_venda_imovel") {
       return (
         <Badge status="receita_venda_imovel">
@@ -129,7 +130,24 @@ export default function ReceitasPanel() {
       );
     }
 
-    // fallback: se tiver algum tipo novo no futuro
+    // ✅ Locação / Financeiro aluguel (novos tipos do enum)
+    if (
+      tipo === "receita_aluguel" ||
+      tipo === "taxa_adm_imobiliaria" ||
+      tipo === "multa" ||
+      tipo === "juros" ||
+      tipo === "correcao_monetaria" ||
+      tipo === "taxa_contrato"
+    ) {
+      return (
+        <Badge status={tipo}>
+          <ArrowUpRight size={12} className="mr-1" />
+          {labelTipo(tipo) || "Receita"}
+        </Badge>
+      );
+    }
+
+    // fallback
     return (
       <Badge status="receita_servico">
         <ArrowUpRight size={12} className="mr-1" /> Receita
@@ -306,10 +324,14 @@ export default function ReceitasPanel() {
           onChange={(e) => setFilters((f) => ({ ...f, tipo: e.target.value }))}
         >
           <option value="">Tipo</option>
+
+          {/* ✅ TIPOS ATUAIS DO SEU ENUM */}
           <option value="receita_aluguel">Receita de Aluguel</option>
           <option value="taxa_adm_imobiliaria">Taxa Adm Imobiliária</option>
-          <option value="multa_atraso">Multa</option>
-          <option value="juros_atraso">Juros</option>
+          <option value="multa">Multa</option>
+          <option value="juros">Juros</option>
+          <option value="correcao_monetaria">Correção Monetária</option>
+          <option value="taxa_contrato">Taxa de Contrato</option>
         </Select>
 
         <Select
@@ -425,11 +447,7 @@ export default function ReceitasPanel() {
                         <Edit size={16} />
                       </Button>
 
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => setToDelete(r)}
-                      >
+                      <Button size="icon" variant="ghost" onClick={() => setToDelete(r)}>
                         <Trash2 size={16} className="text-red-500" />
                       </Button>
                     </TableCell>
@@ -478,10 +496,13 @@ export default function ReceitasPanel() {
             >
               <option value="">Selecione</option>
 
-              {/* SOMENTE TIPOS DO FINANCEIRO COMUM */}
-              <option value="receita_venda_imovel">Venda de Imóvel</option>
-              <option value="receita_servico">Receita de Serviço</option>
-              <option value="taxa_laudo_avaliacao">Taxa de Laudo/Avaliação</option>
+              {/* ✅ TIPOS DO FINANCEIRO (ENUM ATUAL) */}
+              <option value="receita_aluguel">Receita Aluguel</option>
+              <option value="taxa_adm_imobiliaria">Taxa de Administração Imobiliária</option>
+              <option value="multa">Multa</option>
+              <option value="juros">Juros</option>
+              <option value="correcao_monetaria">Correção Monetária</option>
+              <option value="taxa_contrato">Taxa de Contrato</option>
             </Select>
           </div>
 

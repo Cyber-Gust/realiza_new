@@ -22,6 +22,7 @@ export async function GET(req) {
   const status = searchParams.get("status");
   const proprietario_id = searchParams.get("proprietario_id");
   const inquilino_id = searchParams.get("inquilino_id");
+  const codigo = searchParams.get("codigo");
 
   let query = supabase
     .from("contratos")
@@ -41,6 +42,7 @@ export async function GET(req) {
   if (id) query = query.eq("id", id);
   if (imovel_id) query = query.eq("imovel_id", imovel_id);
   if (status) query = query.eq("status", status);
+  if (codigo) query = query.eq("codigo", Number(codigo));
   if (proprietario_id) query = query.eq("proprietario_id", proprietario_id);
   if (inquilino_id) query = query.eq("inquilino_id", inquilino_id);
 

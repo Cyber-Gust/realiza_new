@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-
+// Removido o useRouter se não for mais navegar para outras páginas
 import { Card } from "@/components/admin/ui/Card";
 
 import {
@@ -17,38 +16,30 @@ import CarteiraPanel from "@/components/alugueis/CarteiraPanel";
 import InadimplenciaPanel from "@/components/alugueis/InadimplenciaPanel";
 import TimelinePanel from "@/components/alugueis/TimelinePanel";
 
-// 👇 importa seu Select de onde ele estiver
+import ReceitasLocacaoPanel from "@/components/alugueis/extras/ReceitasLocacaoPanel"
+
 import { Select } from "@/components/admin/ui/Form";
 
 export default function AlugueisPage() {
   const [tab, setTab] = useState("alertas");
-  const [maisOpcao, setMaisOpcao] = useState(""); // controla o select
-  const router = useRouter();
-
+  
+  // Função para lidar com a troca de tab via Select
   function handleMaisOpcoes(value) {
     if (!value) return;
-
-    // navega
-    router.push(value);
-
-    // reseta o select pra não ficar travado numa opção
-    setMaisOpcao("");
+    setTab(value); // Agora define a tab ativa em vez de navegar
   }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-150">
-      {/* HEADER */}
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight text-foreground">
           Aluguéis
         </h1>
-
         <p className="text-muted-foreground text-sm max-w-2xl">
-          Gestão completa dos contratos de locação: alertas, carteira, inadimplência e linha do tempo operacional.
+          Gestão completa dos contratos de locação.
         </p>
       </div>
 
-      {/* TABS */}
       <Tabs value={tab} onValueChange={setTab} className="w-full">
         <TabsList className="bg-muted p-1 flex gap-2 flex-wrap items-center">
           <TabsTrigger value="alertas">Alertas</TabsTrigger>
@@ -56,21 +47,20 @@ export default function AlugueisPage() {
           <TabsTrigger value="inadimplencia">Inadimplência</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
 
-          {/* MAIS OPÇÕES (SELECT) */}
           <div className="min-w-[220px] ml-auto">
             <Select
-              value={maisOpcao}
+              // Se a tab ativa for uma das opções do select, ele mostra o valor, senão fica no "Mais opções"
+              value={["renovacao", "rescisao", "reajustes", "garantias", "vistorias"].includes(tab) ? tab : ""}
               onChange={(e) => handleMaisOpcoes(e.target.value)}
             >
               <option value="" disabled>
                 Mais opções...
               </option>
-
-              <option value="/admin/alugueis/renovacao">Renovação</option>
-              <option value="/admin/alugueis/rescisao">Rescisão</option>
-              <option value="/admin/alugueis/reajustes">Reajustes</option>
-              <option value="/admin/alugueis/garantias">Garantias</option>
-              <option value="/admin/alugueis/vistorias">Vistorias</option>
+              <option value="renovacao">Receitas Locação</option>
+              <option value="rescisao">Rescisão</option>
+              <option value="reajustes">Reajustes</option>
+              <option value="garantias">Garantias</option>
+              <option value="vistorias">Vistorias</option>
             </Select>
           </div>
         </TabsList>
@@ -98,6 +88,12 @@ export default function AlugueisPage() {
           <TabsContent value="timeline" currentValue={tab}>
             <Card className="p-6">
               <TimelinePanel />
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="renovacao" currentValue={tab}>
+            <Card className="p-6">
+              <ReceitasLocacaoPanel />
             </Card>
           </TabsContent>
         </div>

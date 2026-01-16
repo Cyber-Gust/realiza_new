@@ -47,34 +47,6 @@ export default function SearchableSelect({
     }
   }, [open]);
 
-  // Clique fora + scroll
-  useEffect(() => {
-    if (!open) return;
-
-    const handleClick = (e) => {
-      const triggerEl = triggerRef.current;
-      const dropdownEl = dropdownRef.current;
-
-      if (
-        (triggerEl && triggerEl.contains(e.target)) ||
-        (dropdownEl && dropdownEl.contains(e.target))
-      ) {
-        return;
-      }
-
-      setOpen(false);
-    };
-
-    const handleScroll = () => setOpen(false);
-
-    document.addEventListener("mousedown", handleClick);
-    window.addEventListener("scroll", handleScroll, true);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClick);
-      window.removeEventListener("scroll", handleScroll, true);
-    };
-  }, [open]);
 
   /* ============================================================
      🔒 HANDLERS COM PERMISSÃO

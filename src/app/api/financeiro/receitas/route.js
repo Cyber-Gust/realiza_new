@@ -11,6 +11,12 @@ const TIPOS_MANUAIS = [
   "receita_venda_imovel",
   "taxa_adm_imobiliaria",
   "outra_receita",
+  "receita_aluguel",
+  "multa",
+  "juros",
+  "correcao_monetaria",
+  "taxa_contrato"
+
 ];
 
 /* ✅ módulos permitidos no sistema */

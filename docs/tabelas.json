@@ -72,6 +72,7 @@
     { "name": "proprietario_id", "type": "uuid", "nullable": false, "constraint": "FOREIGN KEY", "foreign_table": "personas", "foreign_column": "id" },
     { "name": "inquilino_id", "type": "uuid", "nullable": false, "constraint": "FOREIGN KEY", "foreign_table": "personas", "foreign_column": "id" },
     { "name": "corretor_venda_id", "type": "uuid", "nullable": true, "constraint": "FOREIGN KEY", "foreign_table": "profiles", "foreign_column": "id" },
+    { "name": "codigo", "type": "int4", "nullable": false },
     { "name": "tipo", "type": "text", "nullable": false },
     { "name": "data_inicio", "type": "date", "nullable": false },
     { "name": "data_fim", "type": "date", "nullable": false },
