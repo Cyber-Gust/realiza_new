@@ -7,6 +7,7 @@ import { Button } from "@/components/admin/ui/Button";
 import { Card } from "@/components/admin/ui/Card";
 import Modal from "@/components/admin/ui/Modal";
 import { useToast } from "@/contexts/ToastContext";
+import { formatDocument, formatPhoneBR, formatBRL } from "@/utils/currency"; // ou o nome que você deu
 
 import {
   Loader2,
@@ -19,6 +20,8 @@ import {
   User,
   AlertTriangle,
   Download,
+  ShieldCheck, // Novo ícone
+  RefreshCw,   // Novo ícone
 } from "lucide-react";
 
 export default function ContratoDetailDrawer({ contratoId, onClose }) {
@@ -31,8 +34,8 @@ export default function ContratoDetailDrawer({ contratoId, onClose }) {
   const [mounted, setMounted] = useState(false);
 
   /* ============================================================
-     LOAD CONTRATO
-  ============================================================ */
+      LOAD CONTRATO
+   ============================================================ */
   const fetchContrato = useCallback(async () => {
     try {
       setLoading(true);
@@ -60,8 +63,8 @@ export default function ContratoDetailDrawer({ contratoId, onClose }) {
   if (!root) return null;
 
   /* ============================================================
-     SIGNED URL
-  ============================================================ */
+      SIGNED URL
+   ============================================================ */
   const getSignedUrl = async (path) => {
     try {
       const res = await fetch("/api/contratos/signed-url", {
@@ -84,8 +87,8 @@ export default function ContratoDetailDrawer({ contratoId, onClose }) {
   };
 
   /* ============================================================
-     ACTION HANDLER
-  ============================================================ */
+      ACTION HANDLER
+   ============================================================ */
   const executeAction = async (action) => {
     try {
       setActionLoading(true);
@@ -119,8 +122,8 @@ export default function ContratoDetailDrawer({ contratoId, onClose }) {
   };
 
   /* ============================================================
-     FLAGS DE CONTROLE (fonte única da UI)
-  ============================================================ */
+      FLAGS DE CONTROLE
+   ============================================================ */
   const canGenerateMinuta =
     contrato?.status === "em_elaboracao" &&
     !contrato?.documento_minuta_path;
@@ -133,8 +136,8 @@ export default function ContratoDetailDrawer({ contratoId, onClose }) {
   const canEncerrar = contrato?.status !== "encerrado";
 
   /* ============================================================
-     RENDER
-  ============================================================ */
+      RENDER
+   ============================================================ */
   return createPortal(
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm">
       <div className="w-full sm:w-[480px] h-full bg-panel-card border-l border-border shadow-xl animate-slide-left flex flex-col overflow-y-auto">
@@ -167,12 +170,12 @@ export default function ContratoDetailDrawer({ contratoId, onClose }) {
                 <Home size={16} />
                 {contrato.imoveis?.titulo || "Imóvel sem título"}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground mt-1">
                 {contrato.imoveis?.endereco_bairro || "—"}
               </p>
             </Card>
 
-            {/* INFO */}
+            {/* INFO FINANCEIRA */}
             <Card className="p-4 grid grid-cols-2 gap-4">
               <Field label="Tipo" value={contrato.tipo} />
               <Field
@@ -181,36 +184,92 @@ export default function ContratoDetailDrawer({ contratoId, onClose }) {
               />
               <Field
                 label="Valor"
-                value={`R$ ${Number(contrato.valor_acordado).toFixed(2)}`}
+                value={formatBRL(contrato.valor_acordado)}
                 icon={<DollarSign size={14} />}
               />
-              <Field label="Índice" value={contrato.indice_reajuste} />
+              <Field label="Índice Reajuste" value={contrato.indice_reajuste} />
             </Card>
 
             {/* VIGÊNCIA */}
             <Card className="p-4">
               <p className="text-xs text-muted-foreground">Vigência</p>
-              <p className="flex items-center gap-2">
+              <p className="flex items-center gap-2 font-medium">
                 <Calendar size={14} />
-                {contrato.data_inicio} → {contrato.data_fim}
+                {contrato.data_inicio ? new Date(contrato.data_inicio).toLocaleDateString('pt-BR') : '—'} 
+                {" → "} 
+                {contrato.data_fim ? new Date(contrato.data_fim).toLocaleDateString('pt-BR') : '—'}
               </p>
             </Card>
 
+            {/* [NOVO] GARANTIA & RENOVAÇÃO */}
+            {contrato.tipo === "locacao" && (
+                <Card className="p-4 space-y-4">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/50 pb-2 mb-2">
+                        Garantia & Renovação
+                    </h4>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <Field 
+                            label="Garantia" 
+                            value={contrato.tipo_garantia} 
+                            icon={<ShieldCheck size={14}/>} 
+                        />
+                        <Field 
+                            label="Renovação" 
+                            value={contrato.tipo_renovacao} 
+                            icon={<RefreshCw size={14}/>} 
+                        />
+                    </div>
+
+                    {/* Exibe detalhes do fiador se a garantia for Fiador */}
+                    {contrato.tipo_garantia === "Fiador" && contrato.dados_garantia && (
+                        <div className="bg-secondary/30 p-3 rounded text-xs space-y-1 mt-2">
+                            <p className="font-semibold text-foreground mb-1">Dados do Fiador:</p>
+                            <div className="grid grid-cols-[40px_1fr] gap-1">
+                                <span className="text-muted-foreground">Nome:</span>
+                                <span>{contrato.dados_garantia.nome}</span>
+                                
+                                <span className="text-muted-foreground">Doc:</span>
+                                <span>{formatDocument(contrato.dados_garantia.documento)}</span>
+                                
+                                <span className="text-muted-foreground">Tel:</span>
+                                <span>{formatPhoneBR(contrato.dados_garantia.telefone)}</span>
+                            </div>
+                        </div>
+                    )}
+                </Card>
+            )}
+
             {/* PARTICIPANTES */}
-            <Card className="p-4 space-y-2">
+            <Card className="p-4 space-y-3">
               <Field
                 label="Proprietário"
                 value={contrato.proprietario?.nome}
                 icon={<User size={14} />}
               />
+              
+              {/* Lógica para exibir PJ/PF */}
               <Field
                 label="Inquilino"
-                value={contrato.inquilino?.nome}
+                value={
+                    <div className="flex items-center gap-2">
+                        <span>{contrato.inquilino?.nome || "—"}</span>
+                        {contrato.inquilino && contrato.locatario_pj !== null && (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
+                                contrato.locatario_pj 
+                                    ? "bg-blue-50 text-blue-600 border-blue-100" 
+                                    : "bg-gray-50 text-gray-600 border-gray-100"
+                            }`}>
+                                {contrato.locatario_pj ? "PJ" : "PF"}
+                            </span>
+                        )}
+                    </div>
+                }
                 icon={<User size={14} />}
               />
             </Card>
 
-            {/* DOCUMENTOS */}
+            {/* DOCUMENTOS E AÇÕES */}
             <Card className="p-4 space-y-2">
 
               {canGenerateMinuta && (
@@ -248,7 +307,7 @@ export default function ContratoDetailDrawer({ contratoId, onClose }) {
               )}
             </Card>
 
-            {/* AÇÕES */}
+            {/* BOTOES AÇÕES FINAIS */}
             <div className="space-y-2">
               {canSendToSign && (
                 <Button
@@ -316,10 +375,11 @@ export default function ContratoDetailDrawer({ contratoId, onClose }) {
 function Field({ label, value, icon }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <p className="text-xs text-muted-foreground flex items-center gap-1">
-        {icon} {label}
-      </p>
-      <p className="font-medium">{value || "—"}</p>
+      <div className="text-xs text-muted-foreground flex items-center gap-1">
+        {icon} 
+        <span>{label}</span>
+      </div>
+      <div className="font-medium">{value || "—"}</div>
     </div>
   );
 }

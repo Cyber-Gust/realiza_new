@@ -289,7 +289,7 @@ export default function CRMContratosPanel({
                 className="cursor-pointer hover:bg-muted/20 transition"
                 onClick={() => onOpenDrawer?.(c.id, loadData)}
               >
-                <TableCell>{c.imoveis?.titulo || "-"}</TableCell>
+                <TableCell>{c.imoveis?.codigo_ref || "-"}</TableCell>
 
                 <TableCell className="capitalize">
                   {c.tipo?.replace("_", " ")}

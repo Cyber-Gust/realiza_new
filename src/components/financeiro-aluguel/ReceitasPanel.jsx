@@ -516,7 +516,7 @@ export default function ReceitasPanel() {
               <option value="">Selecione</option>
               {imoveis.map((i) => (
                 <option key={i.id} value={i.id}>
-                  {i.titulo}
+                  {i.codigo_ref} - {i.titulo}
                 </option>
               ))}
             </Select>

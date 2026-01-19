@@ -8,9 +8,10 @@
     "lead_status": ["novo", "qualificado", "visita_agendada", "proposta_feita", "documentacao", "concluido", "perdido"],
     "contrato_tipo": ["locacao", "venda", "administracao"],
     "contrato_status": ["em_elaboracao","aguardando_assinatura","assinado","vigente","reajuste_pendente","renovacao_pendente","encerrado","rescindido","cancelado"],
-    "transacao_tipo": ["receita_aluguel","receita_venda_imovel","taxa_adm_imobiliaria","repasse_proprietario","comissao_corretor","despesa_manutencao","pagamento_iptu","pagamento_condominio"],
+    "transacao_tipo": ["receita_aluguel","receita_venda_imovel","taxa_adm_imobiliaria","repasse_proprietario","comissao_corretor","despesa_manutencao","pagamento_iptu","pagamento_condominio", "taxa_contrato", "multa", "juros"],
     "transacao_status": ["pendente", "pago", "atrasado", "cancelado"],
     "transacao_natureza": ["entrada", "saida"],
+    "modulo_financeiro_enum": ["ALUGUEL", "COMUM"],
     "os_status": ["aberta", "orcamento", "aprovada_pelo_inquilino", "aprovada_pelo_proprietario", "em_execucao", "concluida", "cancelada"],
     "vistoria_status" : ["pendente", "realizada", "incompleta", "cancelada"]
   },

@@ -22,7 +22,7 @@ import { useImoveisQuery } from "@/hooks/useImoveisQuery";
 import {
   CIDADES_POR_ESTADO,
   BAIRROS_POR_CIDADE,
-} from "./ImovelForm";
+} from "@/lib/mock_enderecos";
 
 /* ============================================================
    ⬇️ COMPONENTE LOCAL: FILTROS
