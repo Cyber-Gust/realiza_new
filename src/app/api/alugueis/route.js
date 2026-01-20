@@ -263,6 +263,104 @@ export async function GET(req) {
     }
 
     /* ===========================================================
+      ✅ 8. DETALHES DO CONTRATO (DRAWER)
+      view=detalhes_contrato&contrato_id=...
+    =========================================================== */
+    if (view === "detalhes_contrato") {
+      if (!contratoId) {
+        return NextResponse.json(
+          { error: "contrato_id é obrigatório" },
+          { status: 400 }
+        );
+      }
+
+      // 1) Busca contrato (sem join nenhum)
+      const { data: contrato, error: contratoError } = await supabase
+      .from("contratos")
+      .select(`
+        id,
+        codigo,
+        tipo,
+        status,
+        imovel_id,
+        proprietario_id,
+        inquilino_id,
+        data_inicio,
+        data_fim,
+        valor_acordado,
+        taxa_administracao_percent,
+        dia_vencimento_aluguel,
+
+        indice_reajuste,
+        tipo_garantia,
+        dados_garantia,
+        tipo_renovacao,
+        locatario_pj,
+
+        ultimo_reajuste_em,
+        valor_reajustado,
+        renovado_em,
+        created_at,
+        updated_at
+      `)
+      .eq("id", contratoId)
+      .single();
+
+      if (contratoError) throw contratoError;
+
+      // 2) Busca imóvel
+      const { data: imovel, error: imovelError } = await supabase
+        .from("imoveis")
+        .select(`
+          id,
+          codigo_ref,
+          titulo,
+          endereco_cidade,
+          endereco_estado
+        `)
+        .eq("id", contrato.imovel_id)
+        .single();
+
+      if (imovelError) throw imovelError;
+
+      // 3) Busca inquilino
+      const { data: inquilino, error: inquilinoError } = await supabase
+        .from("personas")
+        .select(`
+          id,
+          nome,
+          telefone,
+          cpf_cnpj
+        `)
+        .eq("id", contrato.inquilino_id)
+        .single();
+
+      if (inquilinoError) throw inquilinoError;
+
+      // 4) Busca proprietário
+      const { data: proprietario, error: proprietarioError } = await supabase
+        .from("personas")
+        .select(`
+          id,
+          nome
+        `)
+        .eq("id", contrato.proprietario_id)
+        .single();
+
+      if (proprietarioError) throw proprietarioError;
+
+      // 5) Monta resposta final no formato que o Drawer quer
+      return NextResponse.json({
+        data: {
+          ...contrato,
+          imoveis: imovel,
+          inquilino,
+          proprietario,
+        },
+      });
+    }
+
+    /* ===========================================================
        ✅ 7. TIMELINE LOCADOR
        view=timeline_locador&contrato_id=...
     =========================================================== */

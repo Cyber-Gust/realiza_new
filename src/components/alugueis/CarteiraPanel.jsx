@@ -18,6 +18,7 @@ import Badge from "@/components/admin/ui/Badge";
 import { Button } from "@/components/admin/ui/Button";
 import { Select } from "@/components/admin/ui/Form"; // Assumindo que você tem esse componente base
 import { Skeleton } from "@/components/admin/ui/Skeleton";
+import ContratoLocacaoDrawer from "./ContratoLocacaoDrawer";
 import SearchableSelect from "@/components/admin/ui/SearchableSelect"; // Do seu exemplo
 import { useToast } from "@/contexts/ToastContext";
 import { cn } from "@/lib/utils";
@@ -27,7 +28,19 @@ export default function CarteiraPanel() {
   
   const [loading, setLoading] = useState(true);
   const [carteira, setCarteira] = useState([]);
-  
+  const [selectedContratoId, setSelectedContratoId] = useState(null);
+  const [openDrawer, setOpenDrawer] = useState(false);
+
+  const handleOpenDrawer = (contratoId) => {
+    setSelectedContratoId(contratoId);
+    setOpenDrawer(true);
+  };
+
+  const handleCloseDrawer = () => {
+    setOpenDrawer(false);
+    setSelectedContratoId(null);
+  };
+
   // Estado dos filtros (igual ao padrão do CRM)
   const [filters, setFilters] = useState({
     search: "",
@@ -214,9 +227,16 @@ export default function CarteiraPanel() {
       ) : (
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filtered.map((c) => (
-            <ContratoCard key={c.id} data={c} />
+           <ContratoCard key={c.id} data={c} onOpen={handleOpenDrawer} />
           ))}
         </div>
+      )}
+
+      {openDrawer && selectedContratoId && (
+        <ContratoLocacaoDrawer
+          contratoId={selectedContratoId}
+          onClose={handleCloseDrawer}
+        />
       )}
     </div>
   );
@@ -225,7 +245,7 @@ export default function CarteiraPanel() {
 /* ===========================================
     COMPONENTE: CARD DO CONTRATO
 ============================================ */
-function ContratoCard({ data }) {
+function ContratoCard({ data, onOpen }) {
   const { imoveis, status_financeiro, inquilino, valor_acordado, data_fim, dia_vencimento_aluguel } = data;
   const moneyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -251,11 +271,14 @@ function ContratoCard({ data }) {
   const currentStatus = statusConfig[status_financeiro] || statusConfig.pendente;
 
   return (
-    <Card className={cn(
-      "group relative border-border shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden rounded-xl cursor-pointer bg-card",
-      "hover:ring-1 hover:-translate-y-1",
-      currentStatus.border
-    )}>
+    <Card
+      onClick={() => onOpen?.(data.id)}
+      className={cn(
+        "group relative border-border shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden rounded-xl cursor-pointer bg-card",
+        "hover:ring-1 hover:-translate-y-1",
+        currentStatus.border
+      )}
+    >
       {/* Barra lateral de status */}
       <div className={cn("absolute left-0 top-0 bottom-0 w-1", currentStatus.bar)} />
       
