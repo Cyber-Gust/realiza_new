@@ -26,17 +26,6 @@ const MODULOS_PERMITIDOS = ["COMUM", "ALUGUEL"];
    HELPERS
 ====================================================== */
 
-function getCompetenciaAtual() {
-  const hoje = new Date(
-    new Date().toLocaleString("en-US", {
-      timeZone: "America/Sao_Paulo",
-    })
-  );
-  const ano = hoje.getFullYear();
-  const mes = String(hoje.getMonth() + 1).padStart(2, "0");
-  return `${ano}-${mes}`;
-}
-
 function calcularDataVencimento(competencia, diaVencimento) {
   const [ano, mes] = competencia.split("-");
   const dia = Math.min(Number(diaVencimento), 28);
@@ -90,73 +79,148 @@ async function resolverContratoPorImovel(supabase, imovelId) {
 }
 
 /* ======================================================
-   🔄 GERAÇÃO AUTOMÁTICA — ALUGUEL
+   🔄 GERAÇÃO AUTOMÁTICA — ALUGUEL (GERA TODOS OS MESES)
 ====================================================== */
+
+function parseISODateOnly(dateStr) {
+  // "YYYY-MM-DD" -> Date (sem timezone do JS zoar)
+  if (!dateStr) return null;
+  const [y, m, d] = String(dateStr).split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
+
+function formatCompetenciaYYYYMM(dateObj) {
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
+function getAllCompetenciasEntreDatas(dataInicioISO, dataFimISO) {
+  const ini = parseISODateOnly(dataInicioISO);
+  const fim = parseISODateOnly(dataFimISO);
+
+  if (!ini || !fim) return [];
+
+  // começa no 1º dia do mês do início
+  const cursor = new Date(ini.getFullYear(), ini.getMonth(), 1);
+  const last = new Date(fim.getFullYear(), fim.getMonth(), 1);
+
+  const competencias = [];
+  while (cursor <= last) {
+    competencias.push(formatCompetenciaYYYYMM(cursor));
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+
+  return competencias;
+}
 
 async function gerarReceitasAutomaticas(supabase) {
   const hoje = new Date().toISOString().split("T")[0];
-  const competencia = getCompetenciaAtual();
 
-  const { data: contratos } = await supabase
+  const { data: contratos, error: contratosError } = await supabase
     .from("contratos")
     .select(`
       id,
       imovel_id,
+      codigo,
       valor_acordado,
       dia_vencimento_aluguel,
       taxa_administracao_percent,
       data_inicio,
-      data_fim
+      data_fim,
+      status
     `)
     .eq("tipo", "locacao")
     .eq("status", "vigente")
     .lte("data_inicio", hoje)
     .gte("data_fim", hoje)
+    //  contrato já começou
     .not("dia_vencimento_aluguel", "is", null);
 
+  if (contratosError) throw contratosError;
   if (!contratos?.length) return;
 
+  // 1) pegar todos os aluguéis já existentes desses contratos (pra não duplicar)
   const contratoIds = contratos.map((c) => c.id);
 
-  const { data: existentes } = await supabase
+  const { data: existentes, error: existentesError } = await supabase
     .from("transacoes")
-    .select("contrato_id")
+    .select("contrato_id, dados_cobranca_json")
     .eq("tipo", "receita_aluguel")
     .eq("modulo_financeiro", "ALUGUEL")
     .in("contrato_id", contratoIds)
-    .eq("dados_cobranca_json->>competencia", competencia);
+    .neq("status", "cancelado");
 
-  const existentesSet = new Set(existentes?.map((e) => e.contrato_id));
+  if (existentesError) throw existentesError;
 
+  // mapa: contrato_id -> Set(competencias já existentes)
+  const existentesMap = new Map();
+
+  for (const e of existentes || []) {
+    const comp = e?.dados_cobranca_json?.competencia;
+    if (!e.contrato_id || !comp) continue;
+
+    if (!existentesMap.has(e.contrato_id)) {
+      existentesMap.set(e.contrato_id, new Set());
+    }
+    existentesMap.get(e.contrato_id).add(comp);
+  }
+
+  // 2) montar novas transações faltantes
   const novas = [];
 
   for (const contrato of contratos) {
-    if (existentesSet.has(contrato.id)) continue;
+    // se não tiver data_fim, não gera lote (pra não virar infinito)
+    if (!contrato.data_fim) continue;
 
-    novas.push({
-      contrato_id: contrato.id,
-      imovel_id: contrato.imovel_id,
-      tipo: "receita_aluguel",
-      natureza: "entrada",
-      modulo_financeiro: "ALUGUEL",
-      status: "pendente",
-      valor: Number(contrato.valor_acordado),
-      data_vencimento: calcularDataVencimento(
-        competencia,
-        contrato.dia_vencimento_aluguel
-      ),
-      descricao: `Aluguel ${competencia}`,
-      dados_cobranca_json: {
-        origem: "automatica",
-        competencia,
-        dia_vencimento: contrato.dia_vencimento_aluguel,
-        taxa_administracao_percent: contrato.taxa_administracao_percent,
-      },
-    });
+    const competenciasContrato = getAllCompetenciasEntreDatas(
+      contrato.data_inicio,
+      contrato.data_fim
+    );
+
+    const setExistentes = existentesMap.get(contrato.id) || new Set();
+
+    for (const competencia of competenciasContrato) {
+      if (setExistentes.has(competencia)) continue;
+
+      novas.push({
+        contrato_id: contrato.id,
+        imovel_id: contrato.imovel_id,
+
+        tipo: "receita_aluguel",
+        natureza: "entrada",
+        modulo_financeiro: "ALUGUEL",
+        status: "pendente",
+
+        valor: Number(contrato.valor_acordado),
+
+        // ✅ pai do agrupamento sempre NULL
+        aluguel_base_id: null,
+
+        data_vencimento: calcularDataVencimento(
+          competencia,
+          contrato.dia_vencimento_aluguel
+        ),
+
+        descricao: `Aluguel ${competencia}`,
+
+        dados_cobranca_json: {
+          origem: "automatica",
+          competencia,
+          dia_vencimento: contrato.dia_vencimento_aluguel,
+          contrato_data_inicio: contrato.data_inicio,
+          contrato_data_fim: contrato.data_fim,
+          taxa_administracao_percent: contrato.taxa_administracao_percent,
+        },
+      });
+    }
   }
 
+  // 3) insert em lote
   if (novas.length) {
-    await supabase.from("transacoes").insert(novas);
+    const { error: insertError } = await supabase.from("transacoes").insert(novas);
+    if (insertError) throw insertError;
   }
 }
 
@@ -178,26 +242,35 @@ export async function GET(req) {
     }
 
     const { data, error } = await supabase
-      .from("transacoes")
-      .select(`
+    .from("transacoes")
+    .select(`
+      id,
+      aluguel_base_id,
+      contrato_id,
+      imovel_id,
+      tipo,
+      natureza,
+      modulo_financeiro,
+      status,
+      valor,
+      descricao,
+      data_vencimento,
+      data_pagamento,
+      dados_cobranca_json,
+      created_at,
+
+      imovel:imoveis(codigo_ref, titulo),
+
+      contrato:contratos(
         id,
-        contrato_id,
-        imovel_id,
-        tipo,
-        natureza,
-        modulo_financeiro,
-        status,
-        valor,
-        descricao,
-        data_vencimento,
-        data_pagamento,
-        dados_cobranca_json,
-        created_at,
-        imovel:imoveis(codigo_ref, titulo)
-      `)
-      .eq("natureza", "entrada")
-      .eq("modulo_financeiro", modulo)
-      .order("data_vencimento", { ascending: false });
+        codigo,
+        proprietario:proprietario_id(nome),
+        inquilino:inquilino_id(nome)
+      )
+    `)
+    .eq("natureza", "entrada")
+    .eq("modulo_financeiro", modulo)
+    .order("data_vencimento", { ascending: false });
 
     if (error) throw error;
 

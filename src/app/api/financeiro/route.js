@@ -84,10 +84,15 @@ export async function GET(req) {
     /* ======================================================
        BASE — TRANSAÇÕES VÁLIDAS (JÁ SEPARADAS POR MÓDULO)
     ====================================================== */
+    const hoje = new Date().toISOString().split("T")[0];
+
     const { data: transacoes, error } = await supabase
       .from("transacoes")
       .select(`
         id,
+        aluguel_base_id,
+        contrato_id,
+        imovel_id,
         tipo,
         natureza,
         status,
@@ -95,25 +100,95 @@ export async function GET(req) {
         data_vencimento,
         data_pagamento,
         descricao,
-        modulo_financeiro
+        modulo_financeiro,
+
+        contratos (
+          id,
+          codigo,
+          proprietario_id,
+          inquilino_id,
+          tipo,
+          imoveis (
+            id,
+            codigo_ref
+          )
+        )
       `)
       .eq("modulo_financeiro", modulo)
-      .neq("status", "cancelado");
+      .neq("status", "cancelado")
+      .lte("data_vencimento", hoje);
 
     if (error) throw error;
+
+    /* ======================================================
+       ENRIQUECIMENTO: LOCADOR / LOCATÁRIO (PERSONAS)
+       (pra repasse vir com nome bonitinho igual no aluguel)
+    ====================================================== */
+    const idsPessoa = new Set();
+
+    (transacoes || []).forEach((t) => {
+      const c = t?.contratos;
+      if (c?.proprietario_id) idsPessoa.add(c.proprietario_id);
+      if (c?.inquilino_id) idsPessoa.add(c.inquilino_id);
+    });
+
+    const ids = Array.from(idsPessoa);
+
+    let pessoasMap = {};
+    if (ids.length > 0) {
+      const { data: pessoas, error: pessoasError } = await supabase
+        .from("personas")
+        .select("id, nome, cpf_cnpj, telefone")
+        .in("id", ids);
+
+      if (pessoasError) throw pessoasError;
+
+      pessoasMap = (pessoas || []).reduce((acc, p) => {
+        acc[p.id] = p;
+        return acc;
+      }, {});
+    }
+
+    // ✅ devolve um objeto "contrato" pronto pro front usar
+    const transacoesFormatadas = (transacoes || []).map((t) => {
+      const c = t?.contratos;
+
+      const locadorNome = c?.proprietario_id
+        ? pessoasMap[c.proprietario_id]?.nome || ""
+        : "";
+
+      const locatarioNome = c?.inquilino_id
+        ? pessoasMap[c.inquilino_id]?.nome || ""
+        : "";
+
+      const imovelCodigoRef = c?.imoveis?.codigo_ref || "";
+
+      return {
+        ...t,
+
+        // 👇 isso aqui é o que seu front vai consumir
+        contrato: {
+          id: c?.id || null,
+          codigo: c?.codigo || "",
+          locadorNome,
+          locatarioNome,
+          imovelCodigoRef,
+        },
+      };
+    });
 
     /* ======================================================
        FLUXO DE CAIXA (PAINEL ATUAL)
     ====================================================== */
     if (type === "fluxo") {
-      const { receitas, despesas } = classificarFluxo(transacoes);
+      const { receitas, despesas } = classificarFluxo(transacoesFormatadas);
       const resumo = calcularResumo(receitas, despesas);
 
       return NextResponse.json({
-        data: transacoes,
+        data: transacoesFormatadas,
         meta: {
           ...resumo,
-          total_lancamentos: transacoes.length,
+          total_lancamentos: transacoesFormatadas.length,
           modulo,
         },
       });
@@ -123,11 +198,11 @@ export async function GET(req) {
        RESUMO EXECUTIVO (KPIs)
     ====================================================== */
     if (type === "resumo") {
-      const { receitas, despesas } = classificarFluxo(transacoes);
+      const { receitas, despesas } = classificarFluxo(transacoesFormatadas);
       const resumo = calcularResumo(receitas, despesas);
 
-      // 📌 Aqui eu considero inadimplência só de ENTRADAS (faz sentido real)
-      const inadimplentes = transacoes.filter(
+      // 📌 inadimplência só de ENTRADAS (faz sentido real)
+      const inadimplentes = transacoesFormatadas.filter(
         (t) =>
           t.natureza === "entrada" &&
           (t.status === "pendente" || t.status === "atrasado")
@@ -152,10 +227,10 @@ export async function GET(req) {
     ====================================================== */
     if (type === "lancamentos") {
       return NextResponse.json({
-        data: transacoes.sort(
+        data: transacoesFormatadas.sort(
           (a, b) => new Date(b.data_vencimento) - new Date(a.data_vencimento)
         ),
-        meta: { total: transacoes.length, modulo },
+        meta: { total: transacoesFormatadas.length, modulo },
       });
     }
 
@@ -166,7 +241,10 @@ export async function GET(req) {
   } catch (err) {
     console.error("❌ Financeiro dashboard:", err);
 
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json(
+      { error: err.message || "Erro interno" },
+      { status: 500 }
+    );
   }
 }
 

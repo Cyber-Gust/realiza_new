@@ -10,7 +10,6 @@ import {
   Calendar,
   Wallet,
   User,
-  FileText,
 } from "lucide-react";
 
 import { Card } from "@/components/admin/ui/Card";
@@ -19,6 +18,47 @@ import Badge from "@/components/admin/ui/Badge";
 import { Skeleton } from "@/components/admin/ui/Skeleton";
 import { useToast } from "@/contexts/ToastContext";
 import { cn } from "@/lib/utils";
+
+function formatMoneyBRL(value) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(Number(value || 0));
+}
+
+function formatMoneyCompactBRL(value) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    notation: "compact",
+  }).format(Number(value || 0));
+}
+
+function formatDateBR(date) {
+  if (!date) return "—";
+  return new Date(date).toLocaleDateString("pt-BR");
+}
+
+/**
+ * ✅ REGRA CENTRAL DA TIMELINE
+ * - Crédito (verde): natureza === "entrada"
+ * - Débito (vermelho): natureza === "saida"
+ *
+ * Isso modela exatamente:
+ * - Inquilino pagou => crédito
+ * - Descontos / repasses / taxas / abatimentos => débito
+ */
+function resolverMovimentoPorNatureza(natureza) {
+  if (natureza === "entrada") return "credito";
+  if (natureza === "saida") return "debito";
+  return null;
+}
+
+function getOrigemTransacao(dados_cobranca_json) {
+  const origem = dados_cobranca_json?.origem;
+  if (origem === "automatica") return "automatica";
+  return "manual";
+}
 
 export default function TimelinePanel() {
   const { error: toastError } = useToast();
@@ -103,7 +143,7 @@ export default function TimelinePanel() {
   }, [selectedInquilinoId, loadContratos]);
 
   // =========================
-  // 3) TIMELINE LOCADOR
+  // 3) TIMELINE (CONTA CORRENTE DO LOCADOR)
   // =========================
   const loadTimeline = useCallback(
     async (contratoId) => {
@@ -119,7 +159,47 @@ export default function TimelinePanel() {
         const json = await res.json();
         if (!res.ok) throw new Error(json.error);
 
-        setTimelineData(json.data || []);
+        /**
+         * ✅ Normalização forte para garantir que:
+         * - cada item tenha movimento "credito" ou "debito"
+         * - baseado em natureza ("entrada"/"saida")
+         */
+        const hojeISO = new Date().toISOString().split("T")[0];
+
+        const normalizado = (json.data || [])
+          // ✅ não mostra futuro (extrato real)
+          .filter((t) => {
+            const dataRef = t.data_pagamento || t.data_vencimento;
+            if (!dataRef) return true; // se não tiver data, não barra
+
+            // compara só YYYY-MM-DD
+            const dataISO = String(dataRef).slice(0, 10);
+            return dataISO <= hojeISO;
+          })
+          .map((t) => {
+            const movimento =
+              t.movimento ||
+              resolverMovimentoPorNatureza(t.natureza) ||
+              null;
+
+            const origem = getOrigemTransacao(t.dados_cobranca_json);
+
+            return {
+              ...t,
+              movimento,
+              automatico: origem === "automatica",
+              origem,
+              valor: Number(t.valor || 0),
+            };
+          })
+          .filter((t) => t.movimento === "credito" || t.movimento === "debito")
+          .sort((a, b) => {
+            const da = a.data_pagamento || a.data_vencimento || "1900-01-01";
+            const db = b.data_pagamento || b.data_vencimento || "1900-01-01";
+            return new Date(da).getTime() - new Date(db).getTime();
+          });
+
+        setTimelineData(normalizado);
       } catch (err) {
         toastError(err.message || "Erro ao carregar timeline");
       } finally {
@@ -145,6 +225,11 @@ export default function TimelinePanel() {
       (acc, curr) => {
         const val = Number(curr.valor || 0);
 
+        /**
+         * ✅ Aqui eu considero:
+         * - SOMENTE BAIXADO (pago) entra no saldo
+         * (igual extrato real mesmo)
+         */
         if (curr.status === "pago") {
           if (curr.movimento === "credito") acc.credito += val;
           if (curr.movimento === "debito") acc.debito += val;
@@ -173,7 +258,7 @@ export default function TimelinePanel() {
             Extrato Financeiro do Locador
           </h3>
           <p className="text-sm text-muted-foreground">
-            Conta corrente do inquilino (créditos e débitos).
+            Conta corrente do contrato (créditos e débitos).
           </p>
         </div>
       </div>
@@ -224,7 +309,8 @@ export default function TimelinePanel() {
 
                 {contratos.map((c) => (
                   <option key={c.id} value={c.id}>
-                    Contrato #{c.codigo} — {c.imoveis?.codigo || c.imoveis?.titulo}
+                    Contrato #{c.codigo} —{" "}
+                    {c.imoveis?.codigo || c.imoveis?.titulo}
                   </option>
                 ))}
               </Select>
@@ -245,11 +331,7 @@ export default function TimelinePanel() {
           <div className="space-y-6">
             {/* STATS */}
             <div className="grid grid-cols-3 gap-4 mb-8">
-              <StatsBadge
-                label="Créditos"
-                value={stats.credito}
-                color="emerald"
-              />
+              <StatsBadge label="Créditos" value={stats.credito} color="emerald" />
               <StatsBadge label="Débitos" value={stats.debito} color="rose" />
               <StatsBadge
                 label="Saldo"
@@ -298,7 +380,7 @@ function TimelineItem({ transaction: t }) {
 
       <Card className="p-4 flex flex-col sm:flex-row gap-4 items-start justify-between shadow-sm transition-all duration-200 border">
         <div className="space-y-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {isCredito ? (
               <ArrowUpCircle className="text-emerald-500 w-5 h-5" />
             ) : (
@@ -306,7 +388,7 @@ function TimelineItem({ transaction: t }) {
             )}
 
             <span className="font-bold text-sm text-foreground">
-              {t.descricao}
+              {t.descricao || "Movimentação"}
             </span>
 
             {t.automatico && (
@@ -334,33 +416,45 @@ function TimelineItem({ transaction: t }) {
               <Calendar size={13} />
               Vencimento:{" "}
               <span className="font-medium text-foreground">
-                {new Date(t.data_vencimento).toLocaleDateString("pt-BR")}
+                {formatDateBR(t.data_vencimento)}
               </span>
             </div>
 
             {t.data_pagamento && (
               <div className="flex items-center gap-1.5 text-emerald-600 font-medium">
                 <CheckCircle2 size={13} />
-                Pago em: {new Date(t.data_pagamento).toLocaleDateString("pt-BR")}
+                Pago em: {formatDateBR(t.data_pagamento)}
               </div>
             )}
           </div>
+
+          {/* ✅ Tipo e IDs (bem detalhado, do jeito que você pediu) */}
+          <div className="text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">
+              {t.tipo || "—"}
+            </span>
+            {t.aluguel_base_id ? (
+              <>
+                {" "}
+                • aluguel_base_id:{" "}
+                <span className="font-mono">{t.aluguel_base_id}</span>
+              </>
+            ) : null}
+          </div>
         </div>
 
-        <div className="text-right min-w-[120px]">
+        <div className="text-right min-w-[140px]">
           <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider mb-0.5">
             {isCredito ? "Crédito" : "Débito"}
           </p>
+
           <p
             className={cn(
               "text-lg font-black tracking-tight",
               isCredito ? "text-emerald-600" : "text-rose-600"
             )}
           >
-            {new Intl.NumberFormat("pt-BR", {
-              style: "currency",
-              currency: "BRL",
-            }).format(t.valor)}
+            {formatMoneyBRL(t.valor)}
           </p>
         </div>
       </Card>
@@ -382,11 +476,7 @@ function StatsBadge({ label, value, color }) {
         {label}
       </p>
       <p className="text-sm font-black mt-0.5">
-        {new Intl.NumberFormat("pt-BR", {
-          style: "currency",
-          currency: "BRL",
-          notation: "compact",
-        }).format(value)}
+        {formatMoneyCompactBRL(value)}
       </p>
     </div>
   );

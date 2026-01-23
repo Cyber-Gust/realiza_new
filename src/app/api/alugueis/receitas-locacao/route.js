@@ -18,13 +18,10 @@ export async function GET(req) {
     const periodoFim =
       searchParams.get("periodoFim") || searchParams.get("periodo_fim");
 
-    const tipoTaxa =
-      searchParams.get("tipoTaxa") || searchParams.get("tipo_taxa");
-
+    const categoria = searchParams.get("categoria");
     const controleConta =
       searchParams.get("controleConta") || searchParams.get("controle_conta");
 
-    const categoria = searchParams.get("categoria");
     const locador = searchParams.get("locador");
     const locatario = searchParams.get("locatario");
 
@@ -38,27 +35,20 @@ export async function GET(req) {
     if (considerarDataDe === "vencimento") campoData = "data_vencimento";
     if (considerarDataDe === "pagamento") campoData = "data_pagamento";
 
-    // ============================
-    // ✅ Tipos válidos no schema
-    // ============================
-    const TIPOS_ENTRADA_LOCACAO = [
-      "receita_aluguel",
-      "multa",
-      "juros",
-      "correcao_monetaria",
-      "taxa_contrato",
-    ];
-
-    const TIPO_REPASSE = "repasse_proprietario";
-
-    // ============================
-    // ✅ Query ENTRADAS
-    // ============================
-    let entradasQuery = supabase
+    /* =========================================
+       1) BUSCA TRANSAÇÕES DE LOCAÇÃO QUE
+          PERTENCEM AO ALUGUEL (PAI OU FILHOS)
+          
+          REGRA:
+          - pai: tipo = receita_aluguel (aluguel_base_id geralmente null)
+          - filhos: aluguel_base_id preenchido (qualquer tipo)
+    ========================================= */
+    let transacoesQuery = supabase
       .from("transacoes")
       .select(
         `
         id,
+        aluguel_base_id,
         contrato_id,
         tipo,
         natureza,
@@ -74,7 +64,6 @@ export async function GET(req) {
           inquilino_id,
           tipo,
           valor_acordado,
-          taxa_administracao_percent,
           imoveis (
             id,
             titulo,
@@ -88,89 +77,48 @@ export async function GET(req) {
         )
       `
       )
+      // ✅ só contrato de locação
       .eq("contratos.tipo", "locacao")
-      .eq("natureza", "entrada")
-      .in("tipo", TIPOS_ENTRADA_LOCACAO)
+      // ✅ pega entradas E saídas (pra desconto/abatimento aparecer)
+      .in("natureza", ["entrada", "saida"])
+      // ✅ só transações que fazem parte do aluguel:
+      //    - ou é o próprio aluguel base
+      //    - ou é um lançamento vinculado (filho)
+      .or("tipo.eq.receita_aluguel,aluguel_base_id.not.is.null")
       .order("data_vencimento", { ascending: true });
 
     // filtros
-    if (contratoId) entradasQuery = entradasQuery.eq("contrato_id", contratoId);
-
-    // ✅ filtro tipoTaxa
-    if (tipoTaxa) entradasQuery = entradasQuery.eq("tipo", tipoTaxa);
+    if (contratoId) transacoesQuery = transacoesQuery.eq("contrato_id", contratoId);
 
     // período
-    if (considerarDataDe !== "repasse") {
-      if (periodoInicio) entradasQuery = entradasQuery.gte(campoData, periodoInicio);
-      if (periodoFim) entradasQuery = entradasQuery.lte(campoData, periodoFim);
-    } else {
-      if (periodoInicio) entradasQuery = entradasQuery.gte("data_vencimento", periodoInicio);
-      if (periodoFim) entradasQuery = entradasQuery.lte("data_vencimento", periodoFim);
-    }
+    if (periodoInicio) transacoesQuery = transacoesQuery.gte(campoData, periodoInicio);
+    if (periodoFim) transacoesQuery = transacoesQuery.lte(campoData, periodoFim);
 
     // status baixa
     if (statusBaixa === "baixadas") {
-      entradasQuery = entradasQuery.eq("status", "pago");
+      transacoesQuery = transacoesQuery.eq("status", "pago");
     }
+
     if (statusBaixa === "nao_baixadas") {
-      entradasQuery = entradasQuery.in("status", ["pendente", "atrasado"]);
+      transacoesQuery = transacoesQuery.in("status", ["pendente", "atrasado"]);
     }
 
-    // filtros extras
-    if (categoria) entradasQuery = entradasQuery.ilike("descricao", `%${categoria}%`);
-    if (controleConta) entradasQuery = entradasQuery.ilike("descricao", `%${controleConta}%`);
+    // filtros extras texto (mantive os seus)
+    if (categoria) transacoesQuery = transacoesQuery.ilike("descricao", `%${categoria}%`);
+    if (controleConta)
+      transacoesQuery = transacoesQuery.ilike("descricao", `%${controleConta}%`);
 
-    const { data: entradas, error: entradasError } = await entradasQuery;
-    if (entradasError) throw entradasError;
+    const { data: transacoes, error: transacoesError } = await transacoesQuery;
+    if (transacoesError) throw transacoesError;
 
-    const listaEntradas = entradas || [];
+    const lista = transacoes || [];
 
-    // ============================
-    // ✅ Query REPASSES (saída)
-    // ============================
-    let repassesQuery = supabase
-      .from("transacoes")
-      .select(
-        `
-        id,
-        contrato_id,
-        tipo,
-        natureza,
-        status,
-        valor,
-        descricao,
-        data_vencimento,
-        data_pagamento
-      `
-      )
-      .eq("natureza", "saida")
-      .eq("tipo", TIPO_REPASSE);
-
-    if (contratoId) repassesQuery = repassesQuery.eq("contrato_id", contratoId);
-
-    if (considerarDataDe === "repasse") {
-      if (periodoInicio) repassesQuery = repassesQuery.gte("data_pagamento", periodoInicio);
-      if (periodoFim) repassesQuery = repassesQuery.lte("data_pagamento", periodoFim);
-
-      if (statusBaixa === "baixadas") {
-        repassesQuery = repassesQuery.eq("status", "pago");
-      }
-      if (statusBaixa === "nao_baixadas") {
-        repassesQuery = repassesQuery.in("status", ["pendente", "atrasado"]);
-      }
-    }
-
-    const { data: repasses, error: repassesError } = await repassesQuery;
-    if (repassesError) throw repassesError;
-
-    const listaRepasses = repasses || [];
-
-    // ============================
-    // ✅ Busca locador/locatário (personas)
-    // ============================
+    /* =========================================
+       2) BUSCA LOCADOR/LOCATÁRIO (PERSONAS)
+    ========================================= */
     const idsPessoa = new Set();
 
-    listaEntradas.forEach((t) => {
+    lista.forEach((t) => {
       const c = t?.contratos;
       if (c?.proprietario_id) idsPessoa.add(c.proprietario_id);
       if (c?.inquilino_id) idsPessoa.add(c.inquilino_id);
@@ -193,16 +141,16 @@ export async function GET(req) {
       }, {});
     }
 
-    // ============================
-    // ✅ Filtra locador / locatario (texto)
-    // ============================
+    /* =========================================
+       3) FILTRO LOCADOR/LOCATÁRIO (TEXTO)
+    ========================================= */
     const matchText = (valor, filtro) => {
       if (!filtro) return true;
       if (!valor) return false;
       return String(valor).toLowerCase().includes(String(filtro).toLowerCase());
     };
 
-    const filtrada = listaEntradas.filter((t) => {
+    const filtrada = lista.filter((t) => {
       const contrato = t?.contratos;
 
       const locadorObj = contrato?.proprietario_id
@@ -228,161 +176,122 @@ export async function GET(req) {
       return passaLocador && passaLocatario;
     });
 
-    // ============================
-    // ✅ Index repasses por contrato (mais recente)
-    // ============================
-    const repasseMap = new Map();
+    /* =========================================
+       4) AGRUPA PELO "aluguel_base_id"
+       
+       REGRA DO GRUPO:
+       - se é filho: grupoId = aluguel_base_id
+       - se é aluguel base: grupoId = id do próprio aluguel
+    ========================================= */
+    const gruposMap = new Map();
 
-    listaRepasses.forEach((r) => {
-      if (!r.contrato_id) return;
+    for (const t of filtrada) {
+      const grupoId = t.aluguel_base_id || t.id;
 
-      const dataRef = r.data_pagamento || r.data_vencimento || null;
-      const ts = dataRef ? new Date(dataRef).getTime() : 0;
+      if (!gruposMap.has(grupoId)) {
+        const contrato = t?.contratos;
+        const imovel = contrato?.imoveis;
 
-      const atual = repasseMap.get(r.contrato_id);
-      const atualTs = atual?.dataRefTs || 0;
+        const locadorObj = contrato?.proprietario_id
+          ? pessoasMap[contrato.proprietario_id]
+          : null;
 
-      if (!atual || ts > atualTs) {
-        repasseMap.set(r.contrato_id, {
-          dataRepasse: r.data_pagamento || null,
-          repasseBaixado: r.status === "pago",
-          dataRefTs: ts,
+        const locatarioObj = contrato?.inquilino_id
+          ? pessoasMap[contrato.inquilino_id]
+          : null;
+
+        const imovelResumo = imovel
+          ? [
+              imovel.titulo,
+              imovel.endereco_logradouro
+                ? `${imovel.endereco_logradouro}, ${imovel.endereco_numero || "s/n"}`
+                : null,
+              imovel.endereco_bairro,
+              imovel.endereco_cidade
+                ? `${imovel.endereco_cidade} - ${imovel.endereco_estado || ""}`
+                : null,
+              imovel.endereco_cep,
+            ]
+              .filter(Boolean)
+              .join(" | ")
+          : "-";
+
+        gruposMap.set(grupoId, {
+          aluguelBase: {
+            id: grupoId,
+            dataVencimento: t.data_vencimento || null,
+            dataPagamento: t.data_pagamento || null,
+            baixado: t.status === "pago",
+          },
+          contrato: {
+            id: contrato?.id,
+            codigo: contrato?.codigo,
+            locadorNome: locadorObj?.nome || "-",
+            locatarioNome: locatarioObj?.nome || "-",
+            imovelResumo,
+          },
+          itens: [],
+          resumo: {
+            total: 0,
+          },
         });
       }
-    });
 
-    // ============================
-    // ✅ Map aluguel por contrato + vencimento
-    // ============================
-    const mapAluguel = new Map();
+      const grupo = gruposMap.get(grupoId);
 
-    filtrada.forEach((t) => {
-      if (t.tipo !== "receita_aluguel") return;
-
-      const key = `${t.contrato_id}__${t.data_vencimento || "sem_venc"}`;
-      mapAluguel.set(key, Number(t.valor || 0));
-    });
-
-    // ============================
-    // ✅ Helpers descrição automática
-    // ============================
-    const formatPercent = (n) => {
-      const num = Number(n || 0);
-      return `${num.toFixed(2)}%`;
-    };
-
-    const getLabelReceita = (tipo) => {
-      const map = {
-        receita_aluguel: "Taxa Administrativa",
-        multa: "Multa",
-        juros: "Juros",
-        correcao_monetaria: "Correção Monetária",
-        taxa_contrato: "Taxa de Contrato",
-      };
-      return map[tipo] || tipo;
-    };
-
-    // ============================
-    // ✅ Normaliza pro front
-    // ============================
-    const normalized = filtrada.map((t) => {
-      const contrato = t?.contratos;
-      const imovel = contrato?.imoveis;
-
-      const locadorObj = contrato?.proprietario_id
-        ? pessoasMap[contrato.proprietario_id]
-        : null;
-
-      const locatarioObj = contrato?.inquilino_id
-        ? pessoasMap[contrato.inquilino_id]
-        : null;
-
-      const imovelResumo = imovel
-        ? [
-            imovel.titulo,
-            imovel.endereco_logradouro
-              ? `${imovel.endereco_logradouro}, ${imovel.endereco_numero || "s/n"}`
-              : null,
-            imovel.endereco_bairro,
-            imovel.endereco_cidade
-              ? `${imovel.endereco_cidade} - ${imovel.endereco_estado || ""}`
-              : null,
-            imovel.endereco_cep,
-          ]
-            .filter(Boolean)
-            .join(" | ")
-        : "-";
-
-      const rep = repasseMap.get(t.contrato_id);
-
-      const valorOriginal = Number(t.valor || 0);
-
-      // aluguel base pra % (mesmo contrato + mesmo vencimento)
-      const aluguelBase = Number(contrato?.valor_acordado || 0);
-
-      // % padrão (multa/juros/etc)
-      const percentCalculado =
-        aluguelBase > 0 ? (valorOriginal / aluguelBase) * 100 : 0;
-
-      // % da taxa adm vem do contrato
-      const percentContrato = Number(contrato?.taxa_administracao_percent || 0);
-
-      let valorExibido = valorOriginal;
-      let valorImobiliaria = valorOriginal;
-      let descricaoAuto = "";
-
-      // ✅ receita_aluguel: não exibe aluguel cheio, exibe taxa adm calculada
-      if (t.tipo === "receita_aluguel") {
-        const taxaAdmCalculada =
-          percentContrato > 0 ? aluguelBase * (percentContrato / 100) : 0;
-
-        valorExibido = taxaAdmCalculada;
-        valorImobiliaria = taxaAdmCalculada;
-
-        descricaoAuto = `${getLabelReceita(t.tipo)} (${formatPercent(
-          percentContrato
-        )})`;
-      } else {
-        // ✅ multa/juros/correção/taxa contrato: descrição vem do cálculo
-        descricaoAuto = `${getLabelReceita(t.tipo)} (${formatPercent(
-          percentCalculado
-        )})`;
-      }
-
-      return {
+      grupo.itens.push({
         id: t.id,
         tipo: t.tipo,
+        natureza: t.natureza, // ✅ agora vai pro front
+        descricao: t.descricao || t.tipo,
+        valor: Number(t.valor || 0),
+      });
 
-        descricao: descricaoAuto,
+      // ✅ data mais útil pro grupo (se tiver pagamento, prioriza)
+      const dataPag = t.data_pagamento || null;
+      const dataVen = t.data_vencimento || null;
 
-        valor: valorExibido,
-        valorImobiliaria,
+      if (dataPag) grupo.aluguelBase.dataPagamento = dataPag;
+      if (!grupo.aluguelBase.dataVencimento && dataVen)
+        grupo.aluguelBase.dataVencimento = dataVen;
+    }
 
-        dataVencimento: t.data_vencimento,
-        dataPagamento: t.data_pagamento,
+    /* =========================================
+       5) CALCULA TOTAL DO GRUPO
+       - entrada soma
+       - saída subtrai
+    ========================================= */
+    const agrupado = Array.from(gruposMap.values()).map((g) => {
+      const total = (g.itens || []).reduce((sum, it) => {
+        const valor = Number(it.valor || 0);
+        if (it.natureza === "saida") return sum - valor;
+        return sum + valor;
+      }, 0);
 
-        dataRepasse: rep?.dataRepasse || null,
-        repasseBaixado: Boolean(rep?.repasseBaixado),
-
-        baixado: t.status === "pago",
-
-        contrato: {
-          id: contrato?.id,
-          codigo: contrato?.codigo,
-          locadorNome: locadorObj?.nome || "-",
-          locatarioNome: locatarioObj?.nome || "-",
-          imovelResumo,
+      return {
+        ...g,
+        resumo: {
+          total,
         },
       };
     });
 
-    normalized.sort((a, b) => {
-      const da = a.dataVencimento ? new Date(a.dataVencimento).getTime() : 0;
-      const db = b.dataVencimento ? new Date(b.dataVencimento).getTime() : 0;
-      return da - db;
+    // ✅ ordena por data do grupo
+    agrupado.sort((a, b) => {
+      const da =
+        a.aluguelBase.dataPagamento ||
+        a.aluguelBase.dataVencimento ||
+        "1970-01-01";
+
+      const db =
+        b.aluguelBase.dataPagamento ||
+        b.aluguelBase.dataVencimento ||
+        "1970-01-01";
+
+      return new Date(da).getTime() - new Date(db).getTime();
     });
 
-    return NextResponse.json({ data: normalized });
+    return NextResponse.json({ data: agrupado });
   } catch (err) {
     console.error(err);
     return NextResponse.json(

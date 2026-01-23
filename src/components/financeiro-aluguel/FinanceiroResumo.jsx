@@ -1,44 +1,53 @@
 "use client";
 
 import { useMemo } from "react";
-import { ListChecks, TrendingUp, TrendingDown } from "lucide-react";
-import KPIWidget from "@/components/admin/ui/KPIWidget";
+import { Card } from "@/components/admin/ui/Card";
+import Badge from "@/components/admin/ui/Badge";
 import { formatCurrency } from "@/utils/formatters";
 
-export default function FinanceiroResumo({ dados = [], isReceita }) {
-  const quantidadeLancamentos = dados.length;
+export default function FinanceiroResumo({ dados = [] }) {
+  const { totalEntradas, totalSaidas, saldo } = useMemo(() => {
+    const totalEntradas = (dados || []).reduce(
+      (sum, d) => sum + Number(d.valorEntrada || 0),
+      0
+    );
 
-  const { totalReceitas, totalDespesas } = useMemo(() => {
-    const receitas = dados
-      .filter((d) => !isReceita(d))
-      .reduce((sum, r) => sum + Number(r.valor || 0), 0);
+    const totalSaidas = (dados || []).reduce(
+      (sum, d) => sum + Number(d.valorSaida || 0),
+      0
+    );
 
-    const despesas = dados
-      .filter((d) => !isReceita(d.tipo))
-      .reduce((sum, d) => sum + Number(d.valor || 0), 0);
+    const saldo = totalEntradas - totalSaidas;
 
-    return { totalReceitas: receitas, totalDespesas: despesas };
-  }, [dados, isReceita]);
+    return {
+      totalEntradas,
+      totalSaidas,
+      saldo,
+    };
+  }, [dados]);
 
   return (
-    <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
-      <KPIWidget
-        icon={ListChecks}
-        title="Lançamentos"
-        value={quantidadeLancamentos}
-      />
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <Card className="p-4 flex flex-col gap-1">
+        <span className="text-sm text-muted-foreground">Entradas</span>
+        <span className="text-lg font-semibold text-green-600">
+          {formatCurrency(totalEntradas)}
+        </span>
+      </Card>
 
-      <KPIWidget
-        icon={TrendingUp}
-        title="Total de Receitas"
-        value={formatCurrency(totalReceitas)}
-      />
+      <Card className="p-4 flex flex-col gap-1">
+        <span className="text-sm text-muted-foreground">Saídas</span>
+        <span className="text-lg font-semibold text-red-600">
+          {formatCurrency(totalSaidas)}
+        </span>
+      </Card>
 
-      <KPIWidget
-        icon={TrendingDown}
-        title="Total de Despesas"
-        value={formatCurrency(totalDespesas)}
-      />
+      <Card className="p-4 flex flex-col gap-1">
+        <span className="text-sm text-muted-foreground">Saldo</span>
+        <Badge status={saldo >= 0 ? "disponivel" : "inativo"}>
+          {formatCurrency(saldo)}
+        </Badge>
+      </Card>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   Plus,
   RotateCcw,
@@ -9,8 +9,13 @@ import {
   Edit,
   Trash2,
   CheckCircle,
-  UserCheck,
   Wrench,
+  Shield,
+  KeyRound,
+  ClipboardList,
+  Droplets,
+  Zap,
+  Building2,
 } from "lucide-react";
 
 import { Card } from "@/components/admin/ui/Card";
@@ -32,6 +37,22 @@ import { labelStatus, labelTipo } from "@/utils/financeiro.constants";
 
 const MODULO = "ALUGUEL";
 
+/**
+ * ✅ Tipos manuais possíveis (só exemplos práticos)
+ * PS: aqui a gente PRECISA respeitar teu ENUM do banco.
+ * Como você já tem esses tipos, vou usar só os existentes.
+ */
+const TIPOS_DESPESA_MANUAL = [
+  { value: "despesa_manutencao", label: "Manutenção / Reparo", icon: Wrench },
+  { value: "seguro_incendio", label: "Seguro Incêndio (Franquia / Taxa)", icon: Shield },
+  { value: "pagamento_condominio", label: "Condomínio (Avulso)", icon: Building2 },
+  { value: "pagamento_iptu", label: "IPTU (Avulso)", icon: ClipboardList },
+  { value: "consumo_agua", label: "Água (Avulso)", icon: Droplets },
+  { value: "consumo_luz", label: "Energia (Avulso)", icon: Zap },
+  { value: "taxa", label: "Taxa / Serviço Avulso", icon: KeyRound },
+  { value: "outros", label: "Outros", icon: Wrench },
+];
+
 export default function DespesasPanel() {
   const toast = useToast();
 
@@ -39,7 +60,6 @@ export default function DespesasPanel() {
      STATES
   ========================== */
   const [dados, setDados] = useState([]);
-  const [corretores, setCorretores] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [filters, setFilters] = useState({
@@ -53,12 +73,12 @@ export default function DespesasPanel() {
   const [openForm, setOpenForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [toDelete, setToDelete] = useState(null);
+
   const [isAutomatica, setIsAutomatica] = useState(false);
   const [isPaga, setIsPaga] = useState(false);
 
   const [form, setForm] = useState({
-    tipo: "",
-    profile_id: "",
+    tipo: "despesa_manutencao",
     valor: "",
     data_vencimento: "",
     descricao: "",
@@ -87,26 +107,16 @@ export default function DespesasPanel() {
     }
   }, [toast]);
 
-  const carregarCorretores = useCallback(async () => {
-    const res = await fetch("/api/perfis/list?type=equipe", {
-      cache: "no-store",
-    });
-    const json = await res.json();
-    if (res.ok) setCorretores(json.data || []);
-  }, []);
-
   useEffect(() => {
     carregar();
-    carregarCorretores();
-  }, [carregar, carregarCorretores]);
+  }, [carregar]);
 
   /* =========================
      HELPERS
   ========================== */
   const resetForm = () => {
     setForm({
-      tipo: "",
-      profile_id: "",
+      tipo: "despesa_manutencao",
       valor: "",
       data_vencimento: "",
       descricao: "",
@@ -118,16 +128,20 @@ export default function DespesasPanel() {
     setIsPaga(false);
   };
 
-  const badgeTipo = (tipo) => {
-    if (tipo === "comissao_corretor") {
+  const getOrigem = (d) => d?.dados_cobranca_json?.origem || "manual";
+
+  const badgeOrigem = (origem) => {
+    if (origem === "automatica") {
       return (
-        <Badge status="comissao_corretor">
-          <UserCheck size={12} className="mr-1" />
-          Comissão
+        <Badge status="automatica">
+          <Lock size={12} className="mr-1" /> Automática
         </Badge>
       );
     }
+    return <Badge status="manual">Manual</Badge>;
+  };
 
+  const badgeTipo = (tipo) => {
     if (tipo === "repasse_proprietario") {
       return (
         <Badge status="repasse_proprietario">
@@ -137,24 +151,25 @@ export default function DespesasPanel() {
       );
     }
 
+    // fallback para despesas gerais
     return (
-      <Badge status="despesa_manutencao">
+      <Badge status={tipo || "despesa_manutencao"}>
         <Wrench size={12} className="mr-1" />
-        Custo
+        {labelTipo(tipo) || "Despesa"}
       </Badge>
     );
   };
 
-  const badgeOrigem = (origem) => {
-    if (origem === "automatica") {
-      return (
-        <Badge status="automatica">
-          <Lock size={12} className="mr-1" />
-          Automática
-        </Badge>
-      );
-    }
-    return <Badge status="manual">Manual</Badge>;
+  const getPessoaContrato = (d) => {
+    // seu select lá da rota despesas é:
+    // contrato:contratos(
+    //   id,
+    //   proprietario:proprietario_id(nome),
+    //   inquilino:inquilino_id(nome)
+    // )
+    const locador = d?.contrato?.proprietario?.nome || "-";
+    const locatario = d?.contrato?.inquilino?.nome || "-";
+    return { locador, locatario };
   };
 
   /* =========================
@@ -163,12 +178,7 @@ export default function DespesasPanel() {
   const handleSave = async () => {
     try {
       if (!form.tipo || !form.valor || !form.data_vencimento) {
-        toast.error("Campos obrigatórios", "Preencha os campos principais.");
-        return;
-      }
-
-      if (form.tipo === "comissao_corretor" && !form.profile_id) {
-        toast.error("Corretor obrigatório.");
+        toast.error("Campos obrigatórios", "Preencha Tipo, Valor e Vencimento.");
         return;
       }
 
@@ -176,12 +186,11 @@ export default function DespesasPanel() {
         tipo: form.tipo,
         modulo_financeiro: MODULO,
         natureza: "saida",
-        profile_id: form.tipo === "comissao_corretor" ? form.profile_id : null,
         valor: parseCurrencyToNumber(form.valor),
         data_vencimento: form.data_vencimento,
-        descricao: form.descricao || labelTipo(form.tipo),
+        descricao: form.descricao || labelTipo(form.tipo) || "Despesa manual",
         dados_cobranca_json: {
-          origem: form.origem || "manual",
+          origem: "manual",
         },
       };
 
@@ -195,7 +204,6 @@ export default function DespesasPanel() {
       if (!res.ok) throw new Error(json.error);
 
       toast.success(editingId ? "Despesa atualizada" : "Despesa criada");
-
       setOpenForm(false);
       resetForm();
       carregar();
@@ -206,7 +214,7 @@ export default function DespesasPanel() {
 
   const marcarComoPago = async (d) => {
     try {
-      await fetch("/api/financeiro/despesas", {
+      const res = await fetch("/api/financeiro/despesas", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -216,44 +224,57 @@ export default function DespesasPanel() {
         }),
       });
 
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+
       toast.success("Despesa marcada como paga");
       carregar();
-    } catch {
-      toast.error("Erro ao confirmar pagamento");
+    } catch (err) {
+      toast.error("Erro ao confirmar pagamento", err.message);
     }
   };
 
   const cancelar = async () => {
     try {
-      await fetch("/api/financeiro/despesas", {
+      const res = await fetch("/api/financeiro/despesas", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: toDelete.id, status: "cancelado" }),
       });
 
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+
       toast.success("Despesa cancelada");
       setToDelete(null);
       carregar();
-    } catch {
-      toast.error("Erro ao cancelar despesa");
+    } catch (err) {
+      toast.error("Erro ao cancelar despesa", err.message);
     }
   };
 
   /* =========================
      FILTERED DATA
   ========================== */
-  const dadosFiltrados = dados.filter((d) => {
-    if (filters.status && d.status !== filters.status) return false;
-    if (filters.tipo && d.tipo !== filters.tipo) return false;
+  const dadosFiltrados = useMemo(() => {
+    return (dados || [])
+      .filter((d) => d?.natureza === "saida")
+      .filter((d) => d?.status !== "cancelado")
+      .filter((d) => !d.aluguel_base_id) // ✅ AGORA só avulsas (não ligadas ao aluguel)
+      .filter((d) => {
+        if (filters.status && d.status !== filters.status) return false;
+        if (filters.tipo && d.tipo !== filters.tipo) return false;
 
-    const origem = d.dados_cobranca_json?.origem;
-    if (filters.origem && origem !== filters.origem) return false;
+        const origem = getOrigem(d);
+        if (filters.origem && origem !== filters.origem) return false;
 
-    if (filters.dataInicio && d.data_vencimento < filters.dataInicio) return false;
-    if (filters.dataFim && d.data_vencimento > filters.dataFim) return false;
+        if (filters.dataInicio && d.data_vencimento < filters.dataInicio) return false;
+        if (filters.dataFim && d.data_vencimento > filters.dataFim) return false;
 
-    return true;
-  });
+        return true;
+      })
+      .sort((a, b) => new Date(b.data_vencimento) - new Date(a.data_vencimento));
+  }, [dados, filters]);
 
   /* =========================
      RENDER
@@ -262,7 +283,7 @@ export default function DespesasPanel() {
     <div className="space-y-4">
       {/* HEADER */}
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
-        <h3 className="text-lg font-semibold">Despesas</h3>
+        <h3 className="text-lg font-semibold">Despesas (Aluguéis)</h3>
 
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={carregar} disabled={loading}>
@@ -301,23 +322,11 @@ export default function DespesasPanel() {
             <option value="">Status</option>
             <option value="pendente">Pendente</option>
             <option value="pago">Pago</option>
-            <option value="cancelado">Cancelado</option>
             <option value="atrasado">Atrasado</option>
+            <option value="cancelado">Cancelado</option>
           </Select>
 
-          <Select
-            value={filters.tipo}
-            onChange={(e) => setFilters((f) => ({ ...f, tipo: e.target.value }))}
-          >
-            <option value="">Tipo</option>
-
-            {/* SOMENTE TIPOS DO FINANCEIRO COMUM */}
-            <option value="repasse_proprietario">Comissão</option>
-            <option value="despesa_manutencao">Manutenção</option>
-            <option value="despesa_operacional">Operacional</option>
-            <option value="pagamento_iptu">IPTU</option>
-            <option value="pagamento_condominio">Condomínio</option>
-          </Select>
+          
 
           <Select
             value={filters.origem}
@@ -350,12 +359,15 @@ export default function DespesasPanel() {
           <TableHeader>
             <TableRow>
               <TableHead>Tipo</TableHead>
-              <TableHead>Responsável</TableHead>
-              <TableHead>Imóvel</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Valor</TableHead>
+              <TableHead>ID Imóvel</TableHead>
+              <TableHead>ID Contrato</TableHead>
+              <TableHead>Locador</TableHead>
+              <TableHead>Locatário</TableHead>
+              <TableHead className="text-right">Valor</TableHead>
               <TableHead>Vencimento</TableHead>
               <TableHead>Origem</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Descrição</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -363,39 +375,44 @@ export default function DespesasPanel() {
           <tbody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                   Carregando despesas...
                 </TableCell>
               </TableRow>
             ) : dadosFiltrados.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={11} className="text-center py-10 text-muted-foreground">
                   Nenhuma despesa encontrada com os filtros atuais.
                 </TableCell>
               </TableRow>
             ) : (
               dadosFiltrados.map((d) => {
-                const origem = d.dados_cobranca_json?.origem;
+                const origem = getOrigem(d);
                 const automatica = origem === "automatica";
                 const paga = d.status === "pago";
+                
+
+                const { locador, locatario } = getPessoaContrato(d);
+
+                const podePagar = d.status === "pendente" || d.status === "atrasado";
 
                 return (
                   <TableRow key={d.id}>
                     <TableCell>{badgeTipo(d.tipo)}</TableCell>
 
-                    <TableCell>
-                      {d.profile?.nome_completo ||
-                        d.contrato?.proprietario?.nome ||
-                        "Imobiliária"}
+                    <TableCell className="text-xs text-muted-foreground">
+                      {d.imovel?.codigo_ref || "—"}
                     </TableCell>
 
-                    <TableCell>{d.imovel ? `${d.imovel.codigo_ref}` : "—"}</TableCell>
-
-                    <TableCell>
-                      <Badge status={d.status}>{labelStatus(d.status)}</Badge>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {d.contrato?.codigo || "—"}
                     </TableCell>
 
-                    <TableCell className="font-medium text-red-600">
+                    <TableCell className="text-sm">{locador}</TableCell>
+
+                    <TableCell className="text-sm">{locatario}</TableCell>
+
+                    <TableCell className="text-right font-medium text-red-600">
                       {formatBRL(d.valor)}
                     </TableCell>
 
@@ -403,50 +420,68 @@ export default function DespesasPanel() {
 
                     <TableCell>{badgeOrigem(origem)}</TableCell>
 
-                    <TableCell className="text-right flex justify-end gap-2">
-                      {!paga && (
+                    <TableCell>
+                      <Badge status={d.status}>{labelStatus(d.status)}</Badge>
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">
+                          {d.descricao || labelTipo(d.tipo) || "-"}
+                        </span>
+                        {d.imovel?.codigo_ref ? (
+                          <span className="text-xs text-muted-foreground">
+                            {d.imovel.codigo_ref}
+                          </span>
+                        ) : null}
+                      </div>
+                    </TableCell>
+
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        {podePagar && (
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => marcarComoPago(d)}
+                          >
+                            <CheckCircle size={16} className="mr-1" />
+                            Pagar
+                          </Button>
+                        )}
+
                         <Button
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                          onClick={() => marcarComoPago(d)}
+                          size="icon"
+                          variant="ghost"
+                          disabled={automatica || paga}
+                          onClick={() => {
+                            setEditingId(d.id);
+                            setIsAutomatica(automatica);
+                            setIsPaga(paga);
+
+                            setForm({
+                              tipo: d.tipo || "despesa_manutencao",
+                              valor: formatBRL(d.valor),
+                              data_vencimento: (d.data_vencimento || "").slice(0, 10),
+                              descricao: d.descricao || "",
+                              origem: origem || "manual",
+                            });
+
+                            setOpenForm(true);
+                          }}
                         >
-                          <CheckCircle size={16} className="mr-1" />
-                          Pagar
+                          <Edit size={16} />
                         </Button>
-                      )}
 
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        disabled={automatica || paga}
-                        onClick={() => {
-                          setEditingId(d.id);
-                          setIsAutomatica(automatica);
-                          setIsPaga(paga);
-
-                          setForm({
-                            tipo: d.tipo,
-                            profile_id: d.profile_id || "",
-                            valor: formatBRL(d.valor),
-                            data_vencimento: (d.data_vencimento || "").slice(0, 10),
-                            descricao: d.descricao || "",
-                            origem: origem || "manual",
-                          });
-
-                          setOpenForm(true);
-                        }}
-                      >
-                        <Edit size={16} />
-                      </Button>
-
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        disabled={paga || automatica}
-                        onClick={() => setToDelete(d)}
-                      >
-                        <Trash2 size={16} className="text-red-500" />
-                      </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          disabled={paga || automatica}
+                          onClick={() => setToDelete(d)}
+                        >
+                          <Trash2 size={16} className="text-red-500" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -463,7 +498,7 @@ export default function DespesasPanel() {
           setOpenForm(false);
           resetForm();
         }}
-        title={editingId ? "Editar Despesa" : "Nova Despesa"}
+        title={editingId ? "Editar Despesa" : "Nova Despesa Manual"}
         footer={
           <div className="flex gap-2 w-full">
             <Button
@@ -491,34 +526,18 @@ export default function DespesasPanel() {
               value={form.tipo}
               onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value }))}
             >
-              <option value="">Selecione</option>
-
-              {/* SOMENTE TIPOS DO FINANCEIRO COMUM */}
-              <option value="comissao_corretor">Comissão</option>
-              <option value="despesa_manutencao">Manutenção</option>
-              <option value="pagamento_iptu">IPTU</option>
-              <option value="pagamento_condominio">Condomínio</option>
-              <option value="despesa_operacional">Operacional</option>
+              {TIPOS_DESPESA_MANUAL.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
             </Select>
-          </div>
 
-          {form.tipo === "comissao_corretor" && (
-            <div>
-              <Label>Corretor *</Label>
-              <Select
-                disabled={isAutomatica || isPaga}
-                value={form.profile_id}
-                onChange={(e) => setForm((f) => ({ ...f, profile_id: e.target.value }))}
-              >
-                <option value="">Selecione</option>
-                {corretores.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome_completo}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          )}
+            <p className="text-xs text-muted-foreground mt-1">
+              Aqui entra despesa manual avulsa do módulo de Aluguéis (ex: franquia do seguro,
+              manutenção, taxa extra).
+            </p>
+          </div>
 
           <div>
             <Label>Valor *</Label>
@@ -555,6 +574,7 @@ export default function DespesasPanel() {
               disabled={isPaga}
               value={form.descricao}
               onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
+              placeholder="Ex: Franquia do seguro incêndio, chaveiro, manutenção urgente..."
             />
           </div>
         </div>
@@ -576,6 +596,7 @@ export default function DespesasPanel() {
             <Button variant="secondary" onClick={() => setToDelete(null)}>
               Voltar
             </Button>
+
             <Button className="bg-red-600 hover:bg-red-700" onClick={cancelar}>
               Cancelar Despesa
             </Button>

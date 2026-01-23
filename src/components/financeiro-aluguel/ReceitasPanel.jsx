@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   Plus,
   RotateCcw,
   Lock,
-  Home,
   ArrowUpRight,
   Edit,
   Trash2,
   CheckCircle,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 
 import { Button } from "@/components/admin/ui/Button";
@@ -30,6 +31,23 @@ import { labelStatus, labelTipo } from "@/utils/financeiro.constants";
 
 const MODULO = "ALUGUEL";
 
+// ✅ Receita manual aqui vai ser tipo "serviço/avulsa"
+// (você pode ajustar nomes depois se quiser)
+const TIPOS_RECEITA_MANUAL = [
+  { value: "outros", label: "Receita Avulsa (Serviço / Taxa)" },
+];
+
+function getLastDayOfCurrentMonthISO() {
+  const now = new Date();
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return end.toISOString().split("T")[0];
+}
+
+function getYYYYMMFromISO(dateStr) {
+  if (!dateStr) return "";
+  return dateStr.slice(0, 7);
+}
+
 export default function ReceitasPanel() {
   const toast = useToast();
 
@@ -37,12 +55,10 @@ export default function ReceitasPanel() {
      STATES
   ========================== */
   const [dados, setDados] = useState([]);
-  const [imoveis, setImoveis] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [filters, setFilters] = useState({
     status: "",
-    tipo: "",
     origem: "",
     dataInicio: "",
     dataFim: "",
@@ -53,16 +69,13 @@ export default function ReceitasPanel() {
   const [toDelete, setToDelete] = useState(null);
   const [isAutomatica, setIsAutomatica] = useState(false);
 
+  const [expandido, setExpandido] = useState({});
+
   const [form, setForm] = useState({
-    tipo: "",
-    imovel_id: "",
-    contrato_id: "",
+    tipo: "taxa_contrato",
     valor: "",
     data_vencimento: "",
     descricao: "",
-    competencia: "",
-    forma_recebimento: "",
-    observacoes: "",
     origem: "manual",
   });
 
@@ -73,14 +86,34 @@ export default function ReceitasPanel() {
     try {
       setLoading(true);
 
-      const res = await fetch(`/api/financeiro/receitas?modulo=${MODULO}`, {
-        cache: "no-store",
-      });
+      const [resReceitas, resDespesas] = await Promise.all([
+        fetch(`/api/financeiro/receitas?modulo=${MODULO}`, { cache: "no-store" }),
+        fetch(`/api/financeiro/despesas?modulo=${MODULO}`, { cache: "no-store" }),
+      ]);
 
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
+      const jsonReceitas = await resReceitas.json();
+      const jsonDespesas = await resDespesas.json();
 
-      setDados(json.data || []);
+      if (!resReceitas.ok) throw new Error(jsonReceitas.error);
+      if (!resDespesas.ok) throw new Error(jsonDespesas.error);
+
+      const receitas = (jsonReceitas.data || []).map((x) => ({
+        ...x,
+        natureza: "entrada",
+      }));
+
+      const despesas = (jsonDespesas.data || [])
+        // ✅ só despesas acopladas ao aluguel base
+        .filter((x) => !!x.aluguel_base_id)
+        // ❌ tira repasse do proprietário (não faz sentido no bruto do aluguel)
+        .filter((x) => x.tipo !== "repasse_proprietario")
+        .map((x) => ({
+          ...x,
+          natureza: "saida",
+        }));
+
+      // ✅ junta tudo
+      setDados([...receitas, ...despesas]);
     } catch (err) {
       toast.error("Erro ao carregar receitas", err.message);
     } finally {
@@ -88,31 +121,19 @@ export default function ReceitasPanel() {
     }
   }, [toast]);
 
-  const carregarImoveis = useCallback(async () => {
-    const res = await fetch("/api/imoveis?status=alugado", { cache: "no-store" });
-    const json = await res.json();
-    if (res.ok) setImoveis(json.data || []);
-  }, []);
-
   useEffect(() => {
     carregar();
-    carregarImoveis();
-  }, [carregar, carregarImoveis]);
+  }, [carregar]);
 
   /* =========================
      HELPERS
   ========================== */
   const resetForm = () => {
     setForm({
-      tipo: "",
-      imovel_id: "",
-      contrato_id: "",
+      tipo: "taxa_contrato",
       valor: "",
       data_vencimento: "",
       descricao: "",
-      competencia: "",
-      forma_recebimento: "",
-      observacoes: "",
       origem: "manual",
     });
 
@@ -121,19 +142,9 @@ export default function ReceitasPanel() {
   };
 
   const badgeTipo = (tipo) => {
-    // ✅ Venda (mantido)
-    if (tipo === "receita_venda_imovel") {
-      return (
-        <Badge status="receita_venda_imovel">
-          <Home size={12} className="mr-1" /> Venda
-        </Badge>
-      );
-    }
-
-    // ✅ Locação / Financeiro aluguel (novos tipos do enum)
+    // ✅ aluguel base / itens vinculados
     if (
       tipo === "receita_aluguel" ||
-      tipo === "taxa_adm_imobiliaria" ||
       tipo === "multa" ||
       tipo === "juros" ||
       tipo === "correcao_monetaria" ||
@@ -163,9 +174,13 @@ export default function ReceitasPanel() {
         </Badge>
       );
     }
-
     return <Badge status="manual">Manual</Badge>;
   };
+
+  const isBaseAluguel = (r) =>
+    r.tipo === "receita_aluguel" && (r.aluguel_base_id == null || r.aluguel_base_id === "");
+
+  const getOrigem = (r) => r?.dados_cobranca_json?.origem || "manual";
 
   /* =========================
      ACTIONS
@@ -173,29 +188,19 @@ export default function ReceitasPanel() {
   const handleSave = async () => {
     try {
       if (!form.tipo || !form.valor || !form.data_vencimento) {
-        toast.error("Campos obrigatórios", "Preencha os campos principais.");
-        return;
-      }
-
-      if (form.tipo === "receita_venda_imovel" && !form.imovel_id) {
-        toast.error("Imóvel obrigatório para venda.");
+        toast.error("Campos obrigatórios", "Preencha Tipo, Valor e Vencimento.");
         return;
       }
 
       const payload = {
         tipo: form.tipo,
         modulo_financeiro: MODULO,
-        imovel_id: form.imovel_id || null,
-        contrato_id: form.contrato_id || null,
         valor: parseCurrencyToNumber(form.valor),
         data_vencimento: form.data_vencimento,
-        descricao: form.descricao || labelTipo(form.tipo),
+        descricao: form.descricao || "Receita Avulsa",
         natureza: "entrada",
         dados_cobranca_json: {
-          competencia: form.competencia,
-          forma_recebimento: form.forma_recebimento,
-          observacoes: form.observacoes,
-          origem: form.origem,
+          origem: "manual",
         },
       };
 
@@ -219,7 +224,7 @@ export default function ReceitasPanel() {
 
   const marcarComoPago = async (r) => {
     try {
-      await fetch("/api/financeiro/receitas", {
+      const res = await fetch("/api/financeiro/receitas", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -229,16 +234,19 @@ export default function ReceitasPanel() {
         }),
       });
 
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+
       toast.success("Receita marcada como paga");
       carregar();
-    } catch {
-      toast.error("Erro ao confirmar pagamento");
+    } catch (err) {
+      toast.error("Erro ao confirmar recebimento", err.message);
     }
   };
 
   const cancelar = async () => {
     try {
-      await fetch("/api/financeiro/receitas", {
+      const res = await fetch("/api/financeiro/receitas", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -247,29 +255,128 @@ export default function ReceitasPanel() {
         }),
       });
 
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+
       toast.success("Receita cancelada");
       setToDelete(null);
       carregar();
-    } catch {
-      toast.error("Erro ao cancelar receita");
+    } catch (err) {
+      toast.error("Erro ao cancelar receita", err.message);
     }
   };
 
   /* =========================
-     FILTERED DATA
+     REGRAS IMPORTANTES
+     ✅ NÃO MOSTRAR FUTURO
   ========================== */
-  const dadosFiltrados = dados.filter((r) => {
-    if (filters.status && r.status !== filters.status) return false;
-    if (filters.tipo && r.tipo !== filters.tipo) return false;
+  const fimDoMesAtual = useMemo(() => getLastDayOfCurrentMonthISO(), []);
 
-    const origem = r.dados_cobranca_json?.origem;
-    if (filters.origem && origem !== filters.origem) return false;
+  /* =========================
+     FILTRAGEM BASE (SEM FUTURO)
+  ========================== */
+  const dadosFiltrados = useMemo(() => {
+    return (dados || [])
+      .filter((r) => r?.status !== "cancelado")
+      .filter((r) => {
+        // ✅ corta futuro (só mês vigente pra trás)
+        if (r.data_vencimento && r.data_vencimento > fimDoMesAtual) return false;
 
-    if (filters.dataInicio && r.data_vencimento < filters.dataInicio) return false;
-    if (filters.dataFim && r.data_vencimento > filters.dataFim) return false;
+        if (filters.status && r.status !== filters.status) return false;
 
-    return true;
-  });
+        const origem = getOrigem(r);
+        if (filters.origem && origem !== filters.origem) return false;
+
+        if (filters.dataInicio && r.data_vencimento < filters.dataInicio) return false;
+        if (filters.dataFim && r.data_vencimento > filters.dataFim) return false;
+
+        return true;
+      })
+      .sort((a, b) => new Date(b.data_vencimento) - new Date(a.data_vencimento));
+  }, [dados, filters, fimDoMesAtual]);
+
+  /* =========================
+     AGRUPAMENTO POR ALUGUEL BASE
+  ========================== */
+  const grupos = useMemo(() => {
+    const baseMap = new Map();
+    const orfas = [];
+
+    for (const r of dadosFiltrados) {
+      if (isBaseAluguel(r)) {
+        baseMap.set(r.id, {
+          aluguelBase: r,
+          itens: [],
+        });
+      }
+    }
+
+    for (const r of dadosFiltrados) {
+      if (isBaseAluguel(r)) continue;
+
+      if (r.aluguel_base_id && baseMap.has(r.aluguel_base_id)) {
+        baseMap.get(r.aluguel_base_id).itens.push(r);
+      } else {
+        // ✅ órfãs só entram se forem RECEITA (entrada)
+        if (r.natureza !== "saida") {
+          orfas.push(r);
+        }
+      }
+    }
+
+    const arr = Array.from(baseMap.values());
+
+    // órfãs = receitas manuais avulsas / coisas sem base
+    // (vai aparecer como linha "normal")
+    for (const o of orfas) {
+      arr.push({
+        aluguelBase: null,
+        itens: [o],
+      });
+    }
+
+    return arr;
+  }, [dadosFiltrados]);
+
+  /* =========================
+     FLATTEN PRA TABELA (linhas)
+  ========================== */
+  const linhas = useMemo(() => {
+    const out = [];
+
+    for (const g of grupos) {
+      if (g.aluguelBase) {
+        out.push({
+          type: "ALUGUEL_BASE",
+          id: g.aluguelBase.id,
+          base: g.aluguelBase,
+          itens: (g.itens || []).sort(
+            (a, b) => new Date(a.data_vencimento) - new Date(b.data_vencimento)
+          ),
+        });
+      } else {
+        // grupo avulso
+        const item = g.itens?.[0];
+        if (!item) continue;
+
+        out.push({
+          type: "AVULSA",
+          id: item.id,
+          base: item,
+          itens: [],
+        });
+      }
+    }
+
+    // ordenar pela data do base
+    out.sort((a, b) => {
+      const da = a?.base?.data_vencimento ? new Date(a.base.data_vencimento).getTime() : 0;
+      const db = b?.base?.data_vencimento ? new Date(b.base.data_vencimento).getTime() : 0;
+      return db - da;
+    });
+
+    return out;
+  }, [grupos]);
 
   /* =========================
      RENDER
@@ -278,7 +385,7 @@ export default function ReceitasPanel() {
     <div className="space-y-4">
       {/* HEADER */}
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
-        <h3 className="text-lg font-semibold">Receitas</h3>
+        <h3 className="text-lg font-semibold">Receitas (Aluguéis)</h3>
 
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" onClick={carregar} disabled={loading}>
@@ -290,7 +397,6 @@ export default function ReceitasPanel() {
             onClick={() =>
               setFilters({
                 status: "",
-                tipo: "",
                 origem: "",
                 dataInicio: "",
                 dataFim: "",
@@ -307,7 +413,7 @@ export default function ReceitasPanel() {
       </div>
 
       {/* FILTROS */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <Select
           value={filters.status}
           onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
@@ -315,23 +421,7 @@ export default function ReceitasPanel() {
           <option value="">Status</option>
           <option value="pendente">Pendente</option>
           <option value="pago">Pago</option>
-          <option value="cancelado">Cancelado</option>
           <option value="atrasado">Atrasado</option>
-        </Select>
-
-        <Select
-          value={filters.tipo}
-          onChange={(e) => setFilters((f) => ({ ...f, tipo: e.target.value }))}
-        >
-          <option value="">Tipo</option>
-
-          {/* ✅ TIPOS ATUAIS DO SEU ENUM */}
-          <option value="receita_aluguel">Receita de Aluguel</option>
-          <option value="taxa_adm_imobiliaria">Taxa Adm Imobiliária</option>
-          <option value="multa">Multa</option>
-          <option value="juros">Juros</option>
-          <option value="correcao_monetaria">Correção Monetária</option>
-          <option value="taxa_contrato">Taxa de Contrato</option>
         </Select>
 
         <Select
@@ -362,11 +452,14 @@ export default function ReceitasPanel() {
           <TableHeader>
             <TableRow>
               <TableHead>Tipo</TableHead>
-              <TableHead>Código Casa</TableHead>
+              <TableHead>Contrato</TableHead>
+              <TableHead>Locador</TableHead>
+              <TableHead>Locatário</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Valor</TableHead>
+              <TableHead className="text-right">Valor</TableHead>
               <TableHead>Vencimento</TableHead>
               <TableHead>Origem</TableHead>
+              <TableHead>Descrição</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -374,84 +467,235 @@ export default function ReceitasPanel() {
           <tbody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-6">
+                <TableCell colSpan={10} className="text-center py-6">
                   Carregando...
                 </TableCell>
               </TableRow>
-            ) : dadosFiltrados.length === 0 ? (
+            ) : linhas.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-6">
+                <TableCell colSpan={10} className="text-center py-6">
                   Nenhuma receita encontrada.
                 </TableCell>
               </TableRow>
             ) : (
-              dadosFiltrados.map((r) => {
-                const origem = r.dados_cobranca_json?.origem;
+              linhas.map((row) => {
+                const r = row.base;
+
+                const origem = getOrigem(r);
                 const automatica = origem === "automatica";
 
                 const podeReceber = r.status === "pendente" || r.status === "atrasado";
+                const isAluguel = row.type === "ALUGUEL_BASE";
+
+                const competencia = getYYYYMMFromISO(r.data_vencimento);
+
+                const contratoCodigo =
+                  r?.contrato?.codigo ||
+                  "-";
+
+                const locadorNome =
+                  r?.contrato?.proprietario?.nome ||
+                  "-";
+
+                const locatarioNome =
+                  r?.contrato?.inquilino?.nome ||
+                  "-";
+                const aluguelBruto = (() => {
+                  if (!isAluguel) return Number(r.valor || 0);
+
+                  const itens = row.itens || [];
+
+                  const somaEntradas = itens
+                    .filter((it) => it.natureza === "entrada")
+                    .reduce((acc, it) => acc + Number(it.valor || 0), 0);
+
+                  const somaSaidas = itens
+                    .filter((it) => it.natureza === "saida")
+                    .reduce((acc, it) => acc + Number(it.valor || 0), 0);
+
+                  return Number(r.valor || 0) + somaEntradas - somaSaidas;
+                })();
+                  
 
                 return (
-                  <TableRow key={r.id}>
-                    <TableCell>{badgeTipo(r.tipo)}</TableCell>
-                    <TableCell>{r.imovel?.codigo_ref || "-"}</TableCell>
+                  <>
+                    {/* Linha principal */}
+                    <TableRow
+                      key={row.id}
+                      className={isAluguel ? "cursor-pointer" : ""}
+                      onClick={() => {
+                        if (!isAluguel) return;
+                        setExpandido((prev) => ({
+                          ...prev,
+                          [row.id]: !prev[row.id],
+                        }));
+                      }}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {isAluguel ? (
+                            expandido[row.id] ? (
+                              <ChevronDown size={16} />
+                            ) : (
+                              <ChevronRight size={16} />
+                            )
+                          ) : null}
 
-                    <TableCell>
-                      <Badge status={r.status}>{labelStatus(r.status)}</Badge>
-                    </TableCell>
+                          {isAluguel ? (
+                            <Badge status="receita_aluguel">
+                              <ArrowUpRight size={12} className="mr-1" />
+                              Aluguel {competencia}
+                            </Badge>
+                          ) : (
+                            badgeTipo(r.tipo)
+                          )}
+                        </div>
+                      </TableCell>
 
-                    <TableCell className="font-medium text-green-600">
-                      {formatBRL(r.valor)}
-                    </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {contratoCodigo}
+                      </TableCell>
 
-                    <TableCell>{formatDateBR(r.data_vencimento)}</TableCell>
-                    <TableCell>{badgeOrigem(origem)}</TableCell>
+                      <TableCell>
+                        <div className="text-sm font-medium">{locadorNome}</div>
+                      </TableCell>
 
-                    <TableCell className="text-right flex justify-end gap-2">
-                      {podeReceber && (
-                        <Button
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                          onClick={() => marcarComoPago(r)}
-                        >
-                          <CheckCircle size={16} className="mr-1" />
-                          Confirmar recebimento
-                        </Button>
-                      )}
+                      <TableCell>
+                        <div className="text-sm">{locatarioNome}</div>
+                      </TableCell>
 
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        disabled={automatica}
-                        onClick={() => {
-                          setEditingId(r.id);
-                          setIsAutomatica(automatica);
+                      <TableCell>
+                        <Badge status={r.status}>{labelStatus(r.status)}</Badge>
+                      </TableCell>
 
-                          setForm({
-                            tipo: r.tipo,
-                            imovel_id: r.imovel_id || "",
-                            contrato_id: r.contrato_id || "",
-                            valor: formatBRL(r.valor),
-                            data_vencimento: r.data_vencimento,
-                            descricao: r.descricao,
-                            competencia: r.dados_cobranca_json?.competencia || "",
-                            forma_recebimento:
-                              r.dados_cobranca_json?.forma_recebimento || "",
-                            observacoes: r.dados_cobranca_json?.observacoes || "",
-                            origem,
-                          });
+                      <TableCell className="text-right font-medium text-green-600">
+                        {formatBRL(isAluguel ? aluguelBruto : r.valor)}
+                      </TableCell>
 
-                          setOpenForm(true);
-                        }}
-                      >
-                        <Edit size={16} />
-                      </Button>
+                      <TableCell>{formatDateBR(r.data_vencimento)}</TableCell>
 
-                      <Button size="icon" variant="ghost" onClick={() => setToDelete(r)}>
-                        <Trash2 size={16} className="text-red-500" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+                      <TableCell>{badgeOrigem(origem)}</TableCell>
+
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium">
+                            {r.descricao || labelTipo(r.tipo) || "-"}
+                          </span>
+                          {isAluguel && row.itens?.length > 0 ? (
+                            <span className="text-xs text-muted-foreground">
+                              {row.itens.length} item(ns) acoplado(s)
+                            </span>
+                          ) : null}
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          {podeReceber && (
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                marcarComoPago(r);
+                              }}
+                            >
+                              <CheckCircle size={16} className="mr-1" />
+                              Confirmar
+                            </Button>
+                          )}
+
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            disabled={automatica}
+                            onClick={(e) => {
+                              e.stopPropagation();
+
+                              setEditingId(r.id);
+                              setIsAutomatica(automatica);
+
+                              setForm({
+                                tipo: r.tipo,
+                                valor: formatBRL(r.valor),
+                                data_vencimento: r.data_vencimento,
+                                descricao: r.descricao || "",
+                                origem,
+                              });
+
+                              setOpenForm(true);
+                            }}
+                          >
+                            <Edit size={16} />
+                          </Button>
+
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setToDelete(r);
+                            }}
+                          >
+                            <Trash2 size={16} className="text-red-500" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+
+                    {/* Expandido: itens do aluguel */}
+                    {isAluguel && expandido[row.id] && (
+                      <TableRow className="bg-muted/30">
+                        <TableCell colSpan={10} className="p-0">
+                          <div className="p-3 space-y-3">
+                            {/* ✅ Resumo do aluguel */}
+                            <div className="border border-border rounded-lg p-3 bg-background">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="font-medium">Aluguel base</span>
+                                <span className="font-semibold text-green-600">
+                                  {formatBRL(row.base?.valor || 0)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* ✅ Lista de itens acoplados */}
+                            {(row.itens || []).length > 0 ? (
+                              <div className="space-y-2">
+                                {row.itens.map((it) => (
+                                  <div
+                                    key={it.id}
+                                    className="flex items-center justify-between text-xs border border-border rounded-lg p-2 bg-background"
+                                  >
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">{labelTipo(it.tipo) || it.tipo}</span>
+                                      <span className="text-muted-foreground">
+                                        {it.descricao || "-"} • Venc: {formatDateBR(it.data_vencimento)}
+                                      </span>
+                                    </div>
+
+                                    <div className="text-right">
+                                      <div
+                                        className={`font-semibold ${
+                                          it.natureza === "saida" ? "text-red-600" : "text-green-600"
+                                        }`}
+                                      >
+                                        {it.natureza === "saida" ? "- " : "+ "}
+                                        {formatBRL(it.valor)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-muted-foreground text-center py-2">
+                                Nenhum item acoplado.
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
                 );
               })
             )}
@@ -466,7 +710,7 @@ export default function ReceitasPanel() {
           setOpenForm(false);
           resetForm();
         }}
-        title={editingId ? "Editar Receita" : "Nova Receita"}
+        title={editingId ? "Editar Receita" : "Nova Receita Manual"}
         footer={
           <div className="flex gap-2 w-full">
             <Button
@@ -494,32 +738,17 @@ export default function ReceitasPanel() {
               value={form.tipo}
               onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value }))}
             >
-              <option value="">Selecione</option>
-
-              {/* ✅ TIPOS DO FINANCEIRO (ENUM ATUAL) */}
-              <option value="receita_aluguel">Receita Aluguel</option>
-              <option value="taxa_adm_imobiliaria">Taxa de Administração Imobiliária</option>
-              <option value="multa">Multa</option>
-              <option value="juros">Juros</option>
-              <option value="correcao_monetaria">Correção Monetária</option>
-              <option value="taxa_contrato">Taxa de Contrato</option>
-            </Select>
-          </div>
-
-          <div>
-            <Label>Imóvel</Label>
-            <Select
-              disabled={isAutomatica}
-              value={form.imovel_id}
-              onChange={(e) => setForm((f) => ({ ...f, imovel_id: e.target.value }))}
-            >
-              <option value="">Selecione</option>
-              {imoveis.map((i) => (
-                <option key={i.id} value={i.id}>
-                  {i.codigo_ref} - {i.titulo}
+              {TIPOS_RECEITA_MANUAL.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
                 </option>
               ))}
             </Select>
+
+            <p className="text-xs text-muted-foreground mt-1">
+              Essa receita é manual e pode ser usada para serviços avulsos (vistoria,
+              taxa extra, etc).
+            </p>
           </div>
 
           <div>
@@ -555,6 +784,7 @@ export default function ReceitasPanel() {
             <Input
               value={form.descricao}
               onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
+              placeholder="Ex: Vistoria, Taxa de renovação, Serviço extra..."
             />
           </div>
         </div>

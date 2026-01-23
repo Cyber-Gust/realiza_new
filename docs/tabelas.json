@@ -387,6 +387,7 @@
     { "name": "contrato_id", "type": "uuid", "nullable": true, "constraint": "FOREIGN KEY", "foreign_table": "contratos", "foreign_column": "id" },
     { "name": "imovel_id", "type": "uuid", "nullable": true, "constraint": "FOREIGN KEY", "foreign_table": "imoveis", "foreign_column": "id" },
     { "name": "profile_id", "type": "uuid", "nullable": true, "constraint": "FOREIGN KEY", "foreign_table": "profiles", "foreign_column": "id" },
+    { "name": "aluguel_base_id", "type": "uuid", "nullable": true, "constraint": "FOREIGN KEY", "foreign_table": "transacoes", "foreign_column": "id" },
     { "name": "tipo", "type": "transacao_tipo", "nullable": false },
     { "name": "natureza", "type": "transacao_natureza", "nullable": false },
     { "name": "modulo_financeiro", "type": "modulo_financeiro_enum" , "nullable": false },

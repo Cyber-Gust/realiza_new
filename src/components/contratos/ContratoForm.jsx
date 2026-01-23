@@ -6,6 +6,7 @@ import { Label, Input, Select, Textarea } from "@/components/admin/ui/Form";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import SearchableSelect from "../admin/ui/SearchableSelect";
+import { Card } from "@/components/admin/ui/Card"
 
 export default function ContratoForm({ contrato, onClose, onSaved }) {
   const toast = useToast();
@@ -356,7 +357,7 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
 
             {/* CAMPOS ESPECÍFICOS SE FOR FIADOR */}
             {form.tipo_garantia === "Fiador" && (
-                <div className="bg-gray-50 p-4 rounded-md border border-gray-200 mt-2">
+                <Card className="p-4">
                     <h5 className="text-xs font-bold uppercase text-gray-500 mb-3">Dados do Fiador</h5>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <Field label="Nome do Fiador">
@@ -381,7 +382,7 @@ export default function ContratoForm({ contrato, onClose, onSaved }) {
                             />
                         </Field>
                     </div>
-                </div>
+                </Card>
             )}
         </>
       )}

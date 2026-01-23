@@ -117,6 +117,7 @@ async function gerarRepasseProprietario(supabase) {
       valor: valorRepasse,
       contrato_id: r.contrato_id,
       imovel_id: r.imovel_id,
+      aluguel_base_id: null,
       data_vencimento: r.data_pagamento,
       descricao: "Repasse ao proprietário",
       dados_cobranca_json: {
@@ -238,6 +239,7 @@ export async function GET(req) {
       .from("transacoes")
       .select(`
         id,
+        aluguel_base_id,
         tipo,
         status,
         valor,
@@ -251,6 +253,7 @@ export async function GET(req) {
         imovel:imoveis(titulo, codigo_ref),
         contrato:contratos(
           id,
+          codigo,
           proprietario:proprietario_id(nome),
           inquilino:inquilino_id(nome)
         )
@@ -311,6 +314,7 @@ export async function POST(req) {
       descricao: body.descricao || "",
       contrato_id: body.contrato_id || null,
       imovel_id: body.imovel_id || null,
+      aluguel_base_id: body.aluguel_base_id || null,
       profile_id:
         body.tipo === "comissao_corretor" ? body.profile_id || null : null,
       dados_cobranca_json: {

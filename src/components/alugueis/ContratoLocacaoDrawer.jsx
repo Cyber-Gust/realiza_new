@@ -10,6 +10,8 @@ import Modal from "@/components/admin/ui/Modal";
 import { useToast } from "@/contexts/ToastContext";
 import ContratoForm from "@/components/contratos/ContratoForm";
 import ContratoAlugueisModal from "./extras/ContratoAlugueisModal";
+import ModalLancamento from "@/components/alugueis/ModalLancamento";
+
 
 
 import {
@@ -91,6 +93,7 @@ export default function ContratoLocacaoDrawer({ contratoId, onClose }) {
   const [openAlugueisModal, setOpenAlugueisModal] = useState(false);
   const [contratoEdit, setContratoEdit] = useState(null);
   const [loadingEdit, setLoadingEdit] = useState(false);
+  const [openLancamentoModal, setOpenLancamentoModal] = useState(false);
 
   /* ===========================================
       LOAD DETALHES DO DRAWER (API /api/alugueis)
@@ -368,7 +371,7 @@ export default function ContratoLocacaoDrawer({ contratoId, onClose }) {
                   <Button
                     variant="secondary"
                     className="gap-2"
-                    onClick={() => handleAction("lancamento_manual")}
+                    onClick={() => setOpenLancamentoModal(true)}
                   >
                     <FilePlus2 size={14} />
                     Lançamento
@@ -437,6 +440,24 @@ export default function ContratoLocacaoDrawer({ contratoId, onClose }) {
                 contratoId={contratoId}
                 
               />
+              <ModalLancamento
+                open={openLancamentoModal}
+                onClose={() => setOpenLancamentoModal(false)}
+                contrato={{
+                  id: contrato?.id,
+                  codigo: contrato?.codigo,
+                  imovel_id: contrato?.imovel_id,
+                }}
+                locador={{
+                  id: contrato?.proprietario_id,
+                  nome: contrato?.proprietario?.nome,
+                }}
+                onSaved={async () => {
+                  // se você quiser, pode atualizar dados do drawer depois do lançamento
+                  await fetchContrato();
+                }}
+              />
+
             </>
           )}
         </div>
