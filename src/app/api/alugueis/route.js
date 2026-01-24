@@ -49,11 +49,21 @@ export async function GET(req) {
       if (!contratosIds.length) {
         return NextResponse.json({ data: [] });
       }
+      const now = new Date();
+
+      const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+      const startISO = startMonth.toISOString().split("T")[0];
+      const endISO = endMonth.toISOString().split("T")[0];
 
       const { data: transacoes, error: transError } = await supabase
-        .from("transacoes")
-        .select("contrato_id, status")
-        .in("contrato_id", contratosIds);
+      .from("transacoes")
+      .select("contrato_id, status, data_vencimento")
+      .in("contrato_id", contratosIds)
+      .eq("modulo_financeiro", "ALUGUEL")
+      .gte("data_vencimento", startISO)
+      .lt("data_vencimento", endISO);
 
       if (transError) throw transError;
 
@@ -65,6 +75,11 @@ export async function GET(req) {
 
       const enriched = (contratos || []).map((c) => {
         const statuses = financeiroMap[c.id] || [];
+
+        if (statuses.length === 0) {
+          return { ...c, status_financeiro: "pendente" };
+        }
+
         const status_financeiro =
           statuses.includes("atrasado")
             ? "atrasado"
@@ -83,32 +98,62 @@ export async function GET(req) {
        view=inadimplencia
     =========================================================== */
     if (view === "inadimplencia") {
-      const { data, error } = await supabase
-        .from("transacoes")
-        .select(`
+    const now = new Date();
+
+    const hojeISO = now.toISOString().split("T")[0];
+
+    // início do mês atual
+    const startMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+    const startISO = startMonth.toISOString().split("T")[0];
+    const endISO = endMonth.toISOString().split("T")[0];
+
+    // 1) atrasados (qualquer vencimento <= hoje)
+    const { data: atrasados, error: errAtrasados } = await supabase
+      .from("transacoes")
+      .select(`
+        id,
+        valor,
+        status,
+        data_vencimento,
+        contratos (
           id,
-          valor,
-          status,
-          data_vencimento,
-          contratos (
-            id,
-            imoveis (
-              titulo
-            ),
-            inquilino:personas!contratos_inquilino_fk (
-              nome,
-              telefone
-            )
-          )
-        `)
-        .in("status", ["pendente", "atrasado"])
-        .order("data_vencimento", { ascending: true })
-        .order("valor", { ascending: false });
+          imoveis ( codigo_ref ),
+          inquilino:personas!contratos_inquilino_fk ( nome, telefone )
+        )
+      `)
+      .eq("status", "atrasado")
+      .lte("data_vencimento", hojeISO);
 
-      if (error) throw error;
+    if (errAtrasados) throw errAtrasados;
 
-      return NextResponse.json({ data });
-    }
+    // 2) pendentes SOMENTE do mês atual
+    const { data: pendentesMes, error: errPendentes } = await supabase
+      .from("transacoes")
+      .select(`
+        id,
+        valor,
+        status,
+        data_vencimento,
+        contratos (
+          id,
+          imoveis ( codigo_ref ),
+          inquilino:personas!contratos_inquilino_fk ( nome, telefone )
+        )
+      `)
+      .eq("status", "pendente")
+      .gte("data_vencimento", startISO)
+      .lt("data_vencimento", endISO);
+
+    if (errPendentes) throw errPendentes;
+
+    const data = [...(atrasados || []), ...(pendentesMes || [])].sort(
+      (a, b) => new Date(a.data_vencimento) - new Date(b.data_vencimento)
+    );
+
+    return NextResponse.json({ data });
+  }
 
     /* ===========================================================
        📌 3. ALERTAS
@@ -361,8 +406,8 @@ export async function GET(req) {
     }
 
     /* ===========================================================
-       ✅ 7. TIMELINE LOCADOR
-       view=timeline_locador&contrato_id=...
+      ✅ 7. TIMELINE LOCADOR
+      view=timeline_locador&contrato_id=...
     =========================================================== */
     if (view === "timeline_locador") {
       if (!contratoId) {
@@ -375,11 +420,13 @@ export async function GET(req) {
       // contrato (pegar taxa adm)
       const { data: contrato, error: contratoError } = await supabase
         .from("contratos")
-        .select(`
-          id,
-          codigo,
-          taxa_administracao_percent
-        `)
+        .select(
+          `
+            id,
+            codigo,
+            taxa_administracao_percent
+          `
+        )
         .eq("id", contratoId)
         .single();
 
@@ -390,68 +437,60 @@ export async function GET(req) {
       // transacoes do contrato
       const { data: transacoes, error: transacoesError } = await supabase
         .from("transacoes")
-        .select(`
-          id,
-          contrato_id,
-          tipo,
-          natureza,
-          status,
-          descricao,
-          valor,
-          data_vencimento,
-          data_pagamento
-        `)
+        .select(
+          `
+            id,
+            contrato_id,
+            tipo,
+            natureza,
+            status,
+            descricao,
+            valor,
+            data_vencimento,
+            data_pagamento,
+            dados_cobranca_json,
+            aluguel_base_id
+          `
+        )
         .eq("contrato_id", contratoId)
         .eq("modulo_financeiro", "ALUGUEL")
         .order("data_vencimento", { ascending: true });
 
       if (transacoesError) throw transacoesError;
 
-      const CREDITOS = ["receita_aluguel", "multa", "juros", "taxa_contrato"];
-      const DEBITOS = ["repasse_proprietario", "taxa_adm_imobiliaria"];
-
+      /**
+       * ✅ REGRA DA TIMELINE (extrato de conta corrente):
+       * - natureza === "entrada" => crédito
+       * - natureza === "saida" => débito
+       * - qualquer outro valor => neutro (não entra no extrato)
+       */
       const timeline = (transacoes || []).map((t) => {
-        const isCredito = CREDITOS.includes(t.tipo);
-        const isDebito = DEBITOS.includes(t.tipo);
+        const movimento =
+          t.natureza === "entrada"
+            ? "credito"
+            : t.natureza === "saida"
+            ? "debito"
+            : "neutro";
 
         return {
           ...t,
-          movimento: isCredito ? "credito" : isDebito ? "debito" : "neutro",
+          movimento,
+          valor: Number(t.valor || 0),
         };
       });
 
-      // taxa ADM automática em cima do aluguel
-      const taxasAuto = [];
+      
 
-      for (const t of transacoes || []) {
-        if (t.tipo !== "receita_aluguel") continue;
-
-        const valorAluguel = Number(t.valor || 0);
-        const valorTaxa = (valorAluguel * taxaAdmPercent) / 100;
-
-        if (valorTaxa <= 0) continue;
-
-        taxasAuto.push({
-          id: `taxa-auto-${t.id}`,
-          contrato_id: contratoId,
-          tipo: "taxa_adm_imobiliaria",
-          natureza: t.natureza, // segura pra não estourar enum
-          status: t.status,
-          descricao: `Taxa Administração (${taxaAdmPercent}%)`,
-          valor: valorTaxa,
-          data_vencimento: t.data_vencimento,
-          data_pagamento: t.data_pagamento,
-          movimento: "debito",
-          automatico: true,
+      const timelineFinal = [...timeline]
+        // ✅ só deixa o que é extrato real
+        .filter((t) => t.movimento === "credito" || t.movimento === "debito")
+        // ✅ ordena por vencimento (o front ainda ordena por pagamento se quiser)
+        .sort((a, b) => {
+          return (
+            new Date(a.data_vencimento).getTime() -
+            new Date(b.data_vencimento).getTime()
+          );
         });
-      }
-
-      const timelineFinal = [...timeline, ...taxasAuto].sort((a, b) => {
-        return (
-          new Date(a.data_vencimento).getTime() -
-          new Date(b.data_vencimento).getTime()
-        );
-      });
 
       return NextResponse.json({
         data: timelineFinal,

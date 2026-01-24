@@ -57,10 +57,6 @@ export default function AlugueisPage() {
                 Mais opções...
               </option>
               <option value="renovacao">Receitas Locação</option>
-              <option value="rescisao">Rescisão</option>
-              <option value="reajustes">Reajustes</option>
-              <option value="garantias">Garantias</option>
-              <option value="vistorias">Vistorias</option>
             </Select>
           </div>
         </TabsList>

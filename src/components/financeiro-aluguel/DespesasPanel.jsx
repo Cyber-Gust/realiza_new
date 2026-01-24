@@ -359,15 +359,11 @@ export default function DespesasPanel() {
           <TableHeader>
             <TableRow>
               <TableHead>Tipo</TableHead>
-              <TableHead>ID Imóvel</TableHead>
-              <TableHead>ID Contrato</TableHead>
-              <TableHead>Locador</TableHead>
-              <TableHead>Locatário</TableHead>
+              <TableHead>Descrição</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="text-right">Valor</TableHead>
               <TableHead>Vencimento</TableHead>
               <TableHead>Origem</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Descrição</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -375,13 +371,13 @@ export default function DespesasPanel() {
           <tbody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   Carregando despesas...
                 </TableCell>
               </TableRow>
             ) : dadosFiltrados.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
                   Nenhuma despesa encontrada com os filtros atuais.
                 </TableCell>
               </TableRow>
@@ -400,17 +396,34 @@ export default function DespesasPanel() {
                   <TableRow key={d.id}>
                     <TableCell>{badgeTipo(d.tipo)}</TableCell>
 
-                    <TableCell className="text-xs text-muted-foreground">
-                      {d.imovel?.codigo_ref || "—"}
+                    <TableCell>
+                      <div className="flex flex-col leading-tight">
+                        {d?.contrato?.codigo || d?.imovel?.codigo_ref ? (
+                          <>
+                            <span className="text-sm font-semibold">
+                              Contrato: {d?.contrato?.codigo || "—"} | Imóvel: {d?.imovel?.codigo_ref || "—"}
+                            </span>
+
+                            <span className="text-xs text-muted-foreground">
+                              Locador: {locador}
+                            </span>
+
+                            <span className="text-xs text-muted-foreground">
+                              Locatário: {locatario}
+                            </span>
+
+                            <span className="text-xs mt-1">
+                              <span className="font-medium">Descrição:</span>{" "}
+                              {d.descricao || labelTipo(d.tipo) || "-"}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-sm font-medium">
+                            {d.descricao || labelTipo(d.tipo) || "Despesa"}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
-
-                    <TableCell className="text-xs text-muted-foreground">
-                      {d.contrato?.codigo || "—"}
-                    </TableCell>
-
-                    <TableCell className="text-sm">{locador}</TableCell>
-
-                    <TableCell className="text-sm">{locatario}</TableCell>
 
                     <TableCell className="text-right font-medium text-red-600">
                       {formatBRL(d.valor)}
@@ -422,19 +435,6 @@ export default function DespesasPanel() {
 
                     <TableCell>
                       <Badge status={d.status}>{labelStatus(d.status)}</Badge>
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium">
-                          {d.descricao || labelTipo(d.tipo) || "-"}
-                        </span>
-                        {d.imovel?.codigo_ref ? (
-                          <span className="text-xs text-muted-foreground">
-                            {d.imovel.codigo_ref}
-                          </span>
-                        ) : null}
-                      </div>
                     </TableCell>
 
                     <TableCell className="text-right">

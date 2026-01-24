@@ -268,7 +268,7 @@ function ContratoCard({ data, onOpen }) {
     },
   };
 
-  const currentStatus = statusConfig[status_financeiro] || statusConfig.regular;
+  const currentStatus = statusConfig[status_financeiro] || statusConfig.pendente;
 
   return (
     <Card

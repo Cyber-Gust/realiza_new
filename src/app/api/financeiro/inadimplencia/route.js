@@ -37,7 +37,7 @@ async function atualizarAtrasos(supabase) {
 }
 
 /* ======================================================
-   GET — INADIMPLÊNCIA (RECEITAS EM ATRASO)
+   GET — INADIMPLÊNCIA (AGRUPADA POR ALUGUEL)
 ====================================================== */
 export async function GET(req) {
   const supabase = createServiceClient();
@@ -48,7 +48,19 @@ export async function GET(req) {
     // 🔒 consistência antes da leitura
     await atualizarAtrasos(supabase);
 
-    const { data, error } = await supabase
+    /**
+     * ✅ REGRA DO SISTEMA:
+     * inadimplência no módulo ALUGUEL deve considerar o valor REAL do aluguel do mês:
+     * (aluguel base + entradas acopladas - saídas acopladas)
+     *
+     * Então:
+     * - buscamos os aluguéis base atrasados
+     * - buscamos os itens vinculados ao aluguel_base_id
+     * - calculamos o valor final
+     */
+
+    // ✅ 1) pega apenas os aluguéis base atrasados (receita_aluguel pai)
+    const { data: bases, error: baseError } = await supabase
       .from("transacoes")
       .select(`
         id,
@@ -58,6 +70,8 @@ export async function GET(req) {
         descricao,
         natureza,
         modulo_financeiro,
+        contrato_id,
+        imovel_id,
 
         imovel:imoveis(
           id,
@@ -67,6 +81,7 @@ export async function GET(req) {
 
         contrato:contratos(
           id,
+          codigo,
           proprietario:proprietario_id(
             id,
             nome,
@@ -79,17 +94,82 @@ export async function GET(req) {
           )
         )
       `)
+      .eq("tipo", "receita_aluguel")
       .eq("natureza", "entrada")
       .eq("status", "atrasado")
       .eq("modulo_financeiro", modulo)
       .order("data_vencimento", { ascending: true });
 
-    if (error) throw error;
+    if (baseError) throw baseError;
+
+    if (!bases?.length) {
+      return NextResponse.json({
+        data: [],
+        meta: {
+          total: 0,
+          modulo,
+        },
+      });
+    }
+
+    const baseIds = bases.map((b) => b.id);
+
+    // ✅ 2) buscar itens filhos vinculados aos aluguéis base
+    const { data: itens, error: itensError } = await supabase
+      .from("transacoes")
+      .select(`
+        id,
+        aluguel_base_id,
+        tipo,
+        natureza,
+        status,
+        valor,
+        descricao,
+        data_vencimento
+      `)
+      .in("aluguel_base_id", baseIds)
+      .neq("status", "cancelado");
+
+    if (itensError) throw itensError;
+
+    // ✅ 3) mapear itens por aluguel_base_id
+    const itensMap = new Map();
+    for (const it of itens || []) {
+      if (!it.aluguel_base_id) continue;
+      if (!itensMap.has(it.aluguel_base_id)) itensMap.set(it.aluguel_base_id, []);
+      itensMap.get(it.aluguel_base_id).push(it);
+    }
+
+    // ✅ 4) monta retorno final com valor real calculado
+    const inadimplentes = (bases || []).map((b) => {
+      const filhos = itensMap.get(b.id) || [];
+
+      const entradasFilhos = filhos
+        .filter((x) => x.natureza === "entrada")
+        .reduce((sum, x) => sum + Number(x.valor || 0), 0);
+
+      const saidasFilhos = filhos
+        .filter((x) => x.natureza === "saida")
+        .reduce((sum, x) => sum + Number(x.valor || 0), 0);
+
+      const valorTotalGrupo =
+        Number(b.valor || 0) + Number(entradasFilhos) - Number(saidasFilhos);
+
+      return {
+        ...b,
+
+        // ✅ esse é o valor que você quer mostrar na Inadimplência
+        valor_calculado: Number(valorTotalGrupo.toFixed(2)),
+
+        // ✅ se quiser o front montar detalhado
+        itens: filhos,
+      };
+    });
 
     return NextResponse.json({
-      data: data || [],
+      data: inadimplentes,
       meta: {
-        total: data?.length || 0,
+        total: inadimplentes.length,
         modulo,
       },
     });

@@ -19,6 +19,8 @@ import { Skeleton } from "@/components/admin/ui/Skeleton";
 import { useToast } from "@/contexts/ToastContext";
 import { cn } from "@/lib/utils";
 
+import { formatDateBR } from "@/utils/currency"
+
 function formatMoneyBRL(value) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -34,10 +36,6 @@ function formatMoneyCompactBRL(value) {
   }).format(Number(value || 0));
 }
 
-function formatDateBR(date) {
-  if (!date) return "—";
-  return new Date(date).toLocaleDateString("pt-BR");
-}
 
 /**
  * ✅ REGRA CENTRAL DA TIMELINE

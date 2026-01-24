@@ -11,7 +11,9 @@ import { useToast } from "@/contexts/ToastContext";
 import ContratoForm from "@/components/contratos/ContratoForm";
 import ContratoAlugueisModal from "./extras/ContratoAlugueisModal";
 import ModalLancamento from "@/components/alugueis/ModalLancamento";
-
+import ContratoReajustesModal from "./extras/ContratoReajustesModal"
+import { formatBRL, formatDateBR, formatPhoneBR, formatDocument } from "@/utils/currency"
+ 
 
 
 import {
@@ -31,54 +33,6 @@ import {
 
 import { cn } from "@/lib/utils";
 
-function formatBRL(v) {
-  if (v === null || v === undefined) return "—";
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(Number(v));
-}
-
-function formatDateBR(dt) {
-  if (!dt) return "—";
-  return new Date(dt).toLocaleDateString("pt-BR");
-}
-
-function formatPhoneBR(phone) {
-  if (!phone) return "—";
-  const digits = String(phone).replace(/\D/g, "");
-
-  if (digits.length === 11) {
-    return digits.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3");
-  }
-
-  if (digits.length === 10) {
-    return digits.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3");
-  }
-
-  return phone;
-}
-
-function formatDocumentBR(doc) {
-  if (!doc) return "—";
-  const digits = String(doc).replace(/\D/g, "");
-
-  // CPF
-  if (digits.length === 11) {
-    return digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
-  }
-
-  // CNPJ
-  if (digits.length === 14) {
-    return digits.replace(
-      /^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,
-      "$1.$2.$3/$4-$5"
-    );
-  }
-
-  return doc;
-}
-
 export default function ContratoLocacaoDrawer({ contratoId, onClose }) {
   const { error: toastError, success: toastSuccess } = useToast();
 
@@ -94,6 +48,7 @@ export default function ContratoLocacaoDrawer({ contratoId, onClose }) {
   const [contratoEdit, setContratoEdit] = useState(null);
   const [loadingEdit, setLoadingEdit] = useState(false);
   const [openLancamentoModal, setOpenLancamentoModal] = useState(false);
+  const [openReajusteModal, setOpenReajusteModal] = useState(false);
 
   /* ===========================================
       LOAD DETALHES DO DRAWER (API /api/alugueis)
@@ -342,7 +297,7 @@ export default function ContratoLocacaoDrawer({ contratoId, onClose }) {
 
                     <Field
                       label="Documento"
-                      value={formatDocumentBR(contrato.dados_garantia?.documento)}
+                      value={formatDocument(contrato.dados_garantia?.documento)}
                     />
 
                     <Field
@@ -378,26 +333,8 @@ export default function ContratoLocacaoDrawer({ contratoId, onClose }) {
                   </Button>
 
                   <Button
-                    variant="secondary"
-                    className="gap-2"
-                    onClick={() => handleAction("acrescimo")}
-                  >
-                    <Plus size={14} />
-                    Acréscimo
-                  </Button>
-
-                  <Button
-                    variant="secondary"
-                    className="gap-2"
-                    onClick={() => handleAction("decrescimo")}
-                  >
-                    <Minus size={14} />
-                    Decréscimo
-                  </Button>
-
-                  <Button
                     className={cn("gap-2 col-span-2")}
-                    onClick={() => handleAction("reajuste")}
+                    onClick={() => setOpenReajusteModal(true)}
                   >
                     <TrendingUp size={14} />
                     Reajuste
@@ -455,6 +392,15 @@ export default function ContratoLocacaoDrawer({ contratoId, onClose }) {
                 onSaved={async () => {
                   // se você quiser, pode atualizar dados do drawer depois do lançamento
                   await fetchContrato();
+                }}
+              />
+              <ContratoReajustesModal
+                isOpen={openReajusteModal}
+                onClose={() => setOpenReajusteModal(false)}
+                contratoId={contratoId}
+                valorAtualContrato={contrato?.valor_acordado} // ✅ sempre do contrato atual
+                onSaved={async () => {
+                  await fetchContrato(); // ✅ atualiza valor exibido no drawer
                 }}
               />
 

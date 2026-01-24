@@ -22,12 +22,14 @@ function resolverModulo(url) {
   return modulo;
 }
 
-async function atualizarAtrasos(supabase) {
+async function atualizarAtrasos(supabase, modulo) {
   const hoje = new Date().toISOString().split("T")[0];
 
   await supabase
     .from("transacoes")
     .update({ status: "atrasado" })
+    .eq("modulo_financeiro", modulo)
+    .eq("natureza", "entrada")
     .eq("status", "pendente")
     .lt("data_vencimento", hoje);
 }
@@ -45,15 +47,8 @@ function classificarFluxo(transacoes) {
 }
 
 function calcularResumo(receitas, despesas) {
-  const totalReceitas = receitas.reduce(
-    (sum, r) => sum + Number(r.valor || 0),
-    0
-  );
-
-  const totalDespesas = despesas.reduce(
-    (sum, d) => sum + Number(d.valor || 0),
-    0
-  );
+  const totalReceitas = receitas.reduce((sum, r) => sum + Number(r.valor || 0), 0);
+  const totalDespesas = despesas.reduce((sum, d) => sum + Number(d.valor || 0), 0);
 
   const saldo = totalReceitas - totalDespesas;
 
@@ -66,7 +61,7 @@ function calcularResumo(receitas, despesas) {
 }
 
 /* ======================================================
-   GET — DASHBOARD FINANCEIRO
+   GET — DASHBOARD FINANCEIRO (COMUM / ALUGUEL)
 ====================================================== */
 
 export async function GET(req) {
@@ -74,18 +69,18 @@ export async function GET(req) {
 
   try {
     const { searchParams } = new URL(req.url);
-    const type = searchParams.get("type") || "fluxo";
 
+    const type = searchParams.get("type") || "fluxo";
     const modulo = resolverModulo(req.url);
 
-    // 🔄 mantém consistência contábil
-    await atualizarAtrasos(supabase);
+    // ✅ consistência antes da leitura
+    await atualizarAtrasos(supabase, modulo);
 
-    /* ======================================================
-       BASE — TRANSAÇÕES VÁLIDAS (JÁ SEPARADAS POR MÓDULO)
-    ====================================================== */
     const hoje = new Date().toISOString().split("T")[0];
 
+    /* ======================================================
+       BASE — TRANSAÇÕES DO MÓDULO
+    ====================================================== */
     const { data: transacoes, error } = await supabase
       .from("transacoes")
       .select(`
@@ -116,21 +111,25 @@ export async function GET(req) {
       `)
       .eq("modulo_financeiro", modulo)
       .neq("status", "cancelado")
-      .lte("data_vencimento", hoje);
+      .lte("data_vencimento", hoje)
+      .order("data_vencimento", { ascending: true });
 
     if (error) throw error;
 
+    const lista = transacoes || [];
+
     /* ======================================================
-       ENRIQUECIMENTO: LOCADOR / LOCATÁRIO (PERSONAS)
-       (pra repasse vir com nome bonitinho igual no aluguel)
+       ENRIQUECIMENTO: LOCADOR / LOCATÁRIO
     ====================================================== */
     const idsPessoa = new Set();
 
-    (transacoes || []).forEach((t) => {
+    for (const t of lista) {
       const c = t?.contratos;
+      if (!c) continue;
+
       if (c?.proprietario_id) idsPessoa.add(c.proprietario_id);
       if (c?.inquilino_id) idsPessoa.add(c.inquilino_id);
-    });
+    }
 
     const ids = Array.from(idsPessoa);
 
@@ -149,8 +148,7 @@ export async function GET(req) {
       }, {});
     }
 
-    // ✅ devolve um objeto "contrato" pronto pro front usar
-    const transacoesFormatadas = (transacoes || []).map((t) => {
+    const transacoesFormatadas = lista.map((t) => {
       const c = t?.contratos;
 
       const locadorNome = c?.proprietario_id
@@ -165,8 +163,6 @@ export async function GET(req) {
 
       return {
         ...t,
-
-        // 👇 isso aqui é o que seu front vai consumir
         contrato: {
           id: c?.id || null,
           codigo: c?.codigo || "",
@@ -178,17 +174,22 @@ export async function GET(req) {
     });
 
     /* ======================================================
-       FLUXO DE CAIXA (PAINEL ATUAL)
+       ✅ FLUXO DE CAIXA
+       🚫 REMOVE taxa_adm_imobiliaria
     ====================================================== */
     if (type === "fluxo") {
-      const { receitas, despesas } = classificarFluxo(transacoesFormatadas);
+      const transacoesFluxo = (transacoesFormatadas || []).filter(
+        (t) => t.tipo !== "taxa_adm_imobiliaria"
+      );
+
+      const { receitas, despesas } = classificarFluxo(transacoesFluxo);
       const resumo = calcularResumo(receitas, despesas);
 
       return NextResponse.json({
-        data: transacoesFormatadas,
+        data: transacoesFluxo,
         meta: {
           ...resumo,
-          total_lancamentos: transacoesFormatadas.length,
+          total_lancamentos: transacoesFluxo.length,
           modulo,
         },
       });
@@ -201,7 +202,6 @@ export async function GET(req) {
       const { receitas, despesas } = classificarFluxo(transacoesFormatadas);
       const resumo = calcularResumo(receitas, despesas);
 
-      // 📌 inadimplência só de ENTRADAS (faz sentido real)
       const inadimplentes = transacoesFormatadas.filter(
         (t) =>
           t.natureza === "entrada" &&

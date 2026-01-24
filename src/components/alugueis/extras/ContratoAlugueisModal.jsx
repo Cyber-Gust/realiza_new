@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import React from "react"; // Necessário para React.Fragment
+import React from "react";
 
 import Modal from "@/components/admin/ui/Modal";
 import { Card } from "@/components/admin/ui/Card";
 import { Skeleton } from "@/components/admin/ui/Skeleton";
 import { useToast } from "@/contexts/ToastContext";
 
-// Importando seus componentes de tabela compartilhados
 import {
   Table,
   TableHeader,
@@ -27,43 +26,148 @@ import {
   AlertCircle,
 } from "lucide-react";
 
+import { formatBRL, formatDateBR } from "@/utils/currency"
+
 // ==========================================
 // HELPERS
 // ==========================================
-function formatBRL(v) {
-  if (v === null || v === undefined) return "—";
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(Number(v));
+
+
+function toCompetenciaFromISO(isoDate) {
+  if (!isoDate) return null;
+  const [y, m] = String(isoDate).split("-");
+  if (!y || !m) return null;
+  return `${y}-${m}`;
 }
 
-function formatDateBR(dt) {
-  if (!dt) return "—";
-  return new Date(dt).toLocaleDateString("pt-BR");
+function getCompetencia(t) {
+  if (!t) return null;
+
+  const raw = t?.dados_cobranca_json;
+
+  if (raw && typeof raw === "object" && raw.competencia) {
+    return raw.competencia;
+  }
+
+  if (raw && typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed?.competencia) return parsed.competencia;
+    } catch (e) {}
+  }
+
+  return toCompetenciaFromISO(t.data_vencimento);
 }
 
-function groupByVencimento(transacoes) {
+function groupByCompetencia(transacoes) {
   const map = new Map();
+
   for (const t of transacoes || []) {
-    const key = t.data_vencimento || "sem-data";
-    if (!map.has(key)) {
-      map.set(key, {
-        data_vencimento: t.data_vencimento,
+    const competencia = getCompetencia(t) || "sem-competencia";
+
+    if (!map.has(competencia)) {
+      map.set(competencia, {
+        competencia,
         transacoes: [],
       });
     }
-    map.get(key).transacoes.push(t);
+
+    map.get(competencia).transacoes.push(t);
   }
+
   return Array.from(map.values()).sort((a, b) => {
-    return (
-      new Date(a.data_vencimento).getTime() -
-      new Date(b.data_vencimento).getTime()
-    );
+    return String(a.competencia).localeCompare(String(b.competencia));
   });
 }
 
-const TIPOS_ALUGUEL = ["receita_aluguel", "multa", "juros", "taxa_contrato"];
+function isCompetenciaAteMesAtual(competenciaYYYYMM) {
+  if (!competenciaYYYYMM || competenciaYYYYMM === "sem-competencia") return false;
+
+  const now = new Date();
+  const compAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+    2,
+    "0"
+  )}`;
+
+  return competenciaYYYYMM <= compAtual;
+}
+
+function getMenorVencimentoDoGrupo(transacoes) {
+  const datas = (transacoes || [])
+    .map((t) => t.data_vencimento)
+    .filter(Boolean)
+    .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+  return datas.length ? datas[0] : null;
+}
+
+function getUltimaDataPagamento(transacoes) {
+  const datas = (transacoes || [])
+    .map((t) => t.data_pagamento)
+    .filter(Boolean)
+    .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+  return datas.length ? datas[datas.length - 1] : null;
+}
+
+/**
+ * ✅ Soma financeira correta:
+ * - entrada soma
+ * - saida subtrai
+ */
+function somarPorNatureza(itens) {
+  return (itens || []).reduce((acc, t) => {
+    const valor = Number(t.valor || 0);
+    const natureza = t.natureza;
+
+    if (natureza === "saida") return acc - valor;
+    return acc + valor;
+  }, 0);
+}
+
+/**
+ * ✅ Calcula valor "pago" também respeitando natureza
+ */
+function somarPagosPorNatureza(itens) {
+  return (itens || [])
+    .filter((t) => t.status === "pago")
+    .reduce((acc, t) => {
+      const valor = Number(t.valor || 0);
+      const natureza = t.natureza;
+
+      if (natureza === "saida") return acc - valor;
+      return acc + valor;
+    }, 0);
+}
+
+// ==========================================
+// TIPOS
+// ==========================================
+const TIPOS_ALUGUEL = [
+  "receita_aluguel",
+  "multa",
+  "juros",
+  "taxa_contrato",
+
+  "seguro_incendio",
+  "seguro_fianca",
+  "condominio",
+  "iptu",
+  "consumo_agua",
+  "consumo_luz",
+  "gas",
+  "fundo_reserva",
+  "taxa",
+  "boleto",
+  "outros",
+  "desconto_aluguel",
+
+  // ✅ aqui entra seu exemplo:
+  // manutenção por conta do locador (natureza = saida)
+  "manutencao",
+  "despesa_manutencao",
+];
+
 const TIPOS_REPASSE = ["repasse_proprietario", "taxa_adm_imobiliaria"];
 
 // ==========================================
@@ -102,61 +206,121 @@ export default function ContratoAlugueisModal({ isOpen, onClose, contratoId }) {
   }, [isOpen, contratoId, fetchTimeline]);
 
   const grupos = useMemo(() => {
-    const base = groupByVencimento(timeline);
-    return base.map((g) => {
+    const base = groupByCompetencia(timeline);
+
+    const filtrado = base.filter((g) => isCompetenciaAteMesAtual(g.competencia));
+
+    const filtradoSemLixo = filtrado.filter((g) => {
+      const aluguelItems = (g.transacoes || []).filter((t) =>
+        TIPOS_ALUGUEL.includes(t.tipo)
+      );
+      const repasseItems = (g.transacoes || []).filter((t) =>
+        TIPOS_REPASSE.includes(t.tipo)
+      );
+
+      const somaAluguel = somarPorNatureza(aluguelItems);
+      const somaRepasse = somarPorNatureza(repasseItems);
+
+      return somaAluguel !== 0 || somaRepasse !== 0;
+    });
+
+    return filtradoSemLixo.map((g) => {
+      const dataVencimentoGrupo = getMenorVencimentoDoGrupo(g.transacoes);
+
       const aluguelItems = g.transacoes.filter((t) =>
         TIPOS_ALUGUEL.includes(t.tipo)
       );
+
       const repasseItems = g.transacoes.filter((t) =>
         TIPOS_REPASSE.includes(t.tipo)
       );
 
-      // Cálculos (mantidos da sua lógica original)
-      const valorAluguelTotal = aluguelItems.reduce(
+      // =============================
+      // ✅ RESUMO ALUGUEL (COM NATUREZA)
+      // =============================
+      const valorAluguelTotal = somarPorNatureza(aluguelItems);
+
+      const dataPagamento = getUltimaDataPagamento(aluguelItems);
+
+      const valorPago = somarPagosPorNatureza(aluguelItems);
+
+      // =============================
+      // ✅ RESUMO REPASSE (AGORA MOSTRA O VALOR REPASSADO)
+      // =============================
+      const repasseProprietarioItems = repasseItems.filter(
+        (t) => t.tipo === "repasse_proprietario"
+      );
+
+      const taxaAdmItems = repasseItems.filter(
+        (t) => t.tipo === "taxa_adm_imobiliaria"
+      );
+
+      // valor que aparece na linha (topo): SOMENTE repasse ao proprietário
+      const valorRepassadoTopo = repasseProprietarioItems.reduce(
         (acc, t) => acc + Number(t.valor || 0),
         0
       );
-      const pagamentos = aluguelItems
-        .map((t) => t.data_pagamento)
-        .filter(Boolean);
-      const dataPagamento = pagamentos.length
-        ? pagamentos[pagamentos.length - 1]
-        : null;
-      const valorPago = aluguelItems
+
+      const valorRepassadoPagoTopo = repasseProprietarioItems
         .filter((t) => t.status === "pago")
         .reduce((acc, t) => acc + Number(t.valor || 0), 0);
 
-      const valorRepasseTotal = repasseItems.reduce(
+      const dataRepasse = getUltimaDataPagamento(repasseProprietarioItems);
+      const repassado = repasseProprietarioItems.some((t) => t.status === "pago");
+
+      /**
+       * ✅ Itens do detalhamento do repasse:
+       * Queremos explicar a conta:
+       * - "Aluguel base" positivo
+       * - "Taxa adm" negativo
+       *
+       * OBS: eu vou pegar o "receita_aluguel" pra explicar (principal)
+       */
+      const aluguelBaseItems = g.transacoes.filter(
+        (t) => t.tipo === "receita_aluguel"
+      );
+
+      // pega o primeiro aluguel base do mês (normalmente só tem 1)
+      const aluguelBaseValor = aluguelBaseItems.length
+        ? Number(aluguelBaseItems[0]?.valor || 0)
+        : 0;
+
+      const taxaAdmTotal = taxaAdmItems.reduce(
         (acc, t) => acc + Number(t.valor || 0),
         0
       );
-      const repasses = repasseItems
-        .map((t) => t.data_pagamento)
-        .filter(Boolean);
-      const dataRepasse = repasses.length
-        ? repasses[repasses.length - 1]
-        : null;
-      const repassado = repasseItems.some((t) => t.status === "pago");
 
       return {
-        key: g.data_vencimento,
+        key: g.competencia,
+        competencia: g.competencia,
+
         aluguelItems,
         repasseItems,
+
+        // extras para o detalhamento do repasse explicar a conta
+        repasseDetalhe: {
+          aluguelBaseValor,
+          taxaAdmTotal,
+        },
+
         resumo: {
           aluguel: {
-            data_vencimento: g.data_vencimento,
+            data_vencimento: dataVencimentoGrupo,
             valor: valorAluguelTotal,
             data_pagamento: dataPagamento,
-            valor_pago: valorPago > 0 ? valorPago : null,
+            valor_pago: valorPago !== 0 ? valorPago : null,
           },
           repasse: {
-            data_para_repasse: g.data_vencimento,
-            valor: valorRepasseTotal,
+            data_para_repasse: dataVencimentoGrupo,
+
+            // ✅ na linha de cima, não é mais "bruto"
+            valor: valorRepassadoTopo,
+
             data_repasse: dataRepasse,
             repassado,
-            valor_pago: repasseItems
-              .filter((t) => t.status === "pago")
-              .reduce((acc, t) => acc + Number(t.valor || 0), 0),
+
+            // ✅ pago = somente repasse pago
+            valor_pago: valorRepassadoPagoTopo,
           },
         },
       };
@@ -164,14 +328,11 @@ export default function ContratoAlugueisModal({ isOpen, onClose, contratoId }) {
   }, [timeline]);
 
   return (
-    /* Aumentei a largura máxima do modal (max-w-6xl ou max-w-7xl) 
-       para as tabelas ficarem confortáveis lado a lado 
-    */
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title="Aluguéis e Repasses"
-      className="max-w-7xl w-full" 
+      className="max-w-7xl w-full"
     >
       {loading ? (
         <div className="space-y-4 p-4">
@@ -186,23 +347,31 @@ export default function ContratoAlugueisModal({ isOpen, onClose, contratoId }) {
           <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/20 p-3 rounded-lg border border-border/40">
             <AlertCircle size={16} />
             <p>
-              Visualize abaixo a composição detalhada dos valores recebidos (Aluguel) e transferidos (Repasse). Clique nas linhas para expandir os detalhes.
+              Visualize abaixo a composição detalhada dos valores recebidos
+              (Aluguel) e transferidos (Repasse). Clique nas linhas para expandir
+              os detalhes.
             </p>
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
-            
             {/* =======================
                 TABELA ALUGUEL
                ======================= */}
             <Card className="flex flex-col overflow-hidden shadow-sm">
               <div className="p-4 border-b bg-muted/10 flex items-center gap-2">
                 <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-full">
-                    <DollarSign size={18} className="text-emerald-600 dark:text-emerald-400" />
+                  <DollarSign
+                    size={18}
+                    className="text-emerald-600 dark:text-emerald-400"
+                  />
                 </div>
                 <div>
-                    <h3 className="font-semibold text-foreground">Recebimento de Aluguel</h3>
-                    <p className="text-xs text-muted-foreground">O que o inquilino paga</p>
+                  <h3 className="font-semibold text-foreground">
+                    Recebimento de Aluguel
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    O que o inquilino paga
+                  </p>
                 </div>
               </div>
 
@@ -231,7 +400,11 @@ export default function ContratoAlugueisModal({ isOpen, onClose, contratoId }) {
                             data-state={open ? "selected" : ""}
                           >
                             <TableCell className="py-3">
-                              {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                              {open ? (
+                                <ChevronDown size={16} />
+                              ) : (
+                                <ChevronRight size={16} />
+                              )}
                             </TableCell>
                             <TableCell className="font-medium">
                               {formatDateBR(resumo.data_vencimento)}
@@ -255,28 +428,44 @@ export default function ContratoAlugueisModal({ isOpen, onClose, contratoId }) {
                                   <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                                     Detalhamento da Fatura
                                   </p>
+
                                   {g.aluguelItems.length === 0 ? (
                                     <span className="text-sm text-muted-foreground italic">
                                       Sem transações.
                                     </span>
                                   ) : (
                                     <div className="space-y-2">
-                                      {g.aluguelItems.map((t) => (
-                                        <div key={t.id} className="flex justify-between items-center text-sm border-b border-border/40 last:border-0 pb-2 last:pb-0">
-                                          <div className="flex items-center gap-2">
-                                            <ArrowUpCircle size={14} className="text-emerald-500" />
-                                            <span className="capitalize text-foreground/80">
-                                              {t.tipo.replaceAll("_", " ")}
-                                            </span>
-                                            <span className="text-xs px-2 py-0.5 rounded-full bg-background border text-muted-foreground">
-                                              {t.status}
+                                      {g.aluguelItems.map((t) => {
+                                        const isSaida = t.natureza === "saida";
+
+                                        return (
+                                          <div
+                                            key={t.id}
+                                            className="flex justify-between items-center text-sm border-b border-border/40 last:border-0 pb-2 last:pb-0"
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <ArrowUpCircle
+                                                size={14}
+                                                className="text-emerald-500"
+                                              />
+                                              <span className="capitalize text-foreground/80">
+                                                {t.descricao ||
+                                                  t.tipo.replaceAll("_", " ")}
+                                              </span>
+                                            </div>
+
+                                            <span
+                                              className={
+                                                "font-medium tabular-nums " +
+                                                (isSaida ? "text-red-600" : "text-emerald-600")
+                                              }
+                                            >
+                                              {isSaida ? "-" : ""}
+                                              {formatBRL(t.valor)}
                                             </span>
                                           </div>
-                                          <span className="font-medium tabular-nums">
-                                            {formatBRL(t.valor)}
-                                          </span>
-                                        </div>
-                                      ))}
+                                        );
+                                      })}
                                     </div>
                                   )}
                                 </div>
@@ -297,11 +486,18 @@ export default function ContratoAlugueisModal({ isOpen, onClose, contratoId }) {
             <Card className="flex flex-col overflow-hidden shadow-sm">
               <div className="p-4 border-b bg-muted/10 flex items-center gap-2">
                 <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full">
-                    <ArrowDownCircle size={18} className="text-blue-600 dark:text-blue-400" />
+                  <ArrowDownCircle
+                    size={18}
+                    className="text-blue-600 dark:text-blue-400"
+                  />
                 </div>
                 <div>
-                    <h3 className="font-semibold text-foreground">Repasse ao Proprietário</h3>
-                    <p className="text-xs text-muted-foreground">Líquido a receber</p>
+                  <h3 className="font-semibold text-foreground">
+                    Repasse ao Proprietário
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Líquido a receber
+                  </p>
                 </div>
               </div>
 
@@ -311,7 +507,11 @@ export default function ContratoAlugueisModal({ isOpen, onClose, contratoId }) {
                     <TableRow className="hover:bg-transparent">
                       <TableHead className="w-[40px]"></TableHead>
                       <TableHead>Previsão</TableHead>
+
+                      {/* ✅ Mantive o nome "Bruto" pra não mexer no design,
+                          mas agora o valor aqui é o REPASSE topo */}
                       <TableHead className="text-right">Bruto</TableHead>
+
                       <TableHead>Efetuado</TableHead>
                       <TableHead className="text-center">Status</TableHead>
                       <TableHead className="text-right">Pago</TableHead>
@@ -331,26 +531,38 @@ export default function ContratoAlugueisModal({ isOpen, onClose, contratoId }) {
                             data-state={open ? "selected" : ""}
                           >
                             <TableCell className="py-3">
-                              {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                              {open ? (
+                                <ChevronDown size={16} />
+                              ) : (
+                                <ChevronRight size={16} />
+                              )}
                             </TableCell>
+
                             <TableCell className="font-medium">
                               {formatDateBR(resumo.data_para_repasse)}
                             </TableCell>
+
+                            {/* ✅ AGORA É O VALOR REPASSADO NO TOPO */}
                             <TableCell className="text-right text-muted-foreground">
                               {formatBRL(resumo.valor)}
                             </TableCell>
+
                             <TableCell className="text-muted-foreground">
                               {formatDateBR(resumo.data_repasse)}
                             </TableCell>
+
                             <TableCell className="text-center">
                               {resumo.repassado ? (
                                 <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-xs">
                                   ✓
                                 </span>
                               ) : (
-                                <span className="text-muted-foreground/30 text-lg">•</span>
+                                <span className="text-muted-foreground/30 text-lg">
+                                  •
+                                </span>
                               )}
                             </TableCell>
+
                             <TableCell className="text-right font-semibold text-blue-600 dark:text-blue-400">
                               {formatBRL(resumo.valor_pago)}
                             </TableCell>
@@ -364,37 +576,87 @@ export default function ContratoAlugueisModal({ isOpen, onClose, contratoId }) {
                                   <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                                     Detalhamento do Repasse
                                   </p>
-                                  {g.repasseItems.length === 0 ? (
-                                    <span className="text-sm text-muted-foreground italic">
-                                      Sem transações.
-                                    </span>
-                                  ) : (
-                                    <div className="space-y-2">
-                                      {g.repasseItems.map((t) => {
-                                        const isTaxa = t.tipo === "taxa_adm_imobiliaria";
-                                        return (
-                                          <div key={t.id} className="flex justify-between items-center text-sm border-b border-border/40 last:border-0 pb-2 last:pb-0">
-                                            <div className="flex items-center gap-2">
-                                              {isTaxa ? (
-                                                <ArrowDownCircle size={14} className="text-red-500" />
-                                              ) : (
-                                                <ArrowDownCircle size={14} className="text-foreground/70" />
-                                              )}
-                                              <span className={isTaxa ? "text-red-600 font-medium" : "text-foreground/80 capitalize"}>
-                                                {t.descricao || t.tipo.replaceAll("_", " ")}
-                                              </span>
-                                              <span className="text-xs px-2 py-0.5 rounded-full bg-background border text-muted-foreground">
-                                                {t.status}
-                                              </span>
-                                            </div>
-                                            <span className={isTaxa ? "text-red-600 font-semibold" : "font-medium tabular-nums"}>
-                                              {isTaxa ? "-" : ""}{formatBRL(t.valor)}
-                                            </span>
-                                          </div>
-                                        );
-                                      })}
+
+                                  {/* ✅ Agora o detalhamento explica a conta do repasse */}
+                                  <div className="space-y-2">
+                                    {/* ALUGUEL BASE (positivo) */}
+                                    <div className="flex justify-between items-center text-sm border-b border-border/40 pb-2">
+                                      <div className="flex items-center gap-2">
+                                        <ArrowDownCircle
+                                          size={14}
+                                          className="text-foreground/70"
+                                        />
+                                        <span className="text-foreground/80 capitalize">
+                                          Aluguel base do mês
+                                        </span>
+                                      </div>
+                                      <span className="font-medium tabular-nums">
+                                        {formatBRL(g.repasseDetalhe.aluguelBaseValor)}
+                                      </span>
                                     </div>
-                                  )}
+
+                                    {/* TAXA ADM (negativo) */}
+                                    <div className="flex justify-between items-center text-sm border-b border-border/40 pb-2">
+                                      <div className="flex items-center gap-2">
+                                        <ArrowDownCircle
+                                          size={14}
+                                          className="text-red-500"
+                                        />
+                                        <span className="text-red-600 font-medium">
+                                          Taxa Administração
+                                        </span>
+                                      </div>
+                                      <span className="text-red-600 font-semibold tabular-nums">
+                                        -{formatBRL(Math.abs(g.repasseDetalhe.taxaAdmTotal))}
+                                      </span>
+                                    </div>
+
+                                      {/* ✅ Itens extras do repasse (tirando taxa e repasse, pq já explicamos acima) */}
+                                      {g.repasseItems
+                                      .filter((t) => t.tipo !== "taxa_adm_imobiliaria" && t.tipo !== "repasse_proprietario")
+                                      .length === 0 ? (
+                                      <span className="text-sm text-muted-foreground italic">
+                                        Sem outros lançamentos.
+                                      </span>
+                                      ) : (
+                                      <div className="space-y-2">
+                                        {g.repasseItems
+                                          .filter((t) => t.tipo !== "taxa_adm_imobiliaria" && t.tipo !== "repasse_proprietario")
+                                          .map((t) => {
+                                            const isSaida = t.natureza === "saida";
+                                            return (
+                                              <div
+                                                key={t.id}
+                                                className="flex justify-between items-center text-sm border-b border-border/40 last:border-0 pb-2 last:pb-0"
+                                              >
+                                                <div className="flex items-center gap-2">
+                                                  <ArrowDownCircle
+                                                    size={14}
+                                                    className={isSaida ? "text-red-500" : "text-emerald-500"}
+                                                  />
+                                                  <span className={isSaida ? "text-red-600 font-medium" : "text-foreground/80 capitalize"}>
+                                                    {t.descricao || t.tipo.replaceAll("_", " ")}
+                                                  </span>
+                                                  <span className="text-xs px-2 py-0.5 rounded-full bg-background border text-muted-foreground">
+                                                    {t.status}
+                                                  </span>
+                                                </div>
+
+                                                <span
+                                                  className={
+                                                    "font-medium tabular-nums " +
+                                                    (isSaida ? "text-red-600" : "text-emerald-600")
+                                                  }
+                                                >
+                                                  {isSaida ? "-" : ""}
+                                                  {formatBRL(t.valor)}
+                                                </span>
+                                              </div>
+                                            );
+                                          })}
+                                      </div>
+                                      )}
+                                  </div>
                                 </div>
                               </TableCell>
                             </TableRow>

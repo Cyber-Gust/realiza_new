@@ -80,7 +80,7 @@ export default function InadimplenciaPanel() {
       if (filters.search) {
         const s = filters.search.toLowerCase();
         const match = 
-          item.contratos?.imoveis?.titulo?.toLowerCase().includes(s) ||
+          item.contratos?.imoveis?.codigo_ref?.toLowerCase().includes(s) ||
           item.contratos?.inquilino?.nome?.toLowerCase().includes(s);
         if (!match) return false;
       }
@@ -248,7 +248,7 @@ export default function InadimplenciaPanel() {
                       <div className="flex flex-col gap-1">
                         <span className="font-bold text-sm text-foreground flex items-center gap-2">
                           <Building2 size={14} className="text-primary/70" />
-                          {item.contratos?.imoveis?.titulo || "Imóvel desconhecido"}
+                          {item.contratos?.imoveis?.codigo_ref || "Imóvel desconhecido"}
                         </span>
                         <span className="text-xs text-muted-foreground flex items-center gap-2">
                           <User size={12} />

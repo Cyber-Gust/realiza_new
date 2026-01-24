@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback, Fragment } from "react";
-import { BarChart3, RotateCcw, Wallet, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  BarChart3,
+  RotateCcw,
+  Wallet,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 
 import { Card } from "@/components/admin/ui/Card";
 import { Button } from "@/components/admin/ui/Button";
@@ -21,39 +27,28 @@ export default function FluxoCaixaPanel() {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
 
-  // ✅ vem agrupado por aluguel_base_id (rota receitas-locacao)
-  const [alugueis, setAlugueis] = useState([]);
+  // ✅ Agora o fluxo usa SÓ o financeiro
+  const [transacoes, setTransacoes] = useState([]);
 
-  // ✅ vem do módulo ALUGUEL (mas pode ter coisa que pertence aos aluguéis)
-  const [operacional, setOperacional] = useState([]);
-
-  // ✅ controla expansão do aluguel
+  // ✅ controla expansão dos grupos
   const [expandido, setExpandido] = useState({});
 
   /* =========================
      LOAD
   ========================== */
-
   const carregar = useCallback(async () => {
     try {
       setLoading(true);
 
-      const [resAlugueis, resOperacional] = await Promise.all([
-        fetch(
-          `/api/alugueis/receitas-locacao?statusBaixa=baixadas&considerarDataDe=pagamento`,
-          { cache: "no-store" }
-        ),
-        fetch(`/api/financeiro?type=fluxo&modulo=${MODULO}`, { cache: "no-store" }),
-      ]);
+      const res = await fetch(
+        `/api/financeiro?type=fluxo&modulo=${MODULO}`,
+        { cache: "no-store" }
+      );
 
-      const jsonAlugueis = await resAlugueis.json();
-      const jsonOperacional = await resOperacional.json();
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
 
-      if (!resAlugueis.ok) throw new Error(jsonAlugueis.error);
-      if (!resOperacional.ok) throw new Error(jsonOperacional.error);
-
-      setAlugueis(jsonAlugueis.data || []);
-      setOperacional(jsonOperacional.data || []);
+      setTransacoes(json.data || []);
     } catch (err) {
       toast.error("Erro ao carregar fluxo de caixa", err.message);
     } finally {
@@ -68,7 +63,6 @@ export default function FluxoCaixaPanel() {
   /* =========================
      REGRAS
   ========================== */
-
   const limparFiltros = () => {
     setDataInicio("");
     setDataFim("");
@@ -91,85 +85,104 @@ export default function FluxoCaixaPanel() {
   );
 
   /* =========================
-     EXTRATO (ALUGUEL + OPERACIONAL)
+     AGRUPAR ALUGUÉIS (BASE + ITENS)
   ========================== */
+  const gruposAluguel = useMemo(() => {
+    const map = new Map();
 
+    // ✅ 1) cria grupos (base = receita_aluguel sem aluguel_base_id)
+    for (const t of transacoes || []) {
+      if (t.status !== "pago") continue;
+
+      // base do aluguel
+      if (t.tipo === "receita_aluguel" && !t.aluguel_base_id) {
+        map.set(t.id, {
+          aluguelBase: t,
+          itens: [],
+        });
+      }
+    }
+
+    // ✅ 2) adiciona filhos (itens que possuem aluguel_base_id)
+    for (const t of transacoes || []) {
+      if (t.status !== "pago") continue;
+      if (!t.aluguel_base_id) continue;
+
+      if (map.has(t.aluguel_base_id)) {
+        map.get(t.aluguel_base_id).itens.push(t);
+      }
+    }
+
+    return Array.from(map.values());
+  }, [transacoes]);
+
+  /* =========================
+     EXTRATO (SÓ FINANCEIRO)
+  ========================== */
   const extrato = useMemo(() => {
     const linhas = [];
 
-    // ✅ IDs já contabilizados nos grupos (pra não duplicar no operacional)
-    const idsJaUsados = new Set();
+    const idsUsados = new Set();
 
-    // ✅ 1) Primeiro: coloca os aluguéis agrupados
-    for (const g of alugueis) {
-      if (!g?.aluguelBase) continue;
+    // ✅ 1) ALUGUÉIS AGRUPADOS
+    for (const g of gruposAluguel) {
+      const base = g.aluguelBase;
+      if (!base) continue;
 
-      // ✅ NÃO filtra por g.aluguelBase.baixado no front
-      // Quem filtra é a rota (statusBaixa=baixadas)
-
-      const data = g.aluguelBase.dataPagamento || g.aluguelBase.dataVencimento;
+      const data = base.data_pagamento || base.data_vencimento;
       if (!dentroDoPeriodo(data)) continue;
 
-      // ✅ total cheio do aluguel
-      const bruto = Number(g?.resumo?.total || 0);
+      // ✅ total bruto do grupo:
+      // base entra positivo, filhos podem ser entrada/saída
+      const totalGrupo =
+        Number(base.valor || 0) +
+        (g.itens || []).reduce((acc, it) => {
+          const valor = Number(it.valor || 0);
+          if (it.natureza === "saida") return acc - valor;
+          return acc + valor;
+        }, 0);
 
-      // ✅ marca IDs reais (itens) como usados
-      for (const it of g.itens || []) idsJaUsados.add(it.id);
+      // marca IDs como usados (pra não entrar duplicado depois)
+      idsUsados.add(base.id);
+      for (const it of g.itens || []) idsUsados.add(it.id);
 
       linhas.push({
         type: "ALUGUEL_BASE",
-        id: g.aluguelBase.id, // id do grupo (aluguel_base_id)
+        id: base.id,
         data,
-
-        descricao: `Aluguel ${g.aluguelBase.dataVencimento?.slice(0, 7) || ""}`,
-        locador: g?.contrato?.locadorNome || "-",
-        locatario: g?.contrato?.locatarioNome || "-",
-
-        valorEntrada: bruto,
-        valorSaida: 0,
-
-        itens: g.itens || [],
-        aluguelBase: g.aluguelBase,
+        descricao: base.descricao || "Aluguel",
+        locador: base?.contrato?.locadorNome || "-",
+        locatario: base?.contrato?.locatarioNome || "-",
+        valorEntrada: totalGrupo > 0 ? totalGrupo : 0,
+        valorSaida: totalGrupo < 0 ? Math.abs(totalGrupo) : 0,
+        itens: [base, ...(g.itens || [])],
       });
     }
 
-    // ✅ 2) Depois: adiciona operacional do módulo ALUGUEL (sem duplicar)
-    for (const o of operacional) {
-      if (!o) continue;
-      if (o.status !== "pago") continue;
+    // ✅ 2) RESTO DAS TRANSAÇÕES PAGAS (fora de aluguel agrupado)
+    for (const t of transacoes || []) {
+      if (!t) continue;
+      if (t.status !== "pago") continue;
 
-      // ✅ se já foi contabilizado dentro dos grupos, não entra
-      if (idsJaUsados.has(o.id)) continue;
+      // se já foi usado no grupo, não duplica
+      if (idsUsados.has(t.id)) continue;
 
-      // ✅ se for receita_aluguel base, ela já aparece no agrupado, então não duplica
-      if (o.tipo === "receita_aluguel") continue;
-
-      const data = o.data_pagamento || o.data_vencimento;
+      const data = t.data_pagamento || t.data_vencimento;
       if (!dentroDoPeriodo(data)) continue;
-
-      const competencia = (o.data_vencimento || o.data_pagamento || "").slice(0, 7);
-
 
       linhas.push({
         type: "OPERACIONAL",
-        id: o.id,
+        id: t.id,
         data,
-        descricao:
-          o.tipo === "repasse_proprietario"
-            ? `Repasse ${competencia || ""}`
-            : o.descricao || "—",
-        locatario: o?.contrato?.locatarioNome || "",
-        imovelCodigoRef:
-          o.tipo === "repasse_proprietario"
-            ? o?.contrato?.imovelCodigoRef || ""
-            : "",
-
-        valorEntrada: o.natureza === "entrada" ? Number(o.valor || 0) : 0,
-        valorSaida: o.natureza === "saida" ? Number(o.valor || 0) : 0,
+        descricao: t.descricao || "—",
+        locador: t?.contrato?.locadorNome || "",
+        locatario: t?.contrato?.locatarioNome || "",
+        valorEntrada: t.natureza === "entrada" ? Number(t.valor || 0) : 0,
+        valorSaida: t.natureza === "saida" ? Number(t.valor || 0) : 0,
       });
     }
 
-    // ✅ ordenar por data (crescente)
+    // ✅ ordenar por data crescente (fluxo)
     linhas.sort((a, b) => {
       const ta = a?.data ? new Date(a.data).getTime() : 0;
       const tb = b?.data ? new Date(b.data).getTime() : 0;
@@ -177,12 +190,11 @@ export default function FluxoCaixaPanel() {
     });
 
     return linhas;
-  }, [alugueis, operacional, dentroDoPeriodo]);
+  }, [transacoes, gruposAluguel, dentroDoPeriodo]);
 
   /* =========================
      KPIs
   ========================== */
-
   const totalEntradas = useMemo(() => {
     return extrato.reduce((sum, x) => sum + Number(x.valorEntrada || 0), 0);
   }, [extrato]);
@@ -196,7 +208,6 @@ export default function FluxoCaixaPanel() {
   /* =========================
      RENDER
   ========================== */
-
   return (
     <div className="space-y-4">
       {/* HEADER */}
@@ -283,7 +294,6 @@ export default function FluxoCaixaPanel() {
 
                     <td className="p-2">
                       <div className="flex items-start gap-2">
-                        {/* ✅ setinha só no aluguel */}
                         {isAluguel && temItens ? (
                           <span className="pt-0.5 text-muted-foreground">
                             {expandido[d.id] ? (
@@ -310,12 +320,6 @@ export default function FluxoCaixaPanel() {
                               Locatário: {d.locatario}
                             </span>
                           ) : null}
-
-                          {d.imovelCodigoRef ? (
-                            <span className="text-xs text-muted-foreground">
-                              Imóvel: {d.imovelCodigoRef}
-                            </span>
-                          ) : null}
                         </div>
                       </div>
                     </td>
@@ -329,29 +333,37 @@ export default function FluxoCaixaPanel() {
                     </td>
                   </tr>
 
-                  {/* filhos do aluguel */}
+                  {/* EXPANDIDO: itens do aluguel */}
                   {isAluguel && expandido[d.id] && temItens && (
                     <tr className="bg-muted/30">
                       <td colSpan={4} className="p-3">
                         <div className="space-y-2">
-                          {/* ✅ opcional: ordenar pra mostrar aluguel base primeiro */}
-                          {[...(d.itens || [])]
-                          .sort((a, b) => {
-                            if (a.tipo === "receita_aluguel") return -1;
-                            if (b.tipo === "receita_aluguel") return 1;
-                            return 0;
-                          })
-                          .map((it) => {
+                          {[...(d.itens || [])].map((it) => {
                             const isSaida = it.natureza === "saida";
 
                             return (
-                              <div key={it.id} className="flex justify-between text-xs">
-                                <span className={isSaida ? "text-red-600" : "text-green-700"}>
-                                  {it.descricao}
+                              <div
+                                key={it.id}
+                                className="flex justify-between text-xs"
+                              >
+                                <span
+                                  className={
+                                    isSaida ? "text-red-600" : "text-green-700"
+                                  }
+                                >
+                                  {it.descricao || it.tipo}
                                 </span>
 
-                                <span className={`font-medium ${isSaida ? "text-red-600" : "text-green-700"}`}>
-                                  {formatCurrency(isSaida ? -Number(it.valor || 0) : Number(it.valor || 0))}
+                                <span
+                                  className={`font-medium ${
+                                    isSaida ? "text-red-600" : "text-green-700"
+                                  }`}
+                                >
+                                  {formatCurrency(
+                                    isSaida
+                                      ? -Number(it.valor || 0)
+                                      : Number(it.valor || 0)
+                                  )}
                                 </span>
                               </div>
                             );

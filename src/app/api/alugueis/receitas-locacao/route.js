@@ -1,14 +1,48 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 
+/* ======================================================
+   HELPERS
+====================================================== */
+
+function getCompetenciaYYYYMM(t) {
+  // prioridade: dados_cobranca_json.competencia
+  const raw = t?.dados_cobranca_json;
+
+  if (raw && typeof raw === "object") {
+    const comp = raw?.competencia;
+    if (comp && /^\d{4}-\d{2}$/.test(comp)) return comp;
+  }
+
+  // fallback: usa data_vencimento
+  if (t?.data_vencimento) return String(t.data_vencimento).slice(0, 7);
+
+  return null;
+}
+
+function matchText(valor, filtro) {
+  if (!filtro) return true;
+  if (!valor) return false;
+  return String(valor).toLowerCase().includes(String(filtro).toLowerCase());
+}
+
 export async function GET(req) {
   const supabase = createServiceClient();
   const { searchParams } = new URL(req.url);
 
   try {
-    // ============================
-    // 🔎 Params
-    // ============================
+    /* ======================================================
+       PARAMS
+    ====================================================== */
+
+    const TIPOS_RECEITA_IMOBILIARIA = new Set([
+      "taxa_adm_imobiliaria",
+      "multa",
+      "juros",
+      "correcao_monetaria",
+      "taxa_contrato",
+    ]);
+
     const contratoId =
       searchParams.get("contratoId") || searchParams.get("contrato_id");
 
@@ -28,21 +62,19 @@ export async function GET(req) {
     const considerarDataDe = searchParams.get("considerarDataDe") || "pagamento";
     const statusBaixa = searchParams.get("statusBaixa") || "baixadas";
 
-    // ============================
-    // 📌 Campo usado no filtro do período
-    // ============================
+    /* ======================================================
+       CAMPO DATA PARA FILTRO
+    ====================================================== */
     let campoData = "data_pagamento";
     if (considerarDataDe === "vencimento") campoData = "data_vencimento";
     if (considerarDataDe === "pagamento") campoData = "data_pagamento";
 
-    /* =========================================
-       1) BUSCA TRANSAÇÕES DE LOCAÇÃO QUE
-          PERTENCEM AO ALUGUEL (PAI OU FILHOS)
-          
-          REGRA:
-          - pai: tipo = receita_aluguel (aluguel_base_id geralmente null)
-          - filhos: aluguel_base_id preenchido (qualquer tipo)
-    ========================================= */
+    /* ======================================================
+       1) BUSCA TRANSAÇÕES QUE IMPORTAM
+       ✅ inclui taxa_adm_imobiliaria sem depender de aluguel_base_id
+       ✅ inclui repasse_proprietario pra puxar a dataRepasse (por competência)
+    ====================================================== */
+
     let transacoesQuery = supabase
       .from("transacoes")
       .select(
@@ -57,6 +89,8 @@ export async function GET(req) {
         valor,
         data_vencimento,
         data_pagamento,
+        dados_cobranca_json,
+
         contratos (
           id,
           codigo,
@@ -64,6 +98,7 @@ export async function GET(req) {
           inquilino_id,
           tipo,
           valor_acordado,
+          taxa_administracao_percent,
           imoveis (
             id,
             titulo,
@@ -77,22 +112,32 @@ export async function GET(req) {
         )
       `
       )
-      // ✅ só contrato de locação
       .eq("contratos.tipo", "locacao")
-      // ✅ pega entradas E saídas (pra desconto/abatimento aparecer)
       .in("natureza", ["entrada", "saida"])
-      // ✅ só transações que fazem parte do aluguel:
-      //    - ou é o próprio aluguel base
-      //    - ou é um lançamento vinculado (filho)
-      .or("tipo.eq.receita_aluguel,aluguel_base_id.not.is.null")
+      .or(
+        [
+          "tipo.eq.receita_aluguel",
+          "aluguel_base_id.not.is.null",
+          "tipo.eq.taxa_adm_imobiliaria",
+          "tipo.eq.multa",
+          "tipo.eq.juros",
+          "tipo.eq.correcao_monetaria",
+          "tipo.eq.taxa_contrato",
+          "tipo.eq.repasse_proprietario",
+        ].join(",")
+      )
       .order("data_vencimento", { ascending: true });
 
-    // filtros
+    // filtro contrato
     if (contratoId) transacoesQuery = transacoesQuery.eq("contrato_id", contratoId);
 
     // período
     if (periodoInicio) transacoesQuery = transacoesQuery.gte(campoData, periodoInicio);
     if (periodoFim) transacoesQuery = transacoesQuery.lte(campoData, periodoFim);
+
+    // trava até hoje (consistência do painel)
+    const hoje = new Date().toISOString().split("T")[0];
+    transacoesQuery = transacoesQuery.lte(campoData, hoje);
 
     // status baixa
     if (statusBaixa === "baixadas") {
@@ -103,7 +148,7 @@ export async function GET(req) {
       transacoesQuery = transacoesQuery.in("status", ["pendente", "atrasado"]);
     }
 
-    // filtros extras texto (mantive os seus)
+    // filtros extras texto
     if (categoria) transacoesQuery = transacoesQuery.ilike("descricao", `%${categoria}%`);
     if (controleConta)
       transacoesQuery = transacoesQuery.ilike("descricao", `%${controleConta}%`);
@@ -113,9 +158,10 @@ export async function GET(req) {
 
     const lista = transacoes || [];
 
-    /* =========================================
+    /* ======================================================
        2) BUSCA LOCADOR/LOCATÁRIO (PERSONAS)
-    ========================================= */
+    ====================================================== */
+
     const idsPessoa = new Set();
 
     lista.forEach((t) => {
@@ -141,14 +187,10 @@ export async function GET(req) {
       }, {});
     }
 
-    /* =========================================
-       3) FILTRO LOCADOR/LOCATÁRIO (TEXTO)
-    ========================================= */
-    const matchText = (valor, filtro) => {
-      if (!filtro) return true;
-      if (!valor) return false;
-      return String(valor).toLowerCase().includes(String(filtro).toLowerCase());
-    };
+    /* ======================================================
+       3) FILTRO LOCADOR/LOCATÁRIO (no back)
+       ✅ (continua aceitando nome/cpf/telefone)
+    ====================================================== */
 
     const filtrada = lista.filter((t) => {
       const contrato = t?.contratos;
@@ -176,17 +218,51 @@ export async function GET(req) {
       return passaLocador && passaLocatario;
     });
 
-    /* =========================================
-       4) AGRUPA PELO "aluguel_base_id"
-       
-       REGRA DO GRUPO:
-       - se é filho: grupoId = aluguel_base_id
-       - se é aluguel base: grupoId = id do próprio aluguel
-    ========================================= */
+    /* ======================================================
+       4) MAPA DE REPASSE POR COMPETÊNCIA
+       ✅ repasse_proprietario NÃO entra como item
+       ✅ mas preenche dataRepasse no grupo
+       chave: contrato_id|competencia
+    ====================================================== */
+
+    const repasseMap = new Map();
+
+    for (const t of filtrada) {
+      if (t.tipo !== "repasse_proprietario") continue;
+
+      const comp = getCompetenciaYYYYMM(t);
+      if (!comp) continue;
+
+      const key = `${t.contrato_id}|${comp}`;
+
+      // guarda data pagamento do repasse
+      const atual = repasseMap.get(key);
+      const nova = t.data_pagamento || null;
+
+      if (!atual) {
+        repasseMap.set(key, nova);
+      } else if (nova && new Date(nova) > new Date(atual)) {
+        repasseMap.set(key, nova);
+      }
+    }
+
+    /* ======================================================
+       5) AGRUPAMENTO
+       ✅ grupoId = aluguel_base_id OU id
+       ✅ taxa adm agrupa por referencia_id (aluguel pai)
+       ✅ dataRepasse gruda por competencia
+    ====================================================== */
+
     const gruposMap = new Map();
 
     for (const t of filtrada) {
-      const grupoId = t.aluguel_base_id || t.id;
+      // ✅ taxa adm tem que grudar no aluguel pai correto
+      const referenciaId = t?.dados_cobranca_json?.referencia_id || null;
+
+      const grupoId =
+        t.tipo === "taxa_adm_imobiliaria" && referenciaId
+          ? referenciaId
+          : t.aluguel_base_id || t.id;
 
       if (!gruposMap.has(grupoId)) {
         const contrato = t?.contratos;
@@ -216,11 +292,20 @@ export async function GET(req) {
               .join(" | ")
           : "-";
 
+        // ✅ competência do grupo (pra repasse por competencia)
+        const compGrupo = getCompetenciaYYYYMM(t);
+        const repasseKey = compGrupo ? `${t.contrato_id}|${compGrupo}` : null;
+        const dataRepasse = repasseKey ? repasseMap.get(repasseKey) || null : null;
+
         gruposMap.set(grupoId, {
           aluguelBase: {
             id: grupoId,
             dataVencimento: t.data_vencimento || null,
             dataPagamento: t.data_pagamento || null,
+
+            // ✅ AQUI: a data de pagamento do repasse daquele mês
+            dataRepasse,
+
             baixado: t.status === "pago",
           },
           contrato: {
@@ -230,37 +315,60 @@ export async function GET(req) {
             locatarioNome: locatarioObj?.nome || "-",
             imovelResumo,
           },
+          contratoRaw: contrato || null,
           itens: [],
-          resumo: {
-            total: 0,
-          },
+          resumo: { total: 0 },
         });
       }
 
       const grupo = gruposMap.get(grupoId);
 
+      const ehAluguelBase = t.tipo === "receita_aluguel";
+      const ehReceitaImobiliaria = TIPOS_RECEITA_IMOBILIARIA.has(t.tipo);
+
+      // ✅ repasse NUNCA entra como item (ele é operacional / saída)
+      const ehRepasse = t.tipo === "repasse_proprietario";
+      if (ehRepasse) {
+        // mas pode atualizar a dataRepasse se vier melhor/mais recente
+        const compGrupo = getCompetenciaYYYYMM(t);
+        const repasseKey = compGrupo ? `${t.contrato_id}|${compGrupo}` : null;
+        const dataRepasse = repasseKey ? repasseMap.get(repasseKey) || null : null;
+
+        if (dataRepasse) grupo.aluguelBase.dataRepasse = dataRepasse;
+        continue;
+      }
+
+      // ✅ só entra:
+      // - aluguel base (pra datas e competência)
+      // - OU receitas reais da imobiliária
+      if (!ehAluguelBase && !ehReceitaImobiliaria) {
+        continue;
+      }
+
       grupo.itens.push({
         id: t.id,
         tipo: t.tipo,
-        natureza: t.natureza, // ✅ agora vai pro front
+        natureza: t.natureza,
         descricao: t.descricao || t.tipo,
         valor: Number(t.valor || 0),
+        status: t.status,
       });
 
-      // ✅ data mais útil pro grupo (se tiver pagamento, prioriza)
+      // ✅ data mais útil pro grupo
       const dataPag = t.data_pagamento || null;
       const dataVen = t.data_vencimento || null;
 
       if (dataPag) grupo.aluguelBase.dataPagamento = dataPag;
-      if (!grupo.aluguelBase.dataVencimento && dataVen)
+      if (!grupo.aluguelBase.dataVencimento && dataVen) {
         grupo.aluguelBase.dataVencimento = dataVen;
+      }
     }
 
-    /* =========================================
-       5) CALCULA TOTAL DO GRUPO
-       - entrada soma
-       - saída subtrai
-    ========================================= */
+    /* ======================================================
+       6) CALCULA TOTAL DO GRUPO (somente itens da imobiliária + aluguel base)
+       ✅ total respeita natureza
+    ====================================================== */
+
     const agrupado = Array.from(gruposMap.values()).map((g) => {
       const total = (g.itens || []).reduce((sum, it) => {
         const valor = Number(it.valor || 0);
@@ -270,13 +378,14 @@ export async function GET(req) {
 
       return {
         ...g,
-        resumo: {
-          total,
-        },
+        resumo: { total },
       };
     });
 
-    // ✅ ordena por data do grupo
+    /* ======================================================
+       7) ORDENAÇÃO
+    ====================================================== */
+
     agrupado.sort((a, b) => {
       const da =
         a.aluguelBase.dataPagamento ||

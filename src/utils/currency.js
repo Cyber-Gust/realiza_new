@@ -97,15 +97,43 @@ export function formatPhoneBR(value) {
 }
 
 // =======================
-// DATAS (PADRÃO BR)
+// DATAS (PADRÃO BR) ✅ SEM BUG DE -1 DIA
 // =======================
+
+// Detecta se é ISO date-only: "YYYY-MM-DD"
+function isISODateOnly(value) {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+// ISO ("2025-02-10") → "10/02/2025" sem timezone zoar
+function formatISODateOnlyBR(dateOnlyStr) {
+  const [y, m, d] = String(dateOnlyStr).split("-");
+  if (!y || !m || !d) return "—";
+  return `${d}/${m}/${y}`;
+}
 
 // ISO ("2025-02-10" ou Date) → "10/02/2025"
 export const formatDateBR = (value) => {
   if (!value) return "—";
 
-  const date = value instanceof Date ? value : new Date(value);
+  // ✅ caso mais comum no seu sistema (Supabase):
+  // vem "YYYY-MM-DD" e o JS sempre tenta converter com timezone → quebra
+  if (isISODateOnly(value)) {
+    return formatISODateOnlyBR(value);
+  }
 
+  // ✅ se vier Date, mantém
+  if (value instanceof Date) {
+    if (isNaN(value.getTime())) return "—";
+    return value.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  }
+
+  // ✅ se vier ISO completo (com horário), aí pode usar Date normal
+  const date = new Date(value);
   if (isNaN(date.getTime())) return "—";
 
   return date.toLocaleDateString("pt-BR", {
@@ -115,16 +143,35 @@ export const formatDateBR = (value) => {
   });
 };
 
-// ISO → "10/02/2025 • Seg"
 export const formatDateBRWithWeekday = (value) => {
   if (!value) return "—";
 
+  // ✅ se for "YYYY-MM-DD", converte sem timezone
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [y, m, d] = value.split("-").map(Number);
+    const dt = new Date(y, m - 1, d); // local safe ✅
+
+    const weekday = dt.toLocaleDateString("pt-BR", { weekday: "short" });
+    const weekdayCapitalized =
+      weekday.charAt(0).toUpperCase() + weekday.slice(1).replace(".", "");
+
+    const dataStr = dt.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+
+    return `${dataStr} • ${weekdayCapitalized}`;
+  }
+
+  // ✅ qualquer outro formato segue normal
   const date = value instanceof Date ? value : new Date(value);
   if (isNaN(date.getTime())) return "—";
 
-  // Deixa a primeira letra do dia maiúscula (ex: "seg" -> "Seg")
   const weekday = date.toLocaleDateString("pt-BR", { weekday: "short" });
-  const weekdayCapitalized = weekday.charAt(0).toUpperCase() + weekday.slice(1).replace(".", "");
+  const weekdayCapitalized =
+    weekday.charAt(0).toUpperCase() + weekday.slice(1).replace(".", "");
+
   const dataStr = date.toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
@@ -132,4 +179,65 @@ export const formatDateBRWithWeekday = (value) => {
   });
 
   return `${dataStr} • ${weekdayCapitalized}`;
+};
+
+// =======================
+// PORCENTAGEM (%)
+// =======================
+
+/**
+ * Formata um número para string percentual BR
+ * Ex: 10.5 -> "10,50"
+ */
+export const formatPercentBR = (value) => {
+  if (value === null || value === undefined || value === "") return "";
+
+  const n = Number(value);
+  if (Number.isNaN(n)) return "";
+
+  return n.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+/**
+ * Parse de string percentual BR para number
+ * Ex: "10,50" -> 10.5
+ */
+export const parsePercentToNumber = (raw) => {
+  if (!raw) return null;
+
+  const cleaned = String(raw)
+    .replace(/\./g, "")
+    .replace(",", ".")
+    .replace(/[^\d.-]/g, "");
+
+  if (!cleaned) return null;
+
+  const n = Number(cleaned);
+  if (Number.isNaN(n)) return null;
+
+  return n;
+};
+
+/**
+ * Preenchedor estilo "moeda", mas pra porcentagem
+ * Ex:
+ * "1" -> "0,01"
+ * "10" -> "0,10"
+ * "1050" -> "10,50"
+ */
+export const formatPercentInput = (raw) => {
+  if (!raw) return "";
+
+  const digits = String(raw).replace(/\D/g, "");
+  if (!digits) return "";
+
+  const n = Number(digits) / 100;
+
+  return n.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 };

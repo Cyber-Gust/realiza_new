@@ -11,10 +11,15 @@ const TIPOS_DESPESA_AUTOMATICA = [
 ];
 
 const TIPOS_DESPESA_MANUAL = [
-  "despesa_manutencao",
-  "pagamento_iptu",
-  "pagamento_condominio",
   "despesa_operacional",
+  "despesa_manutencao",
+  "seguro_incendio",
+  "pagamento_condominio",
+  "pagamento_iptu",
+  "consumo_agua",
+  "consumo_luz",
+  "taxa",
+  "outros",
 ];
 
 /* ✅ módulos permitidos no sistema */
@@ -77,11 +82,59 @@ async function safeInsert(supabase, payload) {
 }
 
 /* ======================================================
+   ✅ NOVO: SOMATÓRIO DO ALUGUEL PAGO (PAI + FILHOS)
+====================================================== */
+
+/**
+ * Regra:
+ * - aluguel pai = receita_aluguel (id = aluguelPaiId)
+ * - filhos = transações vinculadas com aluguel_base_id = aluguelPaiId
+ *
+ * Aqui eu somo TODOS os filhos com status != cancelado.
+ * Porque no seu modelo, filho é "ajuste de boleto", não necessariamente "pagamento".
+ */
+async function calcularTotalPagoAluguel(supabase, aluguelPaiId) {
+  if (!aluguelPaiId) return 0;
+
+  // pega o pai
+  const { data: pai, error: errPai } = await supabase
+    .from("transacoes")
+    .select("id, valor")
+    .eq("id", aluguelPaiId)
+    .single();
+
+  if (errPai || !pai) return 0;
+
+  const valorPai = Number(pai.valor || 0);
+
+  // pega filhos
+  const { data: filhos, error: errFilhos } = await supabase
+    .from("transacoes")
+    .select("id, valor, status, tipo, natureza")
+    .eq("aluguel_base_id", aluguelPaiId)
+    .neq("status", "cancelado");
+
+  if (errFilhos) throw errFilhos;
+
+  const somaFilhos = (filhos || []).reduce((sum, t) => {
+    const valor = Number(t.valor || 0);
+
+    if (t.natureza === "entrada") return sum + valor;
+    if (t.natureza === "saida") return sum - valor;
+
+    return sum;
+  }, 0);
+
+  return Number((valorPai + somaFilhos).toFixed(2));
+}
+
+
+/* ======================================================
    🔄 GERAÇÃO AUTOMÁTICA — REPASSE PROPRIETÁRIO (ALUGUEL)
 ====================================================== */
 
 async function gerarRepasseProprietario(supabase) {
-  const { data: receitas } = await supabase
+  const { data: receitas, error } = await supabase
     .from("transacoes")
     .select(`
       id,
@@ -90,11 +143,18 @@ async function gerarRepasseProprietario(supabase) {
       imovel_id,
       data_pagamento,
       dados_cobranca_json,
-      modulo_financeiro
+      modulo_financeiro,
+      contratos (
+        id,
+        valor_acordado,
+        taxa_administracao_percent
+      )
     `)
     .eq("tipo", "receita_aluguel")
     .eq("status", "pago")
     .eq("modulo_financeiro", "ALUGUEL");
+
+  if (error) throw error;
 
   for (const r of receitas || []) {
     const jaExiste = await existeDespesaAutomatica(
@@ -106,8 +166,30 @@ async function gerarRepasseProprietario(supabase) {
     );
     if (jaExiste) continue;
 
-    const taxa = r.dados_cobranca_json?.taxa_administracao_percent || 0;
-    const valorRepasse = Number(r.valor) * (1 - taxa / 100);
+    // ✅ total pago do mês = pai + filhos
+    const totalPago = await calcularTotalPagoAluguel(supabase, r.id);
+
+    // ✅ taxa deve ser calculada pelo valor base do contrato (não pelo pago)
+    const contrato = r?.contratos;
+
+    const taxaPercent = Number(
+      contrato?.taxa_administracao_percent ??
+        r.dados_cobranca_json?.taxa_administracao_percent ??
+        0
+    );
+
+    const valorBaseContrato = Number(contrato?.valor_acordado || r.valor || 0);
+
+    const valorTaxa = Number(
+      ((valorBaseContrato * taxaPercent) / 100).toFixed(2)
+    );
+
+    // ✅ repasse = total pago - taxa
+    // (se quiser travar pra não ficar negativo, você pode aplicar Math.max)
+    const valorRepasse = Number((totalPago - valorTaxa).toFixed(2));
+
+    // ✅ competência é útil pra auditoria
+    const competencia = r.dados_cobranca_json?.competencia || null;
 
     await safeInsert(supabase, {
       tipo: "repasse_proprietario",
@@ -117,13 +199,22 @@ async function gerarRepasseProprietario(supabase) {
       valor: valorRepasse,
       contrato_id: r.contrato_id,
       imovel_id: r.imovel_id,
+
       aluguel_base_id: null,
-      data_vencimento: r.data_pagamento,
+
+      data_vencimento: r.data_pagamento || new Date().toISOString().split("T")[0],
       descricao: "Repasse ao proprietário",
       dados_cobranca_json: {
         origem: "automatica",
         referencia_id: r.id,
-        taxa_administracao_percent: taxa,
+
+        competencia,
+
+        // auditoria do cálculo
+        taxa_administracao_percent: taxaPercent,
+        valor_base_contrato: valorBaseContrato,
+        valor_taxa: valorTaxa,
+        valor_pago_total: totalPago,
       },
     });
   }

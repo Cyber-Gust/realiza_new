@@ -9,7 +9,7 @@ const Table = ({ className, children, ...props }) => {
   return (
     <div
       className={cn(
-        "w-full overflow-x-auto rounded-2xl border border-border/60 shadow-md bg-panel-card/95 backdrop-blur-sm transition-all",
+        "w-full overflow-x-auto border border-border/60 shadow-md bg-panel-card/95 backdrop-blur-sm transition-all",
         className
       )}
     >

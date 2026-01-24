@@ -452,14 +452,11 @@ export default function ReceitasPanel() {
           <TableHeader>
             <TableRow>
               <TableHead>Tipo</TableHead>
-              <TableHead>Contrato</TableHead>
-              <TableHead>Locador</TableHead>
-              <TableHead>Locatário</TableHead>
+              <TableHead>Descrição</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Valor</TableHead>
               <TableHead>Vencimento</TableHead>
               <TableHead>Origem</TableHead>
-              <TableHead>Descrição</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -467,13 +464,13 @@ export default function ReceitasPanel() {
           <tbody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-6">
+                <TableCell colSpan={7} className="text-center py-6">
                   Carregando...
                 </TableCell>
               </TableRow>
             ) : linhas.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-6">
+                <TableCell colSpan={7} className="text-center py-6">
                   Nenhuma receita encontrada.
                 </TableCell>
               </TableRow>
@@ -491,6 +488,10 @@ export default function ReceitasPanel() {
 
                 const contratoCodigo =
                   r?.contrato?.codigo ||
+                  "-";
+
+                const imovelCodigo = 
+                  r?.imovel?.codigo_ref || 
                   "-";
 
                 const locadorNome =
@@ -552,16 +553,41 @@ export default function ReceitasPanel() {
                         </div>
                       </TableCell>
 
-                      <TableCell className="text-sm text-muted-foreground">
-                        {contratoCodigo}
-                      </TableCell>
-
                       <TableCell>
-                        <div className="text-sm font-medium">{locadorNome}</div>
-                      </TableCell>
+                        <div className="flex flex-col leading-tight">
+                          {isAluguel ? (
+                            <>
+                              <span className="text-sm font-semibold">
+                                Contrato: {contratoCodigo} | Imóvel: {imovelCodigo}
+                              </span>
 
-                      <TableCell>
-                        <div className="text-sm">{locatarioNome}</div>
+                              <span className="text-xs text-muted-foreground">
+                                Locador: {locadorNome}
+                              </span>
+
+                              <span className="text-xs text-muted-foreground">
+                                Locatário: {locatarioNome}
+                              </span>
+
+                              <span className="text-xs mt-1">
+                                <span className="font-medium">Descrição:</span>{" "}
+                                {r.descricao || labelTipo(r.tipo) || "-"}
+                              </span>
+
+                              {row.itens?.length > 0 ? (
+                                <span className="text-xs text-muted-foreground mt-1">
+                                  {row.itens.length} item(ns) acoplado(s)
+                                </span>
+                              ) : null}
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-sm font-medium">
+                                {r.descricao || "Receita Avulsa"}
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </TableCell>
 
                       <TableCell>
@@ -575,19 +601,6 @@ export default function ReceitasPanel() {
                       <TableCell>{formatDateBR(r.data_vencimento)}</TableCell>
 
                       <TableCell>{badgeOrigem(origem)}</TableCell>
-
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium">
-                            {r.descricao || labelTipo(r.tipo) || "-"}
-                          </span>
-                          {isAluguel && row.itens?.length > 0 ? (
-                            <span className="text-xs text-muted-foreground">
-                              {row.itens.length} item(ns) acoplado(s)
-                            </span>
-                          ) : null}
-                        </div>
-                      </TableCell>
 
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
@@ -646,7 +659,7 @@ export default function ReceitasPanel() {
                     {/* Expandido: itens do aluguel */}
                     {isAluguel && expandido[row.id] && (
                       <TableRow className="bg-muted/30">
-                        <TableCell colSpan={10} className="p-0">
+                        <TableCell colSpan={7} className="p-0">
                           <div className="p-3 space-y-3">
                             {/* ✅ Resumo do aluguel */}
                             <div className="border border-border rounded-lg p-3 bg-background">

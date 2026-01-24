@@ -15,8 +15,7 @@ const TIPOS_MANUAIS = [
   "multa",
   "juros",
   "correcao_monetaria",
-  "taxa_contrato"
-
+  "taxa_contrato",
 ];
 
 /* ✅ módulos permitidos no sistema */
@@ -225,6 +224,120 @@ async function gerarReceitasAutomaticas(supabase) {
 }
 
 /* ======================================================
+   ✅ NOVO: HELPERS PARA TAXA ADM AUTOMÁTICA
+====================================================== */
+
+async function existeTransacaoAutomatica(supabase, referenciaId, tipo, moduloFinanceiro) {
+  let query = supabase
+    .from("transacoes")
+    .select("id")
+    .eq("tipo", tipo)
+    .eq("dados_cobranca_json->>referencia_id", referenciaId);
+
+  if (moduloFinanceiro) query = query.eq("modulo_financeiro", moduloFinanceiro);
+
+  const { data } = await query.limit(1);
+  return !!data?.length;
+}
+
+async function safeInsert(supabase, payload) {
+  const { error } = await supabase.from("transacoes").insert(payload);
+
+  if (error) {
+    // índice único → idempotência garantida
+    if (error.code === "23505") return;
+    throw error;
+  }
+}
+
+/**
+ * ✅ Gera automaticamente taxa_adm_imobiliaria:
+ * - somente quando o aluguel "pai" (receita_aluguel) estiver PAGO
+ * - taxa calculada em cima do valor base do contrato (contratos.valor_acordado)
+ * - natureza = entrada (receita da imobiliária)
+ */
+async function gerarTaxasAdministracaoImobiliaria(supabase) {
+  const { data: alugueisPagos, error } = await supabase
+    .from("transacoes")
+    .select(`
+      id,
+      contrato_id,
+      imovel_id,
+      valor,
+      status,
+      data_pagamento,
+      data_vencimento,
+      dados_cobranca_json,
+      modulo_financeiro,
+      contratos (
+        id,
+        valor_acordado,
+        taxa_administracao_percent
+      )
+    `)
+    .eq("tipo", "receita_aluguel")
+    .eq("natureza", "entrada")
+    .eq("status", "pago")
+    .eq("modulo_financeiro", "ALUGUEL");
+
+  if (error) throw error;
+
+  for (const aluguel of alugueisPagos || []) {
+    // idempotência: uma taxa por aluguel pai
+    const jaExiste = await existeTransacaoAutomatica(
+      supabase,
+      aluguel.id,
+      "taxa_adm_imobiliaria",
+      "ALUGUEL"
+    );
+    if (jaExiste) continue;
+
+    const contrato = aluguel?.contratos;
+
+    const taxaPercent = Number(contrato?.taxa_administracao_percent || 0);
+    if (!taxaPercent || taxaPercent <= 0) continue;
+
+    // ✅ base de cálculo: valor base do contrato (não o valor pago)
+    const base = Number(contrato?.valor_acordado || 0);
+    if (!base || base <= 0) continue;
+
+    const valorTaxa = Number(((base * taxaPercent) / 100).toFixed(2));
+    if (valorTaxa <= 0) continue;
+
+    const competencia = aluguel?.dados_cobranca_json?.competencia || null;
+
+    // ✅ taxa nasce como PAGA no mesmo dia do aluguel pago
+    const dataPagamento = aluguel.data_pagamento || new Date().toISOString().split("T")[0];
+    const dataVencimento = aluguel.data_pagamento || aluguel.data_vencimento || dataPagamento;
+
+    await safeInsert(supabase, {
+      tipo: "taxa_adm_imobiliaria",
+      natureza: "entrada",
+      modulo_financeiro: "ALUGUEL",
+      status: "pago",
+
+      valor: valorTaxa,
+      descricao: `Taxa de administração (${taxaPercent}%)`,
+
+      contrato_id: aluguel.contrato_id,
+      imovel_id: aluguel.imovel_id,
+      aluguel_base_id: null,
+      data_vencimento: dataVencimento,
+      data_pagamento: dataPagamento,
+
+      dados_cobranca_json: {
+        origem: "automatica",
+        referencia_id: aluguel.id,
+        competencia,
+        taxa_administracao_percent: taxaPercent,
+        base_calculo: "contrato.valor_acordado",
+        valor_base_contrato: base,
+      },
+    });
+  }
+}
+
+/* ======================================================
    GET — LISTAGEM + GERAÇÃO AUTOMÁTICA
 ====================================================== */
 
@@ -239,38 +352,42 @@ export async function GET(req) {
     // ✅ só gera automáticas quando o módulo for ALUGUEL
     if (modulo === "ALUGUEL") {
       await gerarReceitasAutomaticas(supabase);
+
+      // ✅ NOVO: gera taxa automática quando aluguel for pago
+      await gerarTaxasAdministracaoImobiliaria(supabase);
     }
 
     const { data, error } = await supabase
-    .from("transacoes")
-    .select(`
-      id,
-      aluguel_base_id,
-      contrato_id,
-      imovel_id,
-      tipo,
-      natureza,
-      modulo_financeiro,
-      status,
-      valor,
-      descricao,
-      data_vencimento,
-      data_pagamento,
-      dados_cobranca_json,
-      created_at,
-
-      imovel:imoveis(codigo_ref, titulo),
-
-      contrato:contratos(
+      .from("transacoes")
+      .select(`
         id,
-        codigo,
-        proprietario:proprietario_id(nome),
-        inquilino:inquilino_id(nome)
-      )
-    `)
-    .eq("natureza", "entrada")
-    .eq("modulo_financeiro", modulo)
-    .order("data_vencimento", { ascending: false });
+        aluguel_base_id,
+        contrato_id,
+        imovel_id,
+        tipo,
+        natureza,
+        modulo_financeiro,
+        status,
+        valor,
+        descricao,
+        data_vencimento,
+        data_pagamento,
+        dados_cobranca_json,
+        created_at,
+
+        imovel:imoveis(codigo_ref, titulo),
+
+        contrato:contratos(
+          id,
+          codigo,
+          proprietario:proprietario_id(nome),
+          inquilino:inquilino_id(nome)
+        )
+      `)
+      .eq("natureza", "entrada")
+      .eq("modulo_financeiro", modulo)
+      .neq("tipo", "taxa_adm_imobiliaria")
+      .order("data_vencimento", { ascending: false });
 
     if (error) throw error;
 
@@ -401,6 +518,33 @@ export async function PUT(req) {
           ? data_pagamento || new Date().toISOString().split("T")[0]
           : null,
     };
+
+    // ✅ se essa transação é um aluguel pai e virou "pago", paga os filhos também
+    if (status === "pago") {
+      const { data: transacao } = await supabase
+        .from("transacoes")
+        .select("id, tipo, modulo_financeiro")
+        .eq("id", id)
+        .single();
+
+      const ehAluguelPai =
+        transacao?.tipo === "receita_aluguel" &&
+        transacao?.modulo_financeiro === "ALUGUEL";
+
+      if (ehAluguelPai) {
+        const hojePag = data_pagamento || new Date().toISOString().split("T")[0];
+
+        await supabase
+          .from("transacoes")
+          .update({
+            status: "pago",
+            data_pagamento: hojePag,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("aluguel_base_id", id)
+          .in("status", ["pendente", "atrasado"]);
+      }
+    }
 
     const { data, error } = await supabase
       .from("transacoes")

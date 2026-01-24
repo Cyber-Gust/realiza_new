@@ -15,6 +15,7 @@ import { Card } from "@/components/admin/ui/Card";
 import Badge from "@/components/admin/ui/Badge";
 import { Select, Input } from "@/components/admin/ui/Form";
 import SearchableSelect from "@/components/admin/ui/SearchableSelect";
+import { formatDateBR } from "@/utils/currency"
 
 import {
   Table,
@@ -30,7 +31,9 @@ export default function ReceitasLocacaoPanel() {
   const toast = useToast();
 
   const [loading, setLoading] = useState(false);
-  const [dados, setDados] = useState([]);
+
+  // ⚠️ A rota devolve agrupado, então eu guardo isso aqui
+  const [grupos, setGrupos] = useState([]);
 
   const [locadoresOptions, setLocadoresOptions] = useState([]);
   const [locatariosOptions, setLocatariosOptions] = useState([]);
@@ -101,9 +104,95 @@ export default function ReceitasLocacaoPanel() {
     locador: "",
     locatario: "",
 
-    considerarDataDe: "repasse", // repasse | pagamento | vencimento
+    considerarDataDe: "pagamento", // repasse | pagamento | vencimento
     statusBaixa: "baixadas", // baixadas | nao_baixadas | ambas
   });
+
+  /* ===========================================
+      HELPERS
+  ============================================ */
+  const formatMoney = (v) => {
+    return Number(v || 0).toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+  };
+
+  const formatCompetencia = useCallback((dataISO) => {
+    if (!dataISO) return "";
+    const dt = new Date(dataISO);
+    if (isNaN(dt.getTime())) return "";
+    return dt.toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" });
+  }, []);
+
+  const getTipoLabel = useCallback((tipo) => {
+    const map = {
+      taxa_adm_imobiliaria: "Taxa ADM",
+      multa: "Multa",
+      juros: "Juros",
+      correcao_monetaria: "Correção",
+      taxa_contrato: "Taxa Contrato",
+      acrescimo: "Acréscimo",
+      desconto: "Desconto",
+    };
+    return map[tipo] || tipo || "-";
+  }, []);
+
+  // ✅ tipos que realmente contam como receita da imobiliária
+  const TIPOS_RECEITA_IMOBILIARIA = useMemo(() => {
+    return new Set([
+      "taxa_adm_imobiliaria",
+      "multa",
+      "juros",
+      "correcao_monetaria",
+      "taxa_contrato",
+    ]);
+  }, []);
+
+  // ✅ montar uma descrição bonita e consistente pra UI
+  const montarDescricaoReceita = useCallback((it, grupo) => {
+    const tipoLabel = getTipoLabel(it.tipo);
+
+    const dataRef =
+      grupo?.aluguelBase?.dataPagamento ||
+      grupo?.aluguelBase?.dataVencimento ||
+      null;
+
+    const competencia = dataRef ? formatCompetencia(dataRef) : "";
+
+    // se já veio uma descrição boa do back, usa ela
+    if (it?.descricao && String(it.descricao).trim().length > 0) {
+      // tenta enriquecer sem bagunçar:
+      // "Taxa ADM - aluguel 01/2026 (10%)"
+      // se já tiver o texto pronto, só acrescenta a competência quando fizer sentido
+      if (competencia && !String(it.descricao).includes(competencia)) {
+        return `${tipoLabel} - ${it.descricao} (${competencia})`;
+      }
+      return `${tipoLabel} - ${it.descricao}`;
+    }
+
+    if (competencia) return `${tipoLabel} - Aluguel ${competencia}`;
+    return `${tipoLabel}`;
+  }, [getTipoLabel, formatCompetencia]);
+
+  const handleFilterChange = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      contratoId: "",
+      periodoInicio: "",
+      periodoFim: "",
+      tipoTaxa: "",
+      controleConta: "",
+      categoria: "",
+      locador: "",
+      locatario: "",
+      considerarDataDe: "pagamento",
+      statusBaixa: "baixadas",
+    });
+  };
 
   /* ===========================================
       LOAD DATA
@@ -130,7 +219,8 @@ export default function ReceitasLocacaoPanel() {
 
       if (!res.ok) throw new Error(json.error || "Erro ao buscar receitas");
 
-      setDados(json.data || []);
+      // ✅ grupos vem do back
+      setGrupos(json.data || []);
     } catch (err) {
       console.error(err);
       toast.error(`Erro ao carregar receitas: ${err.message}`);
@@ -145,59 +235,70 @@ export default function ReceitasLocacaoPanel() {
   }, []);
 
   /* ===========================================
-      HELPERS
+      TRANSFORM: grupos -> linhas “flat” de receitas
+  ============================================ */
+  const linhas = useMemo(() => {
+    const out = [];
+
+    for (const g of grupos || []) {
+      const itens = g?.itens || [];
+
+      for (const it of itens) {
+        // ✅ filtra só o que é receita da imobiliária
+        const ehReceitaImob = TIPOS_RECEITA_IMOBILIARIA.has(it.tipo);
+
+        // Se vier natureza "saida" em taxa imobiliária, isso vira desconto (negativo)
+        // A gente mantém, porque você falou de acréscimo/decréscimo.
+        if (!ehReceitaImob) continue;
+
+        // ✅ filtro tipoTaxa do front (agora passa a funcionar)
+        if (filters.tipoTaxa && it.tipo !== filters.tipoTaxa) continue;
+
+        const natureza = it?.natureza || "entrada";
+        const valorNumerico = Number(it?.valor || 0);
+
+        // ✅ se for saída, mostra negativo (decréscimo)
+        const valorFinal = natureza === "saida" ? -Math.abs(valorNumerico) : valorNumerico;
+
+        out.push({
+          id: it.id,
+          tipo: it.tipo,
+          descricao: montarDescricaoReceita(it, g),
+
+          // datas do grupo (faz sentido, porque são receitas ligadas ao aluguel daquele ciclo)
+          dataVencimento: g?.aluguelBase?.dataVencimento || null,
+          dataPagamento: g?.aluguelBase?.dataPagamento || null,
+          dataRepasse: g?.aluguelBase?.dataRepasse || null,
+
+          baixado: g?.aluguelBase?.baixado || false,
+
+          contrato: g?.contrato || {},
+
+          // ✅ isso é a coluna "Valor"
+          valor: valorFinal,
+
+          // ✅ e aqui é o valor líquido da imobiliária (igual ao valor)
+          valorImobiliaria: valorFinal,
+        });
+      }
+    }
+
+    // ordena por pagamento/vencimento (fica lindo no histórico)
+    out.sort((a, b) => {
+      const da = a.dataPagamento || a.dataVencimento || "1970-01-01";
+      const db = b.dataPagamento || b.dataVencimento || "1970-01-01";
+      return new Date(da).getTime() - new Date(db).getTime();
+    });
+
+    return out;
+  }, [grupos, TIPOS_RECEITA_IMOBILIARIA, filters.tipoTaxa, montarDescricaoReceita]);
+
+  /* ===========================================
+      TOTAL
   ============================================ */
   const total = useMemo(() => {
-    return dados.reduce(
-      (acc, item) => acc + Number(item?.valorImobiliaria || 0),
-      0
-    );
-  }, [dados]);
-
-  const formatMoney = (v) => {
-    return Number(v || 0).toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    });
-  };
-
-  const formatDate = (d) => {
-    if (!d) return "-";
-    const dt = new Date(d);
-    return isNaN(dt.getTime()) ? "-" : dt.toLocaleDateString("pt-BR");
-  };
-
-  const getTipoLabel = (tipo) => {
-    const map = {
-      receita_aluguel: "Aluguel",
-      taxa_adm_imobiliaria: "Taxa Adm",
-      multa: "Multa",
-      juros: "Juros",
-      correcao_monetaria: "Correção",
-      taxa_contrato: "Taxa Contrato",
-      repasse_proprietario: "Repasse",
-    };
-    return map[tipo] || tipo || "-";
-  };
-
-  const handleFilterChange = (key, value) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const resetFilters = () => {
-    setFilters({
-      contratoId: "",
-      periodoInicio: "",
-      periodoFim: "",
-      tipoTaxa: "",
-      controleConta: "",
-      categoria: "",
-      locador: "",
-      locatario: "",
-      considerarDataDe: "repasse",
-      statusBaixa: "baixadas",
-    });
-  };
+    return linhas.reduce((acc, item) => acc + Number(item?.valorImobiliaria || 0), 0);
+  }, [linhas]);
 
   /* ===========================================
       UI
@@ -352,7 +453,7 @@ export default function ReceitasLocacaoPanel() {
         <div className="flex justify-center items-center py-14 text-muted-foreground">
           <Loader2 className="animate-spin mr-2" /> Carregando receitas...
         </div>
-      ) : dados.length === 0 ? (
+      ) : linhas.length === 0 ? (
         <Card className="p-6 text-center text-muted-foreground bg-panel-card border-border rounded-xl">
           Nenhuma receita encontrada com os filtros atuais.
         </Card>
@@ -367,12 +468,12 @@ export default function ReceitasLocacaoPanel() {
               <TableHead>Contrato</TableHead>
               <TableHead>Descrição</TableHead>
               <TableHead className="text-right">Valor</TableHead>
-              <TableHead className="text-right">Total Imobiliária</TableHead>
+              <TableHead className="text-right">Líquido Imobiliária</TableHead>
             </TableRow>
           </TableHeader>
 
           <tbody>
-            {dados.map((item) => (
+            {linhas.map((item) => (
               <TableRow key={item.id} className="hover:bg-muted/20 transition">
                 {/* TIPO */}
                 <TableCell>
@@ -389,12 +490,12 @@ export default function ReceitasLocacaoPanel() {
                 </TableCell>
 
                 {/* VENCIMENTO */}
-                <TableCell>{formatDate(item.dataVencimento)}</TableCell>
+                <TableCell>{formatDateBR(item.dataVencimento)}</TableCell>
 
                 {/* PAGAMENTO */}
                 <TableCell>
                   <div className="flex flex-col">
-                    <span>{formatDate(item.dataPagamento)}</span>
+                    <span>{formatDateBR(item.dataPagamento)}</span>
                     {item?.baixado && (
                       <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wide">
                         Baixado
@@ -406,19 +507,15 @@ export default function ReceitasLocacaoPanel() {
                 {/* REPASSE */}
                 <TableCell>
                   <div className="flex flex-col">
-                    <span>{formatDate(item.dataRepasse)}</span>
+                    <span>{formatDateBR(item.dataRepasse)}</span>
 
-                    {item?.repasseBaixado ? (
+                    {item?.dataRepasse ? (
                       <span className="text-[10px] font-bold text-green-600 uppercase tracking-wide">
-                        Repasse OK
-                      </span>
-                    ) : item?.dataRepasse ? (
-                      <span className="text-[10px] font-bold text-yellow-600 uppercase tracking-wide">
-                        Repasse pendente
+                        Baixado
                       </span>
                     ) : (
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
-                        Sem repasse
+                        -
                       </span>
                     )}
                   </div>
@@ -441,9 +538,7 @@ export default function ReceitasLocacaoPanel() {
                         <span>Locatário: {item.contrato.locatarioNome}</span>
                       )}
                       {item?.contrato?.imovelResumo && (
-                        <span className="italic">
-                          {item.contrato.imovelResumo}
-                        </span>
+                        <span className="italic">{item.contrato.imovelResumo}</span>
                       )}
                     </div>
                   </div>
@@ -451,7 +546,7 @@ export default function ReceitasLocacaoPanel() {
 
                 {/* DESCRIÇÃO */}
                 <TableCell
-                  className="max-w-[260px] truncate text-muted-foreground"
+                  className="max-w-[280px] whitespace-normal break-words text-muted-foreground"
                   title={item.descricao}
                 >
                   {item.descricao || "-"}

@@ -65,7 +65,7 @@ export default function InadimplenciaPanel() {
      HELPERS
   ========================== */
   const totalEmAtraso = dados.reduce(
-    (acc, r) => acc + Number(r.valor || 0),
+    (acc, r) => acc + Number(r.valor_calculado || 0),
     0
   );
 
@@ -164,7 +164,7 @@ export default function InadimplenciaPanel() {
                   </TableCell>
 
                   <TableCell className="font-medium text-red-600">
-                    {formatBRL(r.valor)}
+                    {formatBRL(r.valor_calculado)}
                   </TableCell>
 
                   <TableCell>{formatDateBR(r.data_vencimento)}</TableCell>

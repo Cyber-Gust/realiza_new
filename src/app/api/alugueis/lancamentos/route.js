@@ -37,7 +37,7 @@ const TIPOS_ENUM_PERMITIDOS = [
 ];
 
 // status do enum
-const STATUS_PADRAO = "pago";
+const STATUS_PADRAO = "pendente";
 
 // natureza no DB: entrada | saida
 function resolverNatureza(natureza_texto) {
@@ -95,6 +95,22 @@ function monthYearToISO(competencia, dia = 5) {
 
   const dt = new Date(year, month - 1, dia);
   return `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
+}
+
+async function buscarDataVencimentoDoAluguelBase(supabase, contratoId, competenciaYYYYMM) {
+  const { data, error } = await supabase
+    .from("transacoes")
+    .select("data_vencimento")
+    .eq("contrato_id", contratoId)
+    .eq("tipo", "receita_aluguel")
+    .eq("modulo_financeiro", "ALUGUEL")
+    .eq("dados_cobranca_json->>competencia", competenciaYYYYMM)
+    .neq("status", "cancelado")
+    .limit(1)
+    .single();
+
+  if (error || !data?.data_vencimento) return null;
+  return data.data_vencimento;
 }
 
 function addMonthsISO(isoDate, add) {
@@ -249,14 +265,39 @@ export async function POST(req) {
     }
 
     // ----------------------------
-    // definir vencimento
+    // definir vencimento (sempre colado no aluguel base)
     // ----------------------------
-    // regra: sempre dia 5 (ou você pode usar contrato.dia_vencimento_aluguel)
-    const diaVencimento = Math.min(Number(contrato.dia_vencimento_aluguel || 5), 28);
-    const dataVencimentoBase = monthYearToISO(body.competencia, diaVencimento);
+
+    // transforma MM/YYYY -> YYYY-MM
+    const [mm, yyyy] = String(body.competencia || "").split("/");
+    const competenciaYYYYMM = yyyy && mm ? `${yyyy}-${String(mm).padStart(2, "0")}` : null;
+
+    if (!competenciaYYYYMM) {
+      return NextResponse.json(
+        { error: "competencia inválida (formato MM/YYYY)." },
+        { status: 400 }
+      );
+    }
+
+    // ✅ tenta pegar o vencimento REAL do aluguel base daquela competência
+    const vencimentoDoAluguelBase = await buscarDataVencimentoDoAluguelBase(
+      supabase,
+      contrato.id,
+      competenciaYYYYMM
+    );
+
+    // ✅ fallback: usa regra do contrato (se ainda não existir aluguel base)
+    const diaVencimentoFallback = Math.min(Number(contrato.dia_vencimento_aluguel || 5), 28);
+    const dataVencimentoBaseFallback = monthYearToISO(body.competencia, diaVencimentoFallback);
+
+    // ✅ o vencimento final do lançamento
+    const dataVencimentoBase = vencimentoDoAluguelBase || dataVencimentoBaseFallback;
 
     if (!dataVencimentoBase) {
-      return NextResponse.json({ error: "competencia inválida (formato MM/YYYY)." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Não foi possível definir data de vencimento." },
+        { status: 400 }
+      );
     }
 
     // ----------------------------
