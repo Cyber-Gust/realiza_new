@@ -14,6 +14,8 @@ import Badge from "@/components/admin/ui/Badge";
 import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
 import { formatBRL, formatDateBR } from "@/utils/currency";
 import { useToast } from "@/contexts/ToastContext";
+import EditarRecorrenciaModal from "./EditarRecorrenciaModal";
+
 
 export default function ContratoRecorrenciasModal({
   isOpen,
@@ -26,6 +28,8 @@ export default function ContratoRecorrenciasModal({
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState([]);
   const [toDelete, setToDelete] = useState(null);
+  const [toEdit, setToEdit] = useState(null);
+
 
   /* ===========================================
      LOAD — BUSCA LANÇAMENTOS RECORRENTES
@@ -185,9 +189,7 @@ export default function ContratoRecorrenciasModal({
                               ? "Editar lançamento"
                               : "Lançamento já baixado"
                           }
-                          onClick={() => {
-                            onEditarLancamento(row);
-                          }}
+                          onClick={() => setToEdit(row)}
                         >
                           <Pencil size={14} />
                         </Button>
@@ -241,6 +243,28 @@ export default function ContratoRecorrenciasModal({
           </div>
         </div>
       </Modal>
+
+      {/* MODAL EDITAR */}
+      {toEdit && (
+        <EditarRecorrenciaModal
+          isOpen={!!toEdit}
+          row={toEdit}
+          onClose={() => setToEdit(null)}
+          onSaved={(updated) => {
+            setRows((prev) =>
+              prev.map((r) =>
+                r.id === updated.id ? updated : r
+              )
+            );
+          }}
+        />
+      )}
+      
+
+      
     </>
+
+    
   );
+  
 }

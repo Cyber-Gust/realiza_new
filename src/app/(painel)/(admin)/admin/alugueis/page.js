@@ -17,6 +17,7 @@ import InadimplenciaPanel from "@/components/alugueis/InadimplenciaPanel";
 import TimelinePanel from "@/components/alugueis/TimelinePanel";
 
 import ReceitasLocacaoPanel from "@/components/alugueis/extras/ReceitasLocacaoPanel"
+import ContratosPertoVencimento from "@/components/alugueis/extras/ContratosPertoVencimento";
 
 import { Select } from "@/components/admin/ui/Form";
 
@@ -56,7 +57,8 @@ export default function AlugueisPage() {
               <option value="" disabled>
                 Mais opções...
               </option>
-              <option value="renovacao">Receitas Locação</option>
+              <option value="receitaslocacao">Receitas Locação</option>
+              <option value="contratosavencer">Contratos a Vencer</option>
             </Select>
           </div>
         </TabsList>
@@ -87,11 +89,17 @@ export default function AlugueisPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="renovacao" currentValue={tab}>
+          <TabsContent value="receitaslocacao" currentValue={tab}>
             <Card className="p-6">
               <ReceitasLocacaoPanel />
             </Card>
           </TabsContent>
+
+           <TabsContent value="contratosavencer" currentValue={tab}>
+            <Card className="p-6">
+              <ContratosPertoVencimento />
+            </Card>
+           </TabsContent>
         </div>
       </Tabs>
     </div>

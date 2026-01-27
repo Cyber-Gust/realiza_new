@@ -23,7 +23,7 @@ import SearchableSelect from "@/components/admin/ui/SearchableSelect"; // Do seu
 import { useToast } from "@/contexts/ToastContext";
 import { cn } from "@/lib/utils";
 
-export default function CarteiraPanel() {
+export default function ContratosPertoVencimento() {
   const { error: toastError } = useToast();
   
   const [loading, setLoading] = useState(true);
@@ -88,7 +88,17 @@ export default function CarteiraPanel() {
   }, [carteira]);
 
   const filtered = useMemo(() => {
+    const hoje = new Date();
+    const limite = new Date();
+    limite.setMonth(limite.getMonth() + 2);
+
     return carteira.filter((c) => {
+      if (!c.data_fim) return false;
+
+      const dataFim = new Date(c.data_fim);
+
+      // contratos que vencem até 2 meses
+      if (dataFim > limite) return false;
       // Filtro de Texto (Busca Geral)
       if (filters.search) {
         const s = filters.search.toLowerCase();
@@ -130,10 +140,10 @@ export default function CarteiraPanel() {
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-primary">
             <Home size={22} />
-            <h3 className="text-2xl font-bold tracking-tight text-foreground">Carteira de Locações</h3>
+            <h3 className="text-2xl font-bold tracking-tight text-foreground">Contratos a Vencer</h3>
           </div>
           <p className="text-sm text-muted-foreground">
-            Gerencie o fluxo financeiro de <strong>{carteira.length} contratos ativos</strong>.
+            Gerencie o fluxo financeiro dos contratos a vencer.
           </p>
         </div>
 
