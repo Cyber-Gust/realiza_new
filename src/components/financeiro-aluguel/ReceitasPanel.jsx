@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, Fragment } from "react";
 import {
   Plus,
   RotateCcw,
@@ -519,10 +519,9 @@ export default function ReceitasPanel() {
                   
 
                 return (
-                  <>
+                  <Fragment key={row.id}>
                     {/* Linha principal */}
                     <TableRow
-                      key={row.id}
                       className={isAluguel ? "cursor-pointer" : ""}
                       onClick={() => {
                         if (!isAluguel) return;
@@ -708,7 +707,7 @@ export default function ReceitasPanel() {
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </Fragment>
                 );
               })
             )}

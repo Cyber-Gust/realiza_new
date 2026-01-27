@@ -13,6 +13,7 @@ import ContratoAlugueisModal from "./extras/ContratoAlugueisModal";
 import ModalLancamento from "@/components/alugueis/ModalLancamento";
 import ContratoReajustesModal from "./extras/ContratoReajustesModal"
 import { formatBRL, formatDateBR, formatPhoneBR, formatDocument } from "@/utils/currency"
+import ContratoRecorrenciasModal from "./extras/ContratoRecorrenciasModal"; 
  
 
 
@@ -49,6 +50,8 @@ export default function ContratoLocacaoDrawer({ contratoId, onClose }) {
   const [loadingEdit, setLoadingEdit] = useState(false);
   const [openLancamentoModal, setOpenLancamentoModal] = useState(false);
   const [openReajusteModal, setOpenReajusteModal] = useState(false);
+  const [openRecorrenciasModal, setOpenRecorrenciasModal] = useState(false);
+
 
   /* ===========================================
       LOAD DETALHES DO DRAWER (API /api/alugueis)
@@ -333,6 +336,14 @@ export default function ContratoLocacaoDrawer({ contratoId, onClose }) {
                   </Button>
 
                   <Button
+                    variant="secondary"
+                    className="gap-2"
+                    onClick={() => setOpenRecorrenciasModal(true)}
+                  >
+                    ± Decr/Acr
+                  </Button>
+
+                  <Button
                     className={cn("gap-2 col-span-2")}
                     onClick={() => setOpenReajusteModal(true)}
                   >
@@ -401,6 +412,16 @@ export default function ContratoLocacaoDrawer({ contratoId, onClose }) {
                 valorAtualContrato={contrato?.valor_acordado} // ✅ sempre do contrato atual
                 onSaved={async () => {
                   await fetchContrato(); // ✅ atualiza valor exibido no drawer
+                }}
+              />
+
+              <ContratoRecorrenciasModal
+                isOpen={openRecorrenciasModal}
+                onClose={() => setOpenRecorrenciasModal(false)}
+                contratoId={contratoId}
+                onNovoLancamento={() => {
+                  setOpenRecorrenciasModal(false);
+                  setOpenLancamentoModal(true);
                 }}
               />
 
