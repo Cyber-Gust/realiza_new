@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, Callback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import "@/components/agenda/calendar.css"; // Certifique-se que o arquivo CSS está na mesma pasta
 import {
   CalendarDays,
@@ -53,7 +53,7 @@ export default function CRMAgendaPanel() {
   const [deleting, setDeleting] = useState(false);
 
   /* Load Data */
-  const loadEventos = async () => {
+  const loadEventos = useCallback( async () => {
     try {
       setLoading(true);
       const res = await fetch("/api/crm/agenda", { cache: "no-store" });
@@ -65,11 +65,11 @@ export default function CRMAgendaPanel() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     loadEventos();
-  }, []);
+  }, [loadEventos]);
 
   /* ============================================================
      🎨 Renderização do Evento (Estilo "Pill" Arredondado)

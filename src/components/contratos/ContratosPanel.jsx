@@ -265,7 +265,7 @@ export default function CRMContratosPanel({
           <Loader2 className="animate-spin mr-2" /> Carregando...
         </div>
       ) : filtered.length === 0 ? (
-        <Card className="p-6 text-center text-muted-foreground bg-panel-card border-border rounded-xl">
+        <Card className="p-6 text-center text-muted-foreground bg-panel-card border-border ">
           Nenhum contrato encontrado.
         </Card>
       ) : (

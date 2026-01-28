@@ -431,13 +431,6 @@ function TimelineItem({ transaction: t }) {
             <span className="font-medium text-foreground">
               {t.tipo || "—"}
             </span>
-            {t.aluguel_base_id ? (
-              <>
-                {" "}
-                • aluguel_base_id:{" "}
-                <span className="font-mono">{t.aluguel_base_id}</span>
-              </>
-            ) : null}
           </div>
         </div>
 

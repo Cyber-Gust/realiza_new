@@ -219,7 +219,7 @@ export async function GET(req) {
             titulo,
             endereco_cidade,
             endereco_estado
-          ),
+          ), 
           inquilino:personas!contratos_inquilino_id_fkey (
             nome,
             cpf_cnpj,

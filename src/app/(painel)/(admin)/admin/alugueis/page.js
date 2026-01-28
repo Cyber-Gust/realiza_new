@@ -18,6 +18,12 @@ import TimelinePanel from "@/components/alugueis/TimelinePanel";
 
 import ReceitasLocacaoPanel from "@/components/alugueis/extras/ReceitasLocacaoPanel"
 import ContratosPertoVencimento from "@/components/alugueis/extras/ContratosPertoVencimento";
+import ControledeConta from "@/components/alugueis/extras/ControledeConta";
+import EspelhoCarteira from "@/components/alugueis/extras/EspelhoCarteira";
+import EvolucaoFinanceira from "@/components/alugueis/extras/EvolucaoFinanceira";
+import GarantiasLocaticias from "@/components/alugueis/extras/GarantiasLocaticias";
+import RecebimentoDiario from "@/components/alugueis/extras/RecebimentoDiario";
+
 
 import { Select } from "@/components/admin/ui/Form";
 
@@ -59,6 +65,12 @@ export default function AlugueisPage() {
               </option>
               <option value="receitaslocacao">Receitas Locação</option>
               <option value="contratosavencer">Contratos a Vencer</option>
+              <option value="controleconta">Controle de Conta</option>
+              <option value="espelhocarteira">Espelho da Carteira</option>
+              <option value="evolucaofinanceira">Evolução Financeira</option>
+              <option value="garantiaslocaticias">Garantias Locatícias</option>
+              <option value="recebimentodiario">Recebimento Diário</option>
+
             </Select>
           </div>
         </TabsList>
@@ -100,6 +112,36 @@ export default function AlugueisPage() {
               <ContratosPertoVencimento />
             </Card>
            </TabsContent>
+
+           <TabsContent value="controleconta" currentValue={tab}>
+            <Card className="p-6">
+              <ControledeConta />
+            </Card>
+           </TabsContent>
+
+           <TabsContent value="espelhocarteira" currentValue={tab}>
+            <Card className="p-6">
+              <EspelhoCarteira />
+            </Card>
+           </TabsContent>
+
+            <TabsContent value="evolucaofinanceira" currentValue={tab}>
+              <Card className="p-6">
+                <EvolucaoFinanceira />
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="garantiaslocaticias" currentValue={tab}>
+              <Card className="p-6">
+                <GarantiasLocaticias />
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="recebimentodiario" currentValue={tab}>
+              <Card className="p-6">
+                <RecebimentoDiario />
+              </Card>
+            </TabsContent>
         </div>
       </Tabs>
     </div>
