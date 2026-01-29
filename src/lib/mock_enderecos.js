@@ -116,7 +116,8 @@ export const BAIRROS_POR_CIDADE = {
     "Vila Santo Antônio (Matozinhos)",
     "Vila São Bento",
     "Vila São Paulo (Fábricas)",
-    "Vila São Vicente (Colônia do Marçal)"
+    "Vila São Vicente (Colônia do Marçal)",
+    "Vista da Serra"
   ],
 
   "Santa Cruz de Minas": ["Centro","Bom Clima", "Rosa Mística", "Cohab", "Porto Real", "Bela vista"],

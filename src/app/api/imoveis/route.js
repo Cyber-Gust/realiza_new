@@ -1,6 +1,7 @@
 // src/app/api/imoveis/route.js
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import slugify from "slugify";
 
 // ---------------------------------------------------------------------------
 // 🔥 HANDLERS CENTRALIZADOS
@@ -118,7 +119,7 @@ async function handlePOST(req, supabase) {
     };
   }
 
-  const required = ["proprietario_id", "tipo", "codigo_ref", "slug", "titulo"];
+  const required = ["proprietario_id", "tipo", "codigo_ref", "titulo"];
   for (const f of required) {
     if (!body[f]) throw new Error(`Campo obrigatório: ${f}`);
   }
@@ -157,9 +158,18 @@ async function handlePOST(req, supabase) {
     if (!preco || !percent) return null;
     return (preco * percent) / 100;
   }
+  const slug = slugify(
+    `${body.titulo}-${body.codigo_ref}`,
+    {
+      lower: true,
+      strict: true,
+      trim: true,
+    }
+  );
 
   const payload = {
     ...body,
+    slug,
     midias,
     comissao_venda_valor: calcComissaoVenda(
       body.preco_venda,

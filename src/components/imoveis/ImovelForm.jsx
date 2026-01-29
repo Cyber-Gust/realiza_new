@@ -81,10 +81,13 @@ export default function ImovelForm({ data = {}, onChange }) {
   const [activeTab, setActiveTab] = useState("fisicas");
 
   const [autoTitulo, setAutoTitulo] = useState(!data?.titulo);
-  const [autoSlug, setAutoSlug] = useState(!data?.slug);
   const [autoDescricao, setAutoDescricao] = useState(!data?.descricao);
-
-  const didMount = useRef(false);
+  
+  const slugPreview = useMemo(() => {
+    if (!form.titulo || !form.codigo_ref) return "";
+    return slugify(`${form.titulo}-${form.codigo_ref}`);
+  }, [form.titulo, form.codigo_ref]);
+    const didMount = useRef(false);
 
   // 🔄 Sync parent (controla loop infinito)
   useEffect(() => {
@@ -235,14 +238,6 @@ export default function ImovelForm({ data = {}, onChange }) {
           }
         }
 
-        /* AUTO SLUG */
-        if (autoSlug && (key === "titulo" || autoTitulo)) {
-          const novoSlug = slugify(next.titulo);
-          if (novoSlug && novoSlug !== next.slug) {
-            next.slug = novoSlug;
-          }
-        }
-
         /* DISPONIBILIDADE */
         if (key === "disponibilidade") {
           if (value === "venda") {
@@ -311,7 +306,6 @@ export default function ImovelForm({ data = {}, onChange }) {
     [
       autoTitulo,
       autoDescricao,
-      autoSlug,
       gerarNomeImovel,
       gerarTituloCurto,
       gerarDescricao,
@@ -1408,11 +1402,9 @@ export default function ImovelForm({ data = {}, onChange }) {
               <div>
                 <Label>Slug</Label>
                 <Input
-                  value={form.slug || ""}
-                  onChange={(e) => {
-                    setAutoSlug(false);
-                    handleChange("slug", e.target.value);
-                  }}
+                  value={slugPreview}
+                  readOnly
+                  className="bg-gray-100 cursor-not-allowed"
                 />
               </div>
 
