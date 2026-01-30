@@ -167,22 +167,8 @@ export default function ImovelForm({ data = {}, onChange }) {
 
     const bairro = form.endereco_bairro;
     const cidade = form.endereco_cidade;
-    const vibe = [];
 
-    if (form.suites >= 2) vibe.push("alto padrão");
-    if (form.area_total > 300) vibe.push("amplitude estonteante");
-    if (form.caracteristicas_extras?.includes("Vista Panorâmica")) {
-      vibe.push("vista de tirar o fôlego");
-    }
-    if (form.caracteristicas_extras?.includes("Lareira")) {
-      vibe.push("toque acolhedor");
-    }
-    if (form.caracteristicas_extras?.includes("Aquecimento Solar")) {
-      vibe.push("sustentabilidade");
-    }
-
-    const vibes = vibe.length ? ` – ${vibe.join(", ")}` : "";
-    return `${tipo} no ${bairro || cidade || "localização privilegiada"}${vibes}`;
+    return `${tipo} no ${bairro || cidade || "Localização a definir"}`;
   }, []);
 
   const gerarTituloCurto = useCallback((form) => {
@@ -194,19 +180,88 @@ export default function ImovelForm({ data = {}, onChange }) {
   }, []);
 
   const gerarDescricao = useCallback((form) => {
-    const extras = form.caracteristicas_extras?.slice(0, 4)?.join(", ");
+    const linhas = [];
 
-    return `
-  Um ${form.tipo || "imóvel"} com ${form.area_total || "?"}m² localizado em ${
-      form.endereco_bairro || form.endereco_cidade || "região estratégica"
-    }.
+    // ===============================
+    // TIPO E LOCALIZAÇÃO
+    // ===============================
+    linhas.push("TIPO DO IMÓVEL");
+    linhas.push(form.tipo ? form.tipo.toUpperCase() : "—");
 
-  Ambientes bem distribuídos, ${form.quartos || "?"} quarto(s), ${
-      form.suites || "?"
-    } suíte(s), pensado para quem busca conforto, funcionalidade e personalidade.
+    linhas.push("\nLOCALIZAÇÃO");
+    if (form.endereco_bairro) linhas.push(`Bairro: ${form.endereco_bairro}`);
+    if (form.endereco_cidade)
+      linhas.push(`Cidade: ${form.endereco_cidade}${form.endereco_estado ? " - " + form.endereco_estado : ""}`);
 
-  Destaques: ${extras || "acabamentos selecionados com critério"}.
-  `.trim();
+    // ===============================
+    // DIMENSÕES
+    // ===============================
+    linhas.push("\nDIMENSÕES");
+    if (form.area_construida)
+      linhas.push(`Área construída: ${form.area_construida} m²`);
+    if (form.area_total)
+      linhas.push(`Área total: ${form.area_total} m²`);
+    if (form.testada)
+      linhas.push(`Testada: ${form.testada} m`);
+    if (form.profundidade)
+      linhas.push(`Profundidade: ${form.profundidade} m`);
+
+    // ===============================
+    // COMPOSIÇÃO
+    // ===============================
+    linhas.push("\nCOMPOSIÇÃO DO IMÓVEL");
+    linhas.push(`Quartos: ${form.quartos ?? 0}`);
+    linhas.push(`Suítes: ${form.suites ?? 0}`);
+    linhas.push(`Banheiros: ${form.banheiros ?? 0}`);
+    linhas.push(`Vagas de garagem: ${form.vagas_garagem ?? 0}`);
+
+    // ===============================
+    // CARACTERÍSTICAS
+    // ===============================
+    linhas.push("\nCARACTERÍSTICAS");
+    linhas.push(`Mobiliado: ${form.mobiliado ? "Sim" : "Não"}`);
+    linhas.push(`Pet friendly: ${form.pet_friendly ? "Sim" : "Não"}`);
+    linhas.push(`Piscina: ${form.piscina ? "Sim" : "Não"}`);
+    linhas.push(`Área gourmet: ${form.area_gourmet ? "Sim" : "Não"}`);
+    linhas.push(`Elevador: ${form.elevador ? "Sim" : "Não"}`);
+
+    // ===============================
+    // VALORES
+    // ===============================
+    linhas.push("\nVALORES");
+    if (form.preco_venda)
+      linhas.push(`Valor de venda: R$ ${Number(form.preco_venda).toLocaleString("pt-BR")}`);
+    if (form.preco_locacao)
+      linhas.push(`Valor de locação: R$ ${Number(form.preco_locacao).toLocaleString("pt-BR")}`);
+    if (form.valor_condominio)
+      linhas.push(`Condomínio: R$ ${Number(form.valor_condominio).toLocaleString("pt-BR")}`);
+    if (form.valor_iptu)
+      linhas.push(`IPTU: R$ ${Number(form.valor_iptu).toLocaleString("pt-BR")}`);
+
+    // ===============================
+    // DOCUMENTAÇÃO
+    // ===============================
+    linhas.push("\nDOCUMENTAÇÃO");
+    if (form.situacao_documentacao)
+      linhas.push(`Situação: ${form.situacao_documentacao}`);
+    linhas.push(`Aceita permuta: ${form.aceita_permuta ? "Sim" : "Não"}`);
+
+    // ===============================
+    // EXTRAS
+    // ===============================
+    if (form.caracteristicas_extras?.length) {
+      linhas.push("\nCARACTERÍSTICAS EXTRAS");
+      form.caracteristicas_extras.forEach((item) => {
+        linhas.push(`- ${item}`);
+      });
+    }
+
+    if (form.observacoes) {
+      linhas.push("\nOBSERVAÇÕES");
+      linhas.push(form.observacoes);
+    }
+
+    return linhas.join("\n");
   }, []);
 
   /* ============================================================

@@ -141,7 +141,10 @@ export default function ConfiguracoesPage() {
 
       await supabase
         .from("profiles")
-        .update({ avatar_url: data.publicUrl })
+        .update({
+          avatar_url: data.publicUrl,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", user.id);
 
       update("avatar_url", data.publicUrl);
@@ -205,16 +208,16 @@ export default function ConfiguracoesPage() {
         <div className="flex items-center gap-6">
 
             <Image
-            src={form.avatar_url || "/avatar-placeholder.png"}
-            alt={
-                form.nome_completo
-                ? `Avatar de ${form.nome_completo}`
-                : "Avatar do usuário"
-            }
-            width={96}
-            height={96}
-            className="w-24 h-24 rounded-full object-cover border"
-            priority
+              src={
+                form.avatar_url
+                  ? `${form.avatar_url}?v=${new Date(form.updated_at || Date.now()).getTime()}`
+                  : "/avatar-placeholder.png"
+              }
+              alt={form.nome_completo ? `Avatar de ${form.nome_completo}` : "Avatar do usuário"}
+              width={96}
+              height={96}
+              className="w-24 h-24 rounded-full object-cover border"
+              priority
             />
 
             {/* INPUT FILE NATIVO (ESCONDIDO) */}
