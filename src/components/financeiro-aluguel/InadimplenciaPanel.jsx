@@ -72,9 +72,7 @@ export default function InadimplenciaPanel() {
   const notificar = (r) => {
     const contrato = r.contrato;
 
-    const email =
-      contrato?.inquilino?.email ||
-      contrato?.proprietario?.email;
+    const email = contrato?.inquilino?.email
 
     if (!email) {
       toast.error("Contato sem e-mail", "Não foi possível notificar.");
@@ -151,13 +149,33 @@ export default function InadimplenciaPanel() {
             ) : (
               dados.map((r) => (
                 <TableRow key={r.id}>
-                  <TableCell>{r.imovel?.titulo || "—"}</TableCell>
-
                   <TableCell>
-                    {r.contrato?.id
-                      ? `Contrato ${r.contrato.id.slice(0, 8)}`
-                      : "—"}
-                  </TableCell>
+                  <div className="flex flex-col leading-tight">
+                    <span className="text-sm font-semibold">
+                      Imóvel: {r.imovel?.codigo_ref || "-"}
+                    </span>
+
+                    <span className="text-xs text-muted-foreground">
+                      {r.imovel?.titulo || "-"}
+                    </span>
+                  </div>
+                </TableCell>
+
+                <TableCell>
+                  <div className="flex flex-col leading-tight">
+                    <span className="text-sm font-semibold">
+                      Contrato: {r.contrato?.codigo || "-"}
+                    </span>
+
+                    <span className="text-xs text-muted-foreground">
+                      Locador: {r.contrato?.proprietario?.nome || "-"}
+                    </span>
+
+                    <span className="text-xs text-muted-foreground">
+                      Locatário: {r.contrato?.inquilino?.nome || "-"}
+                    </span>
+                  </div>
+                </TableCell>
 
                   <TableCell>
                     <Badge status={r.status}>Atrasado</Badge>

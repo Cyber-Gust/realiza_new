@@ -28,6 +28,7 @@ export const caracteristicasUnidade = [
   "Telhado Colonial",
   "Poço Semi Artesiano",
   "Piscina Aquecida",
+  "Pergolado",
   "Móveis Planejados",
   "Energia Fotovoltaica",
   "Lareira",

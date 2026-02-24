@@ -211,7 +211,7 @@ export default function ImovelForm({ data = {}, onChange }) {
     // ===============================
     linhas.push("\nCOMPOSIÇÃO DO IMÓVEL");
     linhas.push(`Quartos: ${form.quartos ?? 0}`);
-    linhas.push(`Suítes: ${form.suites ?? 0}`);
+    linhas.push(`Sendo ${form.suites ?? 0} Suítes`);
     linhas.push(`Banheiros: ${form.banheiros ?? 0}`);
     linhas.push(`Vagas de garagem: ${form.vagas_garagem ?? 0}`);
 
