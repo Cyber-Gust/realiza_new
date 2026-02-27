@@ -39,6 +39,7 @@ async function handleGET(req, supabase) {
     !v || ["undefined", "null", "false"].includes(v) ? null : v;
 
   const filters = {
+    codigo_ref: sanitize(searchParams.get("codigo_ref")),
     id: sanitize(searchParams.get("id")),
     tipo: sanitize(searchParams.get("tipo")),
     status: sanitize(searchParams.get("status")),
@@ -54,6 +55,9 @@ async function handleGET(req, supabase) {
   let query = supabase.from("imoveis").select("*", { count: "exact" });
 
   if (filters.id) query = query.eq("id", filters.id);
+  if (filters.codigo_ref) {
+    query = query.ilike("codigo_ref", `%${filters.codigo_ref}%`);
+  }
   if (filters.tipo) query = query.eq("tipo", filters.tipo);
   if (filters.status && filters.status !== "all")
     query = query.eq("status", filters.status);

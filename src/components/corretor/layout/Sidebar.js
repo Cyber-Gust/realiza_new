@@ -18,7 +18,7 @@ export const navItems = [
   { name: "Imóveis", href: "/corretor/imoveis", icon: Home },
   { name: "Perfis", href: "/corretor/perfis", icon: UserCog },
   { name: "Configurações", href: "/corretor/configuracoes", icon: Settings },
-  { name: "Agenda", href: "/admin/agenda", icon: CalendarDays },
+  { name: "Agenda", href: "/corretor/agenda", icon: CalendarDays },
 
 ];
 

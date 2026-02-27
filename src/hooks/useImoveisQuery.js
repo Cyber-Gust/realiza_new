@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 
 export function useImoveisQuery(initialFilters = {}) {
   const [filters, setFilters] = useState({
+    codigo_ref: "",
     tipo: "all",
     status: "all",
     disponibilidade: "all",
@@ -30,6 +31,9 @@ export function useImoveisQuery(initialFilters = {}) {
   ============================================================ */
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
+    if (filters.codigo_ref) {
+      params.append("codigo_ref", filters.codigo_ref.trim());
+    }
 
     if (filters.tipo && filters.tipo !== "all") {
       params.append("tipo", filters.tipo);
