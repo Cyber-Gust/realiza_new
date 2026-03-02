@@ -29,6 +29,7 @@ import {
 ============================================================ */
 function ImoveisFilters({ onFilter }) {
   const [filters, setFilters] = useState({
+    codigo_ref: "",
     tipo: "all",
     status: "all",
     disponibilidade: "all",
@@ -149,6 +150,7 @@ function ImoveisFilters({ onFilter }) {
 
   const applyFilters = () => {
     onFilter?.({
+      codigo_ref: filters.codigo_ref || undefined,
       tipo: filters.tipo !== "all" ? filters.tipo : undefined,
       status: filters.status !== "all" ? filters.status : undefined,
       disponibilidade:
@@ -171,6 +173,7 @@ function ImoveisFilters({ onFilter }) {
 
   const clearFilters = () => {
     setFilters({
+      codigo_ref: "",
       tipo: "all",
       status: "all",
       disponibilidade: "all",
@@ -189,6 +192,14 @@ function ImoveisFilters({ onFilter }) {
 
   return (
     <Card className="flex flex-wrap items-end gap-3 p-4">
+      <div className="min-w-[180px]">
+        <Label>Código</Label>
+        <Input
+          value={filters.codigo_ref}
+          onChange={(e) => handleChange("codigo_ref", e.target.value)}
+          placeholder="Ex: 1023"
+        />
+      </div>
       {/* Tipo */}
       <div className="min-w-[180px]">
         <Label>Tipo</Label>
