@@ -127,11 +127,16 @@ export default function ConfiguracoesPage() {
       }
 
       const ext = file.name.split(".").pop();
-      const path = `${user.id}/avatar.${ext}`;
+      const timestamp = Date.now();
+
+      const path = `${user.id}/avatar_${timestamp}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from("perfil_fotos")
-        .upload(path, file, { upsert: true });
+        .upload(path, file, {
+          cacheControl: "3600", // 1h
+          upsert: false,
+        });
 
       if (uploadError) throw uploadError;
 
@@ -141,10 +146,14 @@ export default function ConfiguracoesPage() {
 
       await supabase
         .from("profiles")
-        .update({ avatar_url: data.publicUrl })
+        .update({
+          avatar_url: data.publicUrl,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", user.id);
 
       update("avatar_url", data.publicUrl);
+
       toast.success("Foto atualizada com sucesso");
     } catch (err) {
       console.error(err);
