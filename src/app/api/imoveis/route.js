@@ -14,6 +14,31 @@ async function handleGET(req, supabase) {
   const { searchParams } = new URL(req.url);
   const action = searchParams.get("action");
 
+  /* ---------------- GERAR PRÓXIMO CÓDIGO ---------------- */
+  if (action === "next_codigo") {
+
+    const { data, error } = await supabase
+      .from("imoveis")
+      .select("codigo_ref");
+
+    if (error) throw error;
+
+    const numeros = (data || [])
+      .map((i) => {
+        const match = i.codigo_ref?.match(/RL-(\d+)/);
+        return match ? Number(match[1]) : 0;
+      });
+
+    const maior = Math.max(0, ...numeros);
+    const proximo = maior + 1;
+
+    return {
+      data: {
+        codigo_ref: `RL-${proximo}`
+      }
+    };
+  }
+
   /* ---------------- STORAGE LIST ---------------- */
   if (action === "storage") {
     let prefix = searchParams.get("prefix") || "";

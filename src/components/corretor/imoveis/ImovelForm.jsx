@@ -67,10 +67,9 @@ function slugify(value) {
 
 export default function ImovelForm({ data = {}, onChange, disabled = false }) {
   const [form, setForm] = useState(() => {
-    const random = Math.floor(1000 + Math.random() * 9000);
     return {
       disponibilidade: data.disponibilidade ?? "venda",
-      codigo_ref: data.codigo_ref ?? `RL-${random}`,
+      codigo_ref: data.codigo_ref ?? "",
       observacoes: data.observacoes ?? "",
       ...data,
     };
@@ -89,6 +88,27 @@ export default function ImovelForm({ data = {}, onChange, disabled = false }) {
   const switchProps = disabled ? { disabled: true } : {};  
 
   const didMount = useRef(false);
+
+  useEffect(() => {
+  if (data?.codigo_ref) return;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/imoveis?action=next_codigo");
+        const json = await res.json();
+
+        if (json?.data?.codigo_ref) {
+          setForm((prev) => ({
+            ...prev,
+            codigo_ref: json.data.codigo_ref
+          }));
+        }
+
+      } catch (err) {
+        console.error("Erro ao gerar código", err);
+      }
+    })();
+  }, [data?.codigo_ref]);
 
   // 🔄 Sync parent (controla loop infinito)
   useEffect(() => {

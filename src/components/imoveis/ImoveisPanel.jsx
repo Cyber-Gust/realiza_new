@@ -191,7 +191,14 @@ function ImoveisFilters({ onFilter }) {
   };
 
   return (
-    <Card className="flex flex-wrap items-end gap-3 p-4">
+      <Card
+        as="form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          applyFilters();
+        }}
+        className="flex flex-wrap items-end gap-3 p-4"
+      >
       <div className="min-w-[180px]">
         <Label>Código</Label>
         <Input
@@ -362,7 +369,7 @@ function ImoveisFilters({ onFilter }) {
 
       {/* Botões */}
       <div className="flex gap-2">
-        <Button onClick={applyFilters}>
+        <Button type="submit">
           <Search size={16} /> Filtrar
         </Button>
         <Button variant="secondary" onClick={clearFilters}>
