@@ -27,24 +27,7 @@ import {
 /* ============================================================
    ⬇️ COMPONENTE LOCAL: FILTROS
 ============================================================ */
-function ImoveisFilters({ onFilter }) {
-  const [filters, setFilters] = useState({
-    codigo_ref: "",
-    tipo: "all",
-    status: "all",
-    disponibilidade: "all",
-
-    cidade: "",
-    bairro: "",
-    rua: "",
-    cep: "",
-
-    corretor_id: "",
-    proprietario_id: "",
-
-    preco_min: "",
-    preco_max: "",
-  });
+function ImoveisFilters({ filters, setFilters }) {
 
   const [corretores, setCorretores] = useState([]);
   const [proprietarios, setProprietarios] = useState([]);
@@ -119,9 +102,12 @@ function ImoveisFilters({ onFilter }) {
     };
   }, []);
 
-  const handleChange = useCallback((key, value) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
-  }, []);
+  const handleChange = (key, value) => {
+    setFilters((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
 
   const tipoOptions = [
     { label: "Todos", value: "all" },
@@ -148,29 +134,6 @@ function ImoveisFilters({ onFilter }) {
     { label: "Ambos", value: "ambos" },
   ];
 
-  const applyFilters = () => {
-    onFilter?.({
-      codigo_ref: filters.codigo_ref || undefined,
-      tipo: filters.tipo !== "all" ? filters.tipo : undefined,
-      status: filters.status !== "all" ? filters.status : undefined,
-      disponibilidade:
-        filters.disponibilidade !== "all"
-          ? filters.disponibilidade
-          : undefined,
-
-      cidade: filters.cidade || undefined,
-      bairro: filters.bairro || undefined,
-      rua: filters.rua || undefined,
-      cep: filters.cep || undefined,
-
-      corretor_id: filters.corretor_id || undefined,
-      proprietario_id: filters.proprietario_id || undefined,
-
-      preco_min: filters.preco_min || undefined,
-      preco_max: filters.preco_max || undefined,
-    });
-  };
-
   const clearFilters = () => {
     setFilters({
       codigo_ref: "",
@@ -186,19 +149,10 @@ function ImoveisFilters({ onFilter }) {
       preco_min: "",
       preco_max: "",
     });
-
-    onFilter?.({});
   };
 
   return (
-      <Card
-        as="form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          applyFilters();
-        }}
-        className="flex flex-wrap items-end gap-3 p-4"
-      >
+      <Card className="flex flex-wrap items-end gap-3 p-4">
       <div className="min-w-[180px]">
         <Label>Código</Label>
         <Input
@@ -369,9 +323,6 @@ function ImoveisFilters({ onFilter }) {
 
       {/* Botões */}
       <div className="flex gap-2">
-        <Button type="submit">
-          <Search size={16} /> Filtrar
-        </Button>
         <Button variant="secondary" onClick={clearFilters}>
           Limpar
         </Button>
@@ -450,7 +401,63 @@ function ImoveisTable({ data = [] }) {
    ⬇️ PAINEL PRINCIPAL
 ============================================================ */
 export default function ImoveisPanel() {
-  const { imoveis, applyFilters, loading } = useImoveisQuery();
+  const { imoveis, loading } = useImoveisQuery();
+
+  const [filters, setFilters] = useState({
+    codigo_ref: "",
+    tipo: "all",
+    status: "all",
+    disponibilidade: "all",
+    cidade: "",
+    bairro: "",
+    rua: "",
+    cep: "",
+    corretor_id: "",
+    proprietario_id: "",
+    preco_min: "",
+    preco_max: "",
+  });
+
+  const filteredImoveis = useMemo(() => {
+    return imoveis.filter((i) => {
+
+      if (filters.codigo_ref &&
+          !String(i.codigo_ref || "")
+          .toLowerCase()
+          .includes(filters.codigo_ref.toLowerCase()))
+        return false;
+
+      if (filters.tipo !== "all" && i.tipo !== filters.tipo)
+        return false;
+
+      if (filters.status !== "all" && i.status !== filters.status)
+        return false;
+
+      if (filters.cidade &&
+          i.endereco_cidade !== filters.cidade)
+        return false;
+
+      if (filters.bairro &&
+          i.endereco_bairro !== filters.bairro)
+        return false;
+
+      if (filters.rua &&
+          !String(i.endereco_rua || "")
+          .toLowerCase()
+          .includes(filters.rua.toLowerCase()))
+        return false;
+
+      if (filters.preco_min &&
+          Number(i.preco_venda || 0) < Number(filters.preco_min))
+        return false;
+
+      if (filters.preco_max &&
+          Number(i.preco_venda || 0) > Number(filters.preco_max))
+        return false;
+
+      return true;
+    });
+  }, [imoveis, filters]);
 
   const stats = useMemo(() => {
     return imoveis.reduce(
@@ -472,14 +479,17 @@ export default function ImoveisPanel() {
       </div>
 
       <Card className="p-4 space-y-4">
-        <ImoveisFilters onFilter={applyFilters} />
+        <ImoveisFilters
+          filters={filters}
+          setFilters={setFilters}
+        />
 
         {loading ? (
           <p className="p-4 text-center text-muted-foreground">
             Carregando imóveis...
           </p>
         ) : (
-          <ImoveisTable data={imoveis} />
+          <ImoveisTable data={filteredImoveis} />
         )}
       </Card>
     </div>
