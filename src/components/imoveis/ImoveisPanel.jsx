@@ -403,6 +403,9 @@ function ImoveisTable({ data = [] }) {
 export default function ImoveisPanel() {
   const { imoveis, loading } = useImoveisQuery();
 
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10;
+
   const [filters, setFilters] = useState({
     codigo_ref: "",
     tipo: "all",
@@ -459,6 +462,15 @@ export default function ImoveisPanel() {
     });
   }, [imoveis, filters]);
 
+  const totalPages = Math.ceil(filteredImoveis.length / itemsPerPage);
+
+  const paginatedImoveis = useMemo(() => {
+    const start = (page - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+
+    return filteredImoveis.slice(start, end);
+  }, [filteredImoveis, page]);
+
   const stats = useMemo(() => {
     return imoveis.reduce(
       (acc, i) => {
@@ -489,8 +501,32 @@ export default function ImoveisPanel() {
             Carregando imóveis...
           </p>
         ) : (
-          <ImoveisTable data={filteredImoveis} />
+          <ImoveisTable data={paginatedImoveis} />
         )}
+
+        <div className="flex items-center justify-center gap-4 pt-4">
+
+          <Button
+            variant="secondary"
+            disabled={page === 1}
+            onClick={() => setPage((p) => p - 1)}
+          >
+            ← Anterior
+          </Button>
+
+          <span className="text-sm">
+            Página {page} de {totalPages}
+          </span>
+
+          <Button
+            variant="secondary"
+            disabled={page === totalPages}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Próxima →
+          </Button>
+
+        </div>
       </Card>
     </div>
   );

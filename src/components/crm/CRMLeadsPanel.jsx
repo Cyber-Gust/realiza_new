@@ -54,6 +54,9 @@ export default function CRMLeadsPanel() {
     corretor_id: "",
   });
 
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10;
+
   /* ============================================================
      LOAD
   ============================================================ */
@@ -117,6 +120,18 @@ export default function CRMLeadsPanel() {
     });
   }, [leads, filters]);
 
+  const totalPages = Math.ceil(filteredLeads.length / itemsPerPage);
+
+    const paginatedLeads = useMemo(() => {
+    const start = (page - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+
+    return filteredLeads.slice(start, end);
+  }, [filteredLeads, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filters]);
   /* ============================================================
      DELETE
   ============================================================ */
@@ -249,7 +264,7 @@ export default function CRMLeadsPanel() {
           </TableHeader>
 
           <tbody>
-            {filteredLeads.map((lead) => (
+            {paginatedLeads.map((lead) => (
               <TableRow
                 key={lead.id}
                 className="cursor-pointer hover:bg-muted/20 transition"
@@ -298,6 +313,30 @@ export default function CRMLeadsPanel() {
           </tbody>
         </Table>
       )}
+
+      <div className="flex items-center justify-center gap-4 pt-4">
+
+        <Button
+          variant="secondary"
+          disabled={page === 1}
+          onClick={() => setPage((p) => p - 1)}
+        >
+          ← Anterior
+        </Button>
+
+        <span className="text-sm text-muted-foreground">
+          Página {page} de {totalPages}
+        </span>
+
+        <Button
+          variant="secondary"
+          disabled={page === totalPages}
+          onClick={() => setPage((p) => p + 1)}
+        >
+          Próxima →
+        </Button>
+
+      </div>
 
       {/* FORMULARIO */}
       <Modal
