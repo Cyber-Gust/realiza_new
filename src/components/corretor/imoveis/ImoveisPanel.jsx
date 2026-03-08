@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { Input, Label, Select } from "@/components/admin/ui/Form";
 import { Button } from "@/components/admin/ui/Button";
 import { Card } from "@/components/admin/ui/Card";
-import { Search } from "lucide-react";
+import { Search, MapPin } from "lucide-react";
 import {
   Table,
   TableHeader,
@@ -116,6 +116,9 @@ function ImoveisFilters({ filters, setFilters }) {
     { label: "Terreno", value: "terreno" },
     { label: "Comercial", value: "comercial" },
     { label: "Rural", value: "rural" },
+    { label: "Lote", value: "lote" },
+    { label: "Galpão", value: "galpao" },
+    { label: "Cobertura Duplex", value: "cobertura_duplex"},
   ];
 
   const statusOptions = [
@@ -276,15 +279,6 @@ function ImoveisFilters({ filters, setFilters }) {
         />
       </div>
 
-      {/* CEP */}
-      <div className="min-w-[150px]">
-        <Label>CEP</Label>
-        <Input
-          value={filters.cep}
-          onChange={(e) => handleChange("cep", e.target.value)}
-        />
-      </div>
-
       {/* Corretor */}
       <div className="min-w-[220px]">
         <Label>Corretor</Label>
@@ -298,24 +292,6 @@ function ImoveisFilters({ filters, setFilters }) {
           {corretores.map((c) => (
             <option key={c.value} value={c.value}>
               {c.label}
-            </option>
-          ))}
-        </Select>
-      </div>
-
-      {/* Proprietário */}
-      <div className="min-w-[220px]">
-        <Label>Proprietário</Label>
-        <Select
-          value={filters.proprietario_id}
-          onChange={(e) =>
-            handleChange("proprietario_id", e.target.value)
-          }
-        >
-          <option value="">Todos</option>
-          {proprietarios.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.label}
             </option>
           ))}
         </Select>
@@ -360,6 +336,20 @@ function ImoveisFilters({ filters, setFilters }) {
 function ImoveisTable({ data = [] }) {
   const router = useRouter();
 
+  const [corretores, setCorretores] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/perfis/list?type=equipe&mode=select");
+        const { data } = await res.json();
+        setCorretores(data || []);
+      } catch {
+        setCorretores([]);
+      }
+    })();
+  }, []);
+
   if (!data.length) {
     return (
       <p className="p-4 text-center text-muted-foreground">
@@ -368,52 +358,107 @@ function ImoveisTable({ data = [] }) {
     );
   }
 
+  const getCorretorNome = (id) => {
+    const c = corretores.find((c) => c.value === String(id));
+    return c?.label || "—";
+  };
+
   return (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Código</TableHead>
-          <TableHead>Título</TableHead>
-          <TableHead>Tipo</TableHead>
-          <TableHead>Cidade</TableHead>
-          <TableHead>Venda (R$)</TableHead>
-          <TableHead>Locação (R$)</TableHead>
+          <TableHead>Imóvel</TableHead>
+          <TableHead>Endereço</TableHead>
+          <TableHead>Corretor</TableHead>
+          <TableHead>Venda</TableHead>
+          <TableHead>Locação</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead className="text-right">Ações</TableHead>
+          <TableHead className="text-right">Detalhes</TableHead>
         </TableRow>
       </TableHeader>
 
       <tbody>
-        {data.map((i) => (
-          <TableRow key={i.id}>
-            <TableCell>{i.codigo_ref || "-"}</TableCell>
-            <TableCell>{i.titulo || "-"}</TableCell>
-            <TableCell className="capitalize">{i.tipo}</TableCell>
-            <TableCell>{i.endereco_cidade}</TableCell>
-            <TableCell>
-              {i.preco_venda
-                ? `R$ ${Number(i.preco_venda).toLocaleString("pt-BR")}`
-                : "—"}
-            </TableCell>
-            <TableCell>
-              {i.preco_locacao
-                ? `R$ ${Number(i.preco_locacao).toLocaleString("pt-BR")}`
-                : "—"}
-            </TableCell>
-            <TableCell>
-              <Badge status={i.status} />
-            </TableCell>
-            <TableCell className="text-right">
-              <Button
-                size="sm"
-                onClick={() =>
-                  router.push(`/corretor/imoveis/${i.id}`)
-                }
-              >
-                Ver Detalhes
-              </Button>
-            </TableCell>
-          </TableRow>
+      {data.map((i) => (
+          <TableRow key={i.id} className="hover:bg-muted/40">
+
+          {/* IMÓVEL */}
+          <TableCell>
+            <div className="flex items-center gap-3">
+        
+              <img
+                src={i.imagem_principal || "/placeholder-imovel.jpg"}
+                alt="foto imóvel"
+                className="w-32 h-32 object-cover rounded-lg border"
+              />
+        
+              <div className="text-xs text-muted-foreground font-medium">
+                #{i.codigo_ref || "—"}
+              </div>
+        
+            </div>
+          </TableCell>
+        
+          {/* ENDEREÇO */}
+          <TableCell>
+            <div className="flex items-start gap-2 text-sm">
+        
+              <MapPin
+                size={16}
+                className="text-muted-foreground mt-[2px]"
+              />
+        
+              <div className="leading-tight">
+                <div className="font-medium">
+                  {i.endereco_logradouro || "—"}
+                </div>
+        
+                <div className="text-xs text-muted-foreground">
+                  {i.endereco_cidade || ""}
+                </div>
+              </div>
+        
+            </div>
+          </TableCell>
+        
+          {/* CORRETOR */}
+          <TableCell>
+            <span className="text-sm">
+            {getCorretorNome(i.corretor_id)}
+            </span>
+          </TableCell>
+        
+          {/* VENDA */}
+          <TableCell className="font-medium">
+            {i.preco_venda
+              ? `R$ ${Number(i.preco_venda).toLocaleString("pt-BR")}`
+              : "—"}
+          </TableCell>
+        
+          {/* LOCAÇÃO */}
+          <TableCell className="font-medium">
+            {i.preco_locacao
+              ? `R$ ${Number(i.preco_locacao).toLocaleString("pt-BR")}`
+              : "—"}
+          </TableCell>
+        
+          {/* STATUS */}
+          <TableCell>
+            <Badge status={i.status} />
+          </TableCell>
+        
+          {/* DETALHES */}
+          <TableCell className="text-right">
+            <Button
+              size="sm"
+              onClick={() =>
+                router.push(`/admin/imoveis/${i.id}`)
+              }
+            >
+              Ver detalhes
+            </Button>
+          </TableCell>
+        
+        </TableRow>
         ))}
       </tbody>
     </Table>
@@ -443,6 +488,14 @@ export default function ImoveisPanel() {
     preco_max: "",
   });
 
+  const normalize = (str) =>
+  String(str || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // remove acento
+    .replace(/[^\w\s]/gi, "") // remove pontuação
+    .toLowerCase()
+    .trim();
+
   const filteredImoveis = useMemo(() => {
     return imoveis.filter((i) => {
 
@@ -467,10 +520,13 @@ export default function ImoveisPanel() {
         return false;
 
       if (filters.rua &&
-          !String(i.endereco_rua || "")
-          .toLowerCase()
-          .includes(filters.rua.toLowerCase()))
+          !normalize(i.endereco_logradouro)
+          .includes(normalize(filters.rua)))
         return false;
+
+      if (filters.corretor_id &&
+        i.corretor_id !== filters.corretor_id)
+        return false;  
 
       const preco = i.preco_venda || i.preco_locacao || 0;
 

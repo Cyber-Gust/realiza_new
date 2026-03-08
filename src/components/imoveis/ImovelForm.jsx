@@ -33,6 +33,9 @@ const tipoOptions = [
   { label: "Terreno", value: "terreno" },
   { label: "Comercial", value: "comercial" },
   { label: "Rural", value: "rural" },
+  { label: "Lote", value: "lote" },
+  { label: "Galpão", value: "galpao" },
+  { label: "Cobertura Duplex", value: "cobertura_duplex"},
 ];
 
 const statusOptions = [
@@ -727,6 +730,26 @@ export default function ImovelForm({ data = {}, onChange }) {
                     }
                   />
                 </div>
+
+                <div>
+                  <Label>Complemento</Label>
+                  <Input
+                    value={form.endereco_complemento || ""}
+                    onChange={(e) =>
+                      handleChange("endereco_complemento", e.target.value)
+                    }
+                  />
+                </div>
+                
+                <div>
+                  <Label>Referência</Label>
+                  <Input
+                    value={form.endereco_referencia || ""}
+                    onChange={(e) =>
+                      handleChange("endereco_referencia", e.target.value)
+                    }
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -793,6 +816,7 @@ export default function ImovelForm({ data = {}, onChange }) {
                     ))}
                   </datalist>
                 </div>
+                
               </div>
             </div>
 

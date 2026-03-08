@@ -41,6 +41,7 @@ export const CIDADES_POR_ESTADO = {
 export const BAIRROS_POR_CIDADE = {
   "São João Del Rei": [
     "Água Geral (Tejuco)",
+    "Água Limpa",
     "Águas Férreas (Tejuco)",
     "Alto das Mercês",
     "Alto do Maquiné (Colônia do Marçal)",
@@ -50,14 +51,17 @@ export const BAIRROS_POR_CIDADE = {
     "Bela Vista",
     "Bom Pastor",
     "Bonfim",
+    "BR 265",
     "Caiçaras",
     "Cananéia",
+    "Campana Del Vento",
     "Caquende",
     "Centro",
     "Cidade Nova",
     "Cidade Verde",
     "COHAB",
     "Colinas Del Rey",
+    "Colinas dos Inconfidentes",
     "Colônia do Giarola",
     "Colônia do Marçal",
     "Dom Bosco",
@@ -117,6 +121,7 @@ export const BAIRROS_POR_CIDADE = {
     "Vila São Bento",
     "Vila São Paulo (Fábricas)",
     "Vila São Vicente (Colônia do Marçal)",
+    "Vila Tiradentes",
     "Vista da Serra"
   ],
 

@@ -49,7 +49,13 @@ CREATE TYPE imovel_tipo AS ENUM (
 
   'comercial',
 
-  'rural'
+  'rural',
+
+  'lote'
+
+  'galpao',
+
+  'cobertura_duplex'
 
 );
 
@@ -212,6 +218,10 @@ CREATE TABLE public.imoveis (
   endereco_cidade TEXT,
 
   endereco_estado CHAR(2),
+
+  endereco_complemento TEXT,
+
+  endereco_referencia TEXT,
 
  
 

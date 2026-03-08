@@ -20,21 +20,27 @@ async function handleGET(req, supabase) {
     const { data, error } = await supabase
       .from("imoveis")
       .select("codigo_ref");
-
+  
     if (error) throw error;
-
-    const numeros = (data || [])
-      .map((i) => {
-        const match = i.codigo_ref?.match(/RL-(\d+)/);
-        return match ? Number(match[1]) : 0;
-      });
-
-    const maior = Math.max(0, ...numeros);
-    const proximo = maior + 1;
-
+  
+    // cria lista de códigos já usados
+    const usados = new Set(
+      (data || []).map((i) => {
+        const match = i.codigo_ref?.match(/RL-(\d{4})/);
+        return match ? Number(match[1]) : null;
+      }).filter(Boolean)
+    );
+  
+    let numero;
+  
+    // tenta gerar um código único
+    do {
+      numero = Math.floor(Math.random() * 9000) + 1000; // 1000-9999
+    } while (usados.has(numero));
+  
     return {
       data: {
-        codigo_ref: `RL-${proximo}`
+        codigo_ref: `RL-${numero}`
       }
     };
   }
