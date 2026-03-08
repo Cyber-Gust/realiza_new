@@ -35,6 +35,7 @@ const tipoOptions = [
   { label: "Rural", value: "rural" },
   { label: "Lote", value: "lote" },
   { label: "Galpão", value: "galpao" },
+  { label: "Kitnet / Studio", value: "kitnet" },
   { label: "Cobertura Duplex", value: "cobertura_duplex"},
 ];
 
@@ -50,6 +51,12 @@ const disponibilidadeOptions = [
   { label: "Venda", value: "venda" },
   { label: "Locação", value: "locacao" },
   { label: "Ambos", value: "ambos" },
+];
+
+const loteTipoOptions = [
+  { label: "Plano", value: "plano" },
+  { label: "Aclive", value: "aclive" },
+  { label: "Declive", value: "declive" },
 ];
 
 /* ============================================================
@@ -834,6 +841,35 @@ export default function ImovelForm({ data = {}, onChange, disabled = false }) {
                 </div>
               </div>
             </div>
+
+            {form.tipo === "lote" && (
+              <div className="space-y-3">
+                <h3 className="font-semibold text-sm md:text-base">
+                  Característica do Lote
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label>Topografia do Lote</Label>
+                    <Select
+                      value={form.lote_tipo || ""}
+                      onChange={(e) => handleChange("lote_tipo", e.target.value)}
+                    >
+                      <option value="" hidden>
+                        Selecione...
+                      </option>
+
+                      {loteTipoOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
+
 
             {/* DORMITÓRIOS / BANHEIROS / VAGAS */}
             <div className="space-y-3">

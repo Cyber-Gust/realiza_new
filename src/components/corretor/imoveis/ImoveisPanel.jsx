@@ -118,6 +118,7 @@ function ImoveisFilters({ filters, setFilters }) {
     { label: "Rural", value: "rural" },
     { label: "Lote", value: "lote" },
     { label: "Galpão", value: "galpao" },
+    { label: "Kitnet / Studio", value: "kitnet" },
     { label: "Cobertura Duplex", value: "cobertura_duplex"},
   ];
 

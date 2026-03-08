@@ -222,6 +222,8 @@ CREATE TABLE public.imoveis (
   endereco_complemento TEXT,
 
   endereco_referencia TEXT,
+  
+  lote_tipo TEXT,
 
  
 
