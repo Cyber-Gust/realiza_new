@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils";
 import ComplianceDocDrawer from "./ComplianceDocDrawer";
 
 const DOC_TIPOS = [
+  { label: "Ficha de Captação", value: "ficha_captacao" },
   { label: "Laudo", value: "laudo" },
   { label: "ART", value: "art" },
   { label: "AVCB", value: "avcb" },
