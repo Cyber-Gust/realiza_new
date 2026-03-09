@@ -10,7 +10,7 @@ import {
 
 import { Button } from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
-import { Input, Select } from "@/components/admin/ui/Form";
+import { Input, Label, Select } from "@/components/admin/ui/Form";
 import Badge from "@/components/admin/ui/Badge";
 import {
   Table,
@@ -114,10 +114,13 @@ export default function CompliancePanel({ imovelId }) {
       const signedJson = await sign.json();
       if (!sign.ok) throw new Error(signedJson.error || "Erro ao gerar Signed URL");
 
-      const { url } = signedJson.data;
+      const { uploadUrl } = signedJson.data;
 
-      const up = await fetch(url, {
+      const up = await fetch(uploadUrl, {
         method: "PUT",
+        headers: {
+          "Content-Type": doc.file.type || "application/octet-stream",
+        },
         body: doc.file,
       });
 
@@ -232,11 +235,21 @@ export default function CompliancePanel({ imovelId }) {
         </CardHeader>
 
         <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Select
-              value={doc.tipo}
-              onChange={(e) => setDoc({ ...doc, tipo: e.target.value })}
-            >
+          <div className="grid grid-cols-1 md:grid-cols-5 items-end gap-4">
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs font-medium text-muted-foreground">
+                Tipo de documento
+              </Label>
+
+              <Select
+                value={doc.tipo}
+                onChange={(e) =>
+                  setDoc((prev) => ({
+                    ...prev,
+                    tipo: e.target.value,
+                  }))
+                }
+              >
               <option value="">Selecione o tipo</option>
               {DOC_TIPOS.map((t) => (
                 <option key={t.value} value={t.value}>
@@ -244,33 +257,63 @@ export default function CompliancePanel({ imovelId }) {
                 </option>
               ))}
             </Select>
+          </div>
 
-            <Input
-              type="date"
-              value={doc.validade || ""}
-              onChange={(e) => setDoc({ ...doc, validade: e.target.value })}
-              iconLeft={<CalendarDays className="h-4 w-4 opacity-60" />}
-            />
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs font-medium text-muted-foreground">
+                Data de validade
+              </Label>
 
-            <div className="flex items-center">
-              <label
-                htmlFor="file-upload"
-                className="flex items-center gap-2 cursor-pointer bg-accent text-white px-4 py-2 rounded
-                          hover:bg-accent/90 transition font-medium shadow-sm"
-              >
-                <Upload size={16} />
-                Selecionar arquivo
-              </label>
-
-              <input
-                id="file-upload"
-                type="file"
-                className="hidden"
+              <Input
+                type="date"
+                value={doc.validade || ""}
                 onChange={(e) =>
-                  setDoc({ ...doc, file: e.target.files?.[0] ?? null })
+                  setDoc((prev) => ({
+                    ...prev,
+                    validade: e.target.value,
+                  }))
                 }
+                iconLeft={<CalendarDays className="h-4 w-4 opacity-60" />}
               />
             </div>
+
+            <div className="flex flex-col gap-1">
+            <Label className="text-xs font-medium text-muted-foreground">
+              Arquivo
+            </Label>
+
+            <Label
+              htmlFor="file-upload"
+              className={cn(
+                "flex items-center justify-between gap-2 cursor-pointer border rounded-md px-3 py-2 text-sm",
+                "hover:border-accent transition"
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <Upload size={16} />
+                {doc.file ? doc.file.name : "Selecionar arquivo"}
+              </div>
+
+              {doc.file && (
+                <span className="text-xs text-muted-foreground">
+                  {(doc.file.size / 1024 / 1024).toFixed(2)} MB
+                </span>
+              )}
+            </Label>
+
+            <input
+              id="file-upload"
+              type="file"
+              className="hidden"
+              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+              onChange={(e) =>
+                setDoc((prev) => ({
+                  ...prev,
+                  file: e.target.files?.[0] ?? null,
+                }))
+              }
+            />
+          </div>
 
             <Button
               onClick={handleUpload}

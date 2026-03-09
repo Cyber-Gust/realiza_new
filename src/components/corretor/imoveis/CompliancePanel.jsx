@@ -10,7 +10,7 @@ import {
 
 import { Button } from "@/components/admin/ui/Button";
 import Modal from "@/components/admin/ui/Modal";
-import { Input, Select } from "@/components/admin/ui/Form";
+import { Input, Label, Select } from "@/components/admin/ui/Form";
 import Badge from "@/components/admin/ui/Badge";
 import {
   Table,
@@ -115,10 +115,13 @@ export default function CompliancePanel({ imovelId, disabled = false }) {
       const signedJson = await sign.json();
       if (!sign.ok) throw new Error(signedJson.error || "Erro ao gerar Signed URL");
 
-      const { url } = signedJson.data;
+      const { uploadUrl } = signedJson.data;
 
-      const up = await fetch(url, {
+      const up = await fetch(uploadUrl, {
         method: "PUT",
+        headers: {
+          "Content-Type": doc.file.type || "application/octet-stream",
+        },
         body: doc.file,
       });
 
@@ -235,49 +238,87 @@ export default function CompliancePanel({ imovelId, disabled = false }) {
         </CardHeader>
 
         <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Select
-              disabled={disabled}
-              value={doc.tipo}
-              onChange={(e) => setDoc({ ...doc, tipo: e.target.value })}
-            >
-              <option value="">Selecione o tipo</option>
-              {DOC_TIPOS.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </Select>
+          <div className="grid grid-cols-1 md:grid-cols-5 items-end gap-4">
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs font-medium text-muted-foreground">
+                Tipo do documento
+              </Label>
 
-            <Input
-              type="date"
-              disabled={disabled}
-              value={doc.validade || ""}
-              onChange={(e) => setDoc({ ...doc, validade: e.target.value })}
-              iconLeft={<CalendarDays className="h-4 w-4 opacity-60" />}
-            />
+              <Select
+                disabled={disabled}
+                value={doc.tipo}
+                onChange={(e) =>
+                  setDoc((prev) => ({
+                    ...prev,
+                    tipo: e.target.value,
+                  }))
+                }
+              >
+                <option value="">Selecione</option>
 
-            <div className="flex items-center">
-              <label
+                {DOC_TIPOS.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs font-medium text-muted-foreground">
+                Data de validade
+              </Label>
+
+              <Input
+                type="date"
+                disabled={disabled}
+                value={doc.validade || ""}
+                onChange={(e) =>
+                  setDoc((prev) => ({
+                    ...prev,
+                    validade: e.target.value,
+                  }))
+                }
+                iconLeft={<CalendarDays className="h-4 w-4 opacity-60" />}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs font-medium text-muted-foreground">
+                Arquivo
+              </Label>
+
+              <Label
                 className={cn(
-                  "flex items-center gap-2 bg-accent text-white px-4 py-2 rounded transition font-medium shadow-sm",
+                  "flex items-center justify-between border rounded-md px-3 py-2 text-sm transition",
                   disabled
                     ? "opacity-60 cursor-not-allowed"
-                    : "cursor-pointer hover:bg-accent/90"
+                    : "cursor-pointer hover:border-accent"
                 )}
               >
-                <Upload size={16} />
-                {doc.file ? doc.file.name : "Selecionar arquivo"}
+                <div className="flex items-center gap-2">
+                  <Upload size={16} />
+                  {doc.file ? doc.file.name : "Selecionar arquivo"}
+                </div>
+
+                {doc.file && (
+                  <span className="text-xs text-muted-foreground">
+                    {(doc.file.size / 1024 / 1024).toFixed(2)} MB
+                  </span>
+                )}
 
                 <input
                   type="file"
                   disabled={disabled}
                   className="hidden"
                   onChange={(e) =>
-                    setDoc({ ...doc, file: e.target.files?.[0] ?? null })
+                    setDoc((prev) => ({
+                      ...prev,
+                      file: e.target.files?.[0] ?? null,
+                    }))
                   }
                 />
-              </label>
+              </Label>
             </div>
 
             <Button
