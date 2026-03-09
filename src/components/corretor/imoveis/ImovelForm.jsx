@@ -31,8 +31,9 @@ const tipoOptions = [
   { label: "Casa", value: "casa" },
   { label: "Apartamento", value: "apartamento" },
   { label: "Terreno", value: "terreno" },
+  { label: "Sítio", value: "sitio" },
+  { label: "Fazenda", value: "fazenda" },
   { label: "Comercial", value: "comercial" },
-  { label: "Rural", value: "rural" },
   { label: "Lote", value: "lote" },
   { label: "Galpão", value: "galpao" },
   { label: "Kitnet / Studio", value: "kitnet" },
@@ -293,7 +294,8 @@ export default function ImovelForm({ data = {}, onChange, disabled = false }) {
         if (key === "tipo" || key === "disponibilidade") {
           const tipoAtual = key === "tipo" ? value : next.tipo;
           const dispAtual = key === "disponibilidade" ? value : next.disponibilidade;
-          const isRural = tipoAtual === "rural";
+          const tiposRurais = ["fazenda", "sitio", "terreno"];
+          const isRural = tiposRurais.includes(tipoAtual);
 
           if (
             (dispAtual === "venda" || dispAtual === "ambos") &&
@@ -470,6 +472,9 @@ export default function ImovelForm({ data = {}, onChange, disabled = false }) {
   }, [corretores, form.corretor_id]);
 
   const options1a10 = Array.from({ length: 11 }, (_, i) => i);
+
+  const tiposRurais = ["fazenda", "sitio", "terreno"];
+  const isRural = tiposRurais.includes(form.tipo);
 
   /* ============================================================
      AQUI TERMINA A PRIMEIRA PARTE
@@ -1315,7 +1320,7 @@ export default function ImovelForm({ data = {}, onChange, disabled = false }) {
                       }
                     >
                       <option value="" hidden>Selecione...</option>
-                      {(form.tipo === "rural" ? [8,9,10] : [5,6,7]).map((p) => (
+                      {(isRural ? [8,9,10] : [5,6,7]).map((p) => (
                         <option key={p} value={p}>{p}%</option>
                       ))}
                     </Select>
