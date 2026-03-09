@@ -43,6 +43,7 @@ export const BAIRROS_POR_CIDADE = {
     "Água Geral (Tejuco)",
     "Água Limpa",
     "Águas Férreas (Tejuco)",
+    "Alto das Águas",
     "Alto das Mercês",
     "Alto do Maquiné (Colônia do Marçal)",
     "Araçá",

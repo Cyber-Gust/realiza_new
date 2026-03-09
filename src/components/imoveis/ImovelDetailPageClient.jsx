@@ -32,6 +32,8 @@ export default function ImovelDetailPageClient({ imovelId }) {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [proprietario, setProprietario] = useState(null);
+  const [captador, setCaptador] = useState(null);
   const router = useRouter();
 
   const [tab, setTab] = useState("cadastro");
@@ -50,6 +52,19 @@ export default function ImovelDetailPageClient({ imovelId }) {
         if (!res.ok) throw new Error(data.error || "Erro ao carregar imóvel");
 
         setImovel(data.data || null);
+        const im = data.data;
+
+        if (im?.proprietario_id) {
+          const resProp = await fetch(`/api/perfis/list?type=personas&id=${im.proprietario_id}`);
+          const dataProp = await resProp.json();
+          setProprietario(dataProp.data);
+        }
+
+        if (im?.corretor_id) {
+          const resCap = await fetch(`/api/perfis/list?type=equipe&id=${im.corretor_id}`);
+          const dataCap = await resCap.json();
+          setCaptador(dataCap.data);
+        }
       } catch (err) {
         toast.error(err.message);
       } finally {
@@ -138,20 +153,51 @@ export default function ImovelDetailPageClient({ imovelId }) {
       <BackButton />
 
       {/* HEADER */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            {imovel.titulo || "Imóvel sem título"}
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {imovel.codigo_ref || "Imóvel sem código"}
-          </p>  
+          <div className="space-y-2">
 
-          <p className="text-muted-foreground text-sm mt-1">
-            {`${imovel.tipo?.toUpperCase()} • ${imovel.endereco_cidade || "-"} / ${
-              imovel.endereco_estado || ""
-            }`}
-          </p>
+
+            {/* TITULO DO IMÓVEL */}
+            <h1 className="text-2xl font-bold">
+              {imovel.titulo || "Imóvel sem título"}
+            </h1>
+
+            {/* ENDEREÇO */}
+            <p className="text-sm text-muted-foreground">
+              <strong>Endereço:</strong>{" "}
+              {imovel.endereco_logradouro || "-"}, {imovel.endereco_numero || ""} •{" "}
+              {imovel.endereco_bairro || "-"} •{" "}
+              {imovel.endereco_cidade || "-"} / {imovel.endereco_estado || ""}
+            </p>
+
+            {/* INFO */}
+            <div className="flex flex-wrap gap-4 text-sm mt-2">
+
+              <span>
+                <strong>Proprietário:</strong>{" "}
+                {proprietario?.nome || "Não informado"}
+              </span>
+
+              <span>
+                <strong>Captador:</strong>{" "}
+                {captador?.nome_completo || "Não informado"}
+              </span>
+
+              <span>
+                <strong>Código:</strong>{" "}
+                {imovel.codigo_ref || "-"}
+              </span>
+
+              <span>
+                <strong>Status:</strong>{" "}
+                {imovel.status || "-"}
+              </span>
+
+            </div>
+
+
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">

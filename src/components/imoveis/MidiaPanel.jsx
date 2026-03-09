@@ -23,6 +23,7 @@ import {
   DndContext,
   closestCenter,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors
 } from "@dnd-kit/core";
@@ -35,6 +36,8 @@ import {
 } from "@dnd-kit/sortable";
 
 import { CSS } from "@dnd-kit/utilities";
+
+
 
 /* ------------------------------------------------------------
    SORTABLE ITEM
@@ -236,7 +239,15 @@ export default function MidiaPanel({ imovel }) {
      🖐️ DRAG & DROP
   ============================================================ */
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 }
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 150,
+        tolerance: 5
+      }
+    })
   );
 
   const handleDragEnd = async ({ active, over }) => {
@@ -367,7 +378,7 @@ export default function MidiaPanel({ imovel }) {
               items={gallery.map(f => f.url)}
               strategy={rectSortingStrategy}
             >
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 touch-none">
                 {/* PRINCIPAL */}
                 {principalFile && (
                   <div className="border rounded overflow-hidden relative">

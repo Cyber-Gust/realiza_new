@@ -23,6 +23,7 @@ import {
   CIDADES_POR_ESTADO,
   BAIRROS_POR_CIDADE,
 } from "@/lib/mock_enderecos";
+import Image from "next/image";
 
 /* ============================================================
    ⬇️ COMPONENTE LOCAL: FILTROS
@@ -317,6 +318,7 @@ function ImoveisTable({ data = [] }) {
   const router = useRouter();
 
   const [corretores, setCorretores] = useState([]);
+  const [proprietarios, setProprietarios] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -326,6 +328,18 @@ function ImoveisTable({ data = [] }) {
         setCorretores(data || []);
       } catch {
         setCorretores([]);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/perfis/list?type=personas&mode=select");
+        const { data } = await res.json();
+        setProprietarios(data || []);
+      } catch {
+        setProprietarios([]);
       }
     })();
   }, []);
@@ -341,6 +355,11 @@ function ImoveisTable({ data = [] }) {
   const getCorretorNome = (id) => {
     const c = corretores.find((c) => c.value === String(id));
     return c?.label || "—";
+  };
+
+  const getProprietarioNome = (id) => {
+    const p = proprietarios.find((p) => p.value === String(id));
+    return p?.label || "—";
   };
 
   return (
@@ -365,10 +384,12 @@ function ImoveisTable({ data = [] }) {
           <TableCell>
             <div className="flex-col items-center gap-3">
         
-              <img
+              <Image
                 src={i.imagem_principal || "/placeholder-imovel.jpg"}
                 alt="foto imóvel"
-                className="w-40 h-40 object-cover rounded-lg border"
+                className="min-w-[176px] h-32 md:w-32 md:h-32 object-cover rounded-lg border"
+                width={160}
+                height={160}  
               />
         
               <div className="text-x1 mt-2 text-muted-foreground font-bold">
@@ -387,14 +408,24 @@ function ImoveisTable({ data = [] }) {
                 className="text-muted-foreground mt-[2px]"
               />
         
-              <div className="leading-tight">
+              <div className="leading-tight space-y-[2px]">
+
                 <div className="font-medium">
-                  {i.endereco_logradouro || "—"}
+                  {i.endereco_logradouro || "—"}f
                 </div>
-        
+
                 <div className="text-xs text-muted-foreground">
                   {i.endereco_cidade || ""}
                 </div>
+
+                <div className="text-xs text-muted-foreground">
+                  {i.endereco_bairro || ""}
+                </div>
+
+                <div className="text-xs text-muted-foreground">
+                  Proprietário: {getProprietarioNome(i.proprietario_id)}
+                </div>
+
               </div>
         
             </div>

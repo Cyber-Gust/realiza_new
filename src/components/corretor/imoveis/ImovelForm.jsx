@@ -78,6 +78,7 @@ function slugify(value) {
 export default function ImovelForm({ data = {}, onChange, disabled = false }) {
   const [form, setForm] = useState(() => {
     return {
+      status: data.status ?? "disponivel",
       disponibilidade: data.disponibilidade ?? "venda",
       codigo_ref: data.codigo_ref ?? "",
       observacoes: data.observacoes ?? "",
@@ -690,6 +691,7 @@ export default function ImovelForm({ data = {}, onChange, disabled = false }) {
                 <div>
                   <Label>Complemento</Label>
                   <Input
+                    {...inputProps}
                     value={form.endereco_complemento || ""}
                     onChange={(e) =>
                       handleChange("endereco_complemento", e.target.value)
@@ -700,6 +702,7 @@ export default function ImovelForm({ data = {}, onChange, disabled = false }) {
                 <div>
                   <Label>Referência</Label>
                   <Input
+                    {...inputProps}
                     value={form.endereco_referencia || ""}
                     onChange={(e) =>
                       handleChange("endereco_referencia", e.target.value)

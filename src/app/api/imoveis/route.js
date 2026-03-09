@@ -204,6 +204,7 @@ async function handlePOST(req, supabase) {
 
   const payload = {
     ...body,
+    status: body.status || "disponivel",
     slug,
     midias,
     comissao_venda_valor: calcComissaoVenda(

@@ -79,6 +79,7 @@ export default function ImovelForm({ data = {}, onChange }) {
   
   const [form, setForm] = useState(() => {
     return {
+      status: data.status ?? "disponivel",
       disponibilidade: data.disponibilidade ?? "venda",
       codigo_ref: data.codigo_ref ?? "",
       observacoes: data.observacoes ?? "",
