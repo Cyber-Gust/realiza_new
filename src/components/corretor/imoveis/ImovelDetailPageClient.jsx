@@ -14,13 +14,14 @@ import { useRouter } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/admin/ui/Tabs";
 import { Button } from "@/components/admin/ui/Button";
 
-import { AlertTriangle, KeyRound, Save, Trash2 } from "lucide-react";
+import { AlertTriangle, KeyRound, Save, Trash2, Printer } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import useModal from "@/hooks/useModal";
 
 import { formatCurrency } from "@/utils/formatters";
 import { BackButton } from "@/components/admin/ui/BackButton";
 import Modal from "@/components/admin/ui/Modal";
+import FichaImovelPrint from "@/components/imoveis/FichaImovelPrint";
 
 export default function ImovelDetailPageClient({ imovelId }) {
   const { user, profile } = useUser();
@@ -152,7 +153,8 @@ export default function ImovelDetailPageClient({ imovelId }) {
     );
 
   return (
-    <div className="space-y-6">
+    <>
+    <div className="space-y-6 print:hidden">
 
       <BackButton />
 
@@ -209,6 +211,14 @@ export default function ImovelDetailPageClient({ imovelId }) {
         </div>
 
         <div className="flex flex-wrap gap-2">
+          {/* BOTÃO DE IMPRESSÃO AQUI */}
+            <Button
+              onClick={() => window.print()}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <Printer size={16} /> Imprimir Ficha
+            </Button>
           {tab !== "midia" && (
             <Button
               onClick={salvarAlteracoes}
@@ -346,5 +356,7 @@ export default function ImovelDetailPageClient({ imovelId }) {
       </Modal>
 
     </div>
+    <FichaImovelPrint imovel={imovel} captador={captador} />
+    </>
   );
 }

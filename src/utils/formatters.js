@@ -64,3 +64,11 @@ export function normalizeString(str = "") {
     .trim()
     .toLowerCase();
 }
+
+/**
+ * Formata área (adiciona separador de milhar, ex: 1.500)
+ */
+export function formatArea(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  return Number(value).toLocaleString("pt-BR");
+}
