@@ -379,9 +379,8 @@ function ImoveisTable({ data = [] }) {
     return c?.label || "—";
   };
 
-  const getProprietarioNome = (id) => {
-    const p = proprietarios.find((p) => p.value === String(id));
-    return p?.label || "—";
+  const getProprietario = (id) => {
+    return proprietarios.find((p) => p.value === String(id)) || null;
   };
 
   return (
@@ -399,7 +398,9 @@ function ImoveisTable({ data = [] }) {
       </TableHeader>
 
       <tbody>
-      {data.map((i) => (
+      {data.map((i) => {
+        const proprietario = getProprietario(i.proprietario_id);
+        return (
           <TableRow key={i.id} className="hover:bg-muted/40">
 
           {/* IMÓVEL */}
@@ -445,7 +446,11 @@ function ImoveisTable({ data = [] }) {
                 </div>
 
                 <div className="text-xs text-muted-foreground">
-                  Proprietário: {getProprietarioNome(i.proprietario_id)}
+                  Proprietário: {proprietario?.label || "—"}
+                </div>
+
+                <div className="text-xs text-muted-foreground">
+                  Contato: {proprietario?.telefone || "—"}
                 </div>
 
               </div>
@@ -492,7 +497,8 @@ function ImoveisTable({ data = [] }) {
           </TableCell>
         
         </TableRow>
-        ))}
+        )
+        })}
       </tbody>
     </Table>
   );
