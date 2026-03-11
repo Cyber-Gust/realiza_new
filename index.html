@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanban de Leads</title>
+    <style>
+        /* Variáveis de Cores (Light Theme) */
+        :root {
+            --bg-color: #f4f7f8;
+            --text-color: #333333;
+            --column-bg: #e2e4e6;
+            --column-hover: #d0d4d6;
+            --card-bg: #ffffff;
+            
+            /* Cores das etapas */
+            --color-new: #3498db;     /* Azul */
+            --color-contact: #f39c12; /* Laranja */
+            --color-neg: #9b59b6;     /* Roxo */
+            --color-won: #2ecc71;     /* Verde */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 30px;
+        }
+
+        header {
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 24px;
+            color: #2c3e50;
+        }
+
+        /* Container do Kanban */
+        .kanban-board {
+            display: flex;
+            gap: 20px;
+            overflow-x: auto;
+            align-items: flex-start;
+            padding-bottom: 20px;
+        }
+
+        /* Colunas */
+        .kanban-column {
+            background-color: var(--column-bg);
+            border-radius: 8px;
+            width: 300px;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: background-color 0.2s ease;
+        }
+
+        .kanban-column.drag-over {
+            background-color: var(--column-hover);
+        }
+
+        .column-header {
+            padding: 15px;
+            font-weight: 600;
+            font-size: 16px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .column-header span {
+            background: rgba(0,0,0,0.1);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        /* Cores dos cabeçalhos das colunas */
+        #col-novos .column-header { border-top: 4px solid var(--color-new); }
+        #col-contato .column-header { border-top: 4px solid var(--color-contact); }
+        #col-negociacao .column-header { border-top: 4px solid var(--color-neg); }
+        #col-fechado .column-header { border-top: 4px solid var(--color-won); }
+
+        /* Área onde os cards ficam */
+        .kanban-cards {
+            padding: 0 15px 15px 15px;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* Cards de Lead */
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 6px;
+            padding: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+            cursor: grab;
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+
+        .card:active {
+            cursor: grabbing;
+        }
+
+        .card.dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .card-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .card-info {
+            font-size: 12px;
+            color: #7f8c8d;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .tag {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .tag-hot { background-color: #e74c3c; }
+        .tag-warm { background-color: #f39c12; }
+        .tag-cold { background-color: #3498db; }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Pipeline de Vendas</h1>
+    </header>
+
+    <div class="kanban-board">
+        <!-- Coluna: Novos Leads -->
+        <div class="kanban-column" id="col-novos">
+            <div class="column-header">
+                Novos Leads <span class="count">3</span>
+            </div>
+            <div class="kanban-cards">
+                <div class="card" draggable="true">
+                    <div class="card-title">Empresa ABC</div>
+                    <div class="card-info">
+                        <span>R$ 5.000</span>
+                        <span class="tag tag-hot">Quente</span>
+                    </div>
+                </div>
+                <div class="card" draggable="true">
+                    <div class="card-title">João Silva</div>
+                    <div class="card-info">
+                        <span>R$ 1.200</span>
+                        <span class="tag tag-cold">Frio</span>
+                    </div>
+                </div>
+                <div class="card" draggable="true">
+                    <div class="card-title">Tech Solutions</div>
+                    <div class="card-info">
+                        <span>R$ 15.000</span>
+                        <span class="tag tag-warm">Morno</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coluna: Contato Feito -->
+        <div class="kanban-column" id="col-contato">
+            <div class="column-header">
+                Contato Feito <span class="count">1</span>
+            </div>
+            <div class="kanban-cards">
+                <div class="card" draggable="true">
+                    <div class="card-title">Maria Oliveira</div>
+                    <div class="card-info">
+                        <span>R$ 3.500</span>
+                        <span class="tag tag-warm">Morno</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coluna: Em Negociação -->
+        <div class="kanban-column" id="col-negociacao">
+            <div class="column-header">
+                Em Negociação <span class="count">0</span>
+            </div>
+            <div class="kanban-cards">
+                <!-- Cards vazios para receber drop -->
+            </div>
+        </div>
+
+        <!-- Coluna: Fechado -->
+        <div class="kanban-column" id="col-fechado">
+            <div class="column-header">
+                Fechado / Ganho <span class="count">1</span>
+            </div>
+            <div class="kanban-cards">
+                <div class="card" draggable="true">
+                    <div class="card-title">Padaria do Zé</div>
+                    <div class="card-info">
+                        <span>R$ 800</span>
+                        <span class="tag tag-hot">Quente</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const cards = document.querySelectorAll('.card');
+            const dropzones = document.querySelectorAll('.kanban-cards');
+            let draggedCard = null;
+
+            // Eventos para os Cards
+            cards.forEach(card => {
+                card.addEventListener('dragstart', function() {
+                    draggedCard = this;
+                    setTimeout(() => this.classList.add('dragging'), 0);
+                });
+
+                card.addEventListener('dragend', function() {
+                    this.classList.remove('dragging');
+                    draggedCard = null;
+                    updateCounters();
+                });
+            });
+
+            // Eventos para as Zonas de Drop (Colunas)
+            dropzones.forEach(zone => {
+                zone.addEventListener('dragover', function(e) {
+                    e.preventDefault(); // Permite o drop
+                    this.parentElement.classList.add('drag-over');
+                });
+
+                zone.addEventListener('dragleave', function() {
+                    this.parentElement.classList.remove('drag-over');
+                });
+
+                zone.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.parentElement.classList.remove('drag-over');
+                    
+                    if (draggedCard) {
+                        this.appendChild(draggedCard);
+                    }
+                });
+            });
+
+            // Função para atualizar o contador de cards em cada coluna
+            function updateCounters() {
+                const columns = document.querySelectorAll('.kanban-column');
+                columns.forEach(col => {
+                    const cardCount = col.querySelectorAll('.card').length;
+                    const countElement = col.querySelector('.count');
+                    if (countElement) {
+                        countElement.textContent = cardCount;
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

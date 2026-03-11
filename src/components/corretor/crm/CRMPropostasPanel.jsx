@@ -9,6 +9,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { Select } from "@/components/admin/ui/Form";
 import CRMPropostaDetailDrawer from "./CRMPropostaDetailDrawer";
 import Badge from "@/components/admin/ui/Badge";
+import { useUser } from "@/contexts/UserContext";
 
 import {
   Table,
@@ -77,6 +78,7 @@ export default function CRMPropostasPanel() {
 
   const [total, setTotal] = useState(0);
   const totalPages = Math.max(1, Math.ceil(total / filters.pageSize));
+  const { user } = useUser();
 
   /* ============================================================
      Load Listas
@@ -125,7 +127,7 @@ export default function CRMPropostasPanel() {
     try {
       setLoading(true);
 
-      const res = await fetch(`/api/crm/propostas?${queryString}`, {
+      const res = await fetch(`/api/corretor/crm/propostas?${queryString}`, {
         cache: "no-store",
       });
 
@@ -142,8 +144,19 @@ export default function CRMPropostasPanel() {
   }, [toast, queryString]);
 
   useEffect(() => {
+    if (user?.id) {
+      setFilters((f) => ({
+        ...f,
+        corretor_id: user.id
+      }));
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
     loadPropostas();
-  }, [loadPropostas]);
+  }, [user?.id, queryString, loadPropostas]);
 
   /* ============================================================
      CRUD Handlers
@@ -171,7 +184,7 @@ export default function CRMPropostasPanel() {
     setDeleting(true);
 
     try {
-      const res = await fetch(`/api/crm/propostas?id=${deleteTarget.id}`, {
+      const res = await fetch(`/api/corretor/crm/propostas?id=${deleteTarget.id}`, {
         method: "DELETE",
       });
 
@@ -193,7 +206,7 @@ export default function CRMPropostasPanel() {
     setPropostas((ps) => ps.map((p) => (p.id === id ? { ...p, status } : p)));
 
     try {
-      const res = await fetch(`/api/crm/propostas`, {
+      const res = await fetch(`/api/corretor/crm/propostas`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status }),
@@ -213,7 +226,7 @@ export default function CRMPropostasPanel() {
     setFilters({
       q: "",
       status: "",
-      corretor_id: "",
+      corretor_id: user?.id || "",
       imovel_id: "",
       min: "",
       max: "",
@@ -269,21 +282,6 @@ export default function CRMPropostasPanel() {
             <option value="aceita">Aceita</option>
             <option value="recusada">Recusada</option>
             <option value="contraproposta">Contraproposta</option>
-          </Select>
-
-          {/* Corretor */}
-          <Select
-            value={filters.corretor_id}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, corretor_id: e.target.value, page: 1 }))
-            }
-          >
-            <option value="">Corretor (todos)</option>
-            {corretores.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome_completo}
-              </option>
-            ))}
           </Select>
 
           {/* Imóvel */}

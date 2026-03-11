@@ -92,7 +92,7 @@ export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
         ...(isEdit ? { id: lead.id } : {}),
       });
 
-      const url = "/api/crm/leads";
+      const url = "/api/corretor/crm/leads";
       const method = isEdit ? "PUT" : "POST";
 
       const res = await fetch(url, {

@@ -135,8 +135,6 @@ export default function PerfilFormCliente({
           <InputBlock required label="Telefone" field="telefone" form={form} handleChange={handleChange} readOnly={readOnly} />
           <InputBlock label="E-mail" field="email" form={form} handleChange={handleChange} readOnly={readOnly} />
 
-          <InputBlock label="CPF/CNPJ" field="cpf_cnpj" form={form} handleChange={handleChange} readOnly={readOnly} />
-
           <InputBlock
             label="Data de nascimento"
             field="data_nascimento"

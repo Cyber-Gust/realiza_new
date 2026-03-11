@@ -11,6 +11,7 @@ export async function GET(req) {
   const id = searchParams.get("id");
   const status = searchParams.get("status");
   const corretor_id = searchParams.get("corretor_id");
+  console.log("CORRETOR ID RECEBIDO:", corretor_id);
   const search = searchParams.get("search");
   const from = searchParams.get("from");
   const to = searchParams.get("to");

@@ -1,24 +1,6 @@
-// src/app/api/dashboard/recents/route.js
-
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createServiceClient } from "@/lib/supabase/server";
 
-/**
- * Cria instância do Supabase com Service Role (somente server-side).
- */
-function createServiceClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY,
-    {
-      auth: { persistSession: false },
-    }
-  );
-}
-
-/**
- * Função utilitária para validar erros do Supabase.
- */
 function validate(res, label) {
   if (res.error) {
     throw new Error(
@@ -28,59 +10,49 @@ function validate(res, label) {
   return res.data ?? [];
 }
 
-/**
- * Handler principal
- */
-export async function GET() {
+export async function GET(req) {
   try {
     const supabase = createServiceClient();
 
-    // =============================================
-    // PARALLEL FETCH REAL — sem gargalos
-    // =============================================
-    const [imoveisRes, leadsRes, transacoesRes] = await Promise.all([
+    const { searchParams } = new URL(req.url);
+    const corretorId = searchParams.get("corretor_id");
+
+    if (!corretorId) {
+      return NextResponse.json(
+        { error: "corretor_id não informado" },
+        { status: 400 }
+      );
+    }
+
+    const [imoveisRes, leadsRes] = await Promise.all([
       supabase
         .from("imoveis")
-        .select("id, codigo_ref, titulo, status, created_at")
+        .select("id, codigo_ref, titulo, status, created_at, imagem_principal")
+        .eq("corretor_id", corretorId)
         .order("created_at", { ascending: false })
-        .limit(5),
+        .limit(1),
 
       supabase
         .from("leads")
         .select("id, nome, telefone, status, created_at")
-        .order("created_at", { ascending: false })
-        .limit(5),
-
-      supabase
-        .from("transacoes")
-        .select("id, descricao, valor, status, data_pagamento, created_at")
+        .eq("corretor_id", corretorId)
         .order("created_at", { ascending: false })
         .limit(5),
     ]);
 
-    // =============================================
-    // VALIDATION
-    // =============================================
     const imoveis = validate(imoveisRes, "imóveis recentes");
     const leads = validate(leadsRes, "leads recentes");
-    const transacoes = validate(transacoesRes, "transações recentes");
 
-    // =============================================
-    // RESPONSE
-    // =============================================
     return NextResponse.json({
       imoveis,
       leads,
-      transacoes,
     });
+
   } catch (error) {
-    console.error("🔥 Erro na rota /recents:", error);
+    console.error("Erro dashboard recents:", error);
 
     return NextResponse.json(
-      {
-        error: "Erro ao buscar dados recentes",
-        detail: error?.message || "Erro desconhecido",
-      },
+      { error: error.message },
       { status: 500 }
     );
   }

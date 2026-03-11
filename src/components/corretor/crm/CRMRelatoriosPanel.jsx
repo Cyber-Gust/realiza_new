@@ -181,7 +181,7 @@ export default function CRMRelatoriosPanel() {
     try {
       const [corrRes, origRes] = await Promise.all([
         fetch("/api/perfis/list?type=equipe", { cache: "no-store" }),
-        fetch("/api/crm/leads?origens=1", { cache: "no-store" }),
+        fetch("/api/corretor/crm/leads?origens=1", { cache: "no-store" }),
       ]);
 
       const [corrJson, origJson] = await Promise.all([
@@ -203,7 +203,7 @@ export default function CRMRelatoriosPanel() {
     try {
       setLoading(true);
 
-      const res = await fetch(`/api/crm/relatorios?${queryString}`, {
+      const res = await fetch(`/api/corretor/crm/relatorios?${queryString}`, {
         cache: "no-store",
       });
 

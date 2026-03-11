@@ -27,7 +27,7 @@ export default function CRMLeadDetailDrawer({ leadId, onClose, onEdit }) {
   const fetchLead = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/crm/leads?id=${leadId}`);
+      const res = await fetch(`/api/corretor/crm/leads?id=${leadId}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setLead(json.data);

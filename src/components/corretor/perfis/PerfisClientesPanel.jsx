@@ -14,16 +14,19 @@ import { Card } from "@/components/admin/ui/Card";
 import Modal from "@/components/admin/ui/Modal";
 import Badge from "@/components/admin/ui/Badge";
 
+
 import { Input } from "@/components/admin/ui/Form";
 import { Table, TableHead, TableHeader, TableRow, TableCell } from "@/components/admin/ui/Table";
 
 import { useToast } from "@/contexts/ToastContext";
+import { useUser } from "@/contexts/UserContext";
 
 import PerfilFormCliente from "./PerfilFormCliente";
 import PerfisClienteDrawer from "./PerfisClienteDrawer"; // 🆕 vamos criar depois
 import Image from "next/image";
 
 export default function PerfisClientesPanel() {
+  const { user } = useUser();
   const toast = useToast();
 
   const [clientes, setClientes] = useState([]);
@@ -70,17 +73,26 @@ export default function PerfisClientesPanel() {
       // filtra só clientes
       const data = json.data || [];
 
+      // filtra apenas clientes do corretor logado
+      const meusClientes = data.filter(
+        (c) => c.corretor_id === user?.id
+      );
+
+setClientes(meusClientes);
+
       setClientes(data);
     } catch (err) {
       toast.error("Erro ao carregar clientes: " + err.message);
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, user?.id]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (user?.id) {
+      load();
+    }
+  }, [user?.id, load]);
 
   /* ========================================================================
      FILTERED LIST

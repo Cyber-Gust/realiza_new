@@ -12,6 +12,7 @@ import {
   Search,
   RefreshCcw,
 } from "lucide-react";
+import { useUser } from "@/contexts/UserContext";
 
 import { Button } from "@/components/admin/ui/Button";
 import { Card } from "@/components/admin/ui/Card";
@@ -56,7 +57,7 @@ export default function CRMLeadsPanel() {
 
   const [page, setPage] = useState(1);
   const itemsPerPage = 10;
-
+  const { user } = useUser();
   /* ============================================================
      LOAD
   ============================================================ */
@@ -65,8 +66,8 @@ export default function CRMLeadsPanel() {
       setLoading(true);
 
       const [leadsRes, corretoresRes] = await Promise.all([
-        fetch("/api/crm/leads", { cache: "no-store" }),
-        fetch("/api/perfis/list?type=equipe", { cache: "no-store" }),
+        fetch(`/api/corretor/crm/leads?corretor_id=${user.id}`, { cache: "no-store" }),
+        fetch("/api/corretor/perfis/list?type=equipe", { cache: "no-store" }),
       ]);
 
       const [leadsJson, corrJson] = await Promise.all([
@@ -84,11 +85,15 @@ export default function CRMLeadsPanel() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, user.id]);
 
   useEffect(() => {
-    loadAll();
-  }, [loadAll]);
+    if (user?.id) {
+      loadAll();
+    }
+  }, [user?.id, loadAll]);
+
+  console.log("USER ID", user.id);
 
   /* ============================================================
      FILTRAGEM
@@ -141,7 +146,7 @@ export default function CRMLeadsPanel() {
 
     setDeleting(true);
     try {
-      const res = await fetch(`/api/crm/leads?id=${deleteTarget.id}`, {
+      const res = await fetch(`/api/corretor/crm/leads?id=${deleteTarget.id}`, {
         method: "DELETE",
       });
 

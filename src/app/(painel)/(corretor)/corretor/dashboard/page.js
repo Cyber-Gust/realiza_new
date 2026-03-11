@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useUser } from "@/contexts/UserContext";
 import { Building2, Users, HandCoins, Activity } from "lucide-react";
 import Image from "next/image";
 
@@ -40,6 +41,8 @@ export default function DashboardCorretor() {
     setFilters((prev) => ({ ...prev, [key]: e.target.value }));
   };
 
+  const { user } = useUser();
+
   const loadAll = useCallback(async () => {
     try {
       setError(null);
@@ -48,9 +51,9 @@ export default function DashboardCorretor() {
       const qs = new URLSearchParams(filters).toString();
 
       const [summaryResp, recentsResp] = await Promise.all([
-        fetch(`/api/dashboard/corretor-summary?${qs}`),
-        fetch(`/api/dashboard/recents?modo=corretor`)
-      ]);
+          fetch(`/api/corretor/dashboard/summary?periodo=${filters.periodo}&corretor_id=${user.id}`),
+          fetch(`/api/corretor/dashboard/recents?corretor_id=${user.id}`)
+        ]);
 
       if (!summaryResp.ok || !recentsResp.ok) {
         throw new Error("Falha ao carregar dados");
@@ -67,7 +70,7 @@ export default function DashboardCorretor() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, user.id]);
 
   useEffect(() => {
     loadAll();

@@ -12,50 +12,6 @@ function cleanUUID(v, fallback) {
 }
 
 /* ============================================================
-   🧩 Cria persona automaticamente para lead
-============================================================ */
-async function ensurePersonaForLead(service, lead_id) {
-  const { data: lead } = await service
-    .from("leads")
-    .select("*")
-    .eq("id", lead_id)
-    .single();
-
-  if (!lead) throw new Error("Lead não encontrado.");
-
-  // 1) persona já existe? usa ela
-  const { data: existing } = await service
-    .from("personas")
-    .select("id")
-    .or(`telefone.eq.${lead.telefone},email.eq.${lead.email}`);
-
-  if (existing?.length > 0) {
-    // ✔ apaga lead imediatamente
-    await service.from("leads").delete().eq("id", lead_id);
-    return existing[0].id;
-  }
-
-  // 2) cria nova persona
-  const { data: persona, error } = await service
-    .from("personas")
-    .insert({
-      nome: lead.nome,
-      email: lead.email,
-      telefone: lead.telefone,
-      tipo: "cliente",
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  // ✔ apaga lead após criar persona
-  await service.from("leads").delete().eq("id", lead_id);
-
-  return persona.id;
-}
-
-/* ============================================================
    📌 GET /api/crm/propostas
 ============================================================ */
 export async function GET(req) {
@@ -73,12 +29,12 @@ export async function GET(req) {
       const [imoveis, leads, personas, corretores] = await Promise.all([
         supabase
           .from("imoveis")
-          .select("id, titulo, endereco_bairro")
+          .select("id, codigo_ref, titulo, endereco_bairro")
           .order("titulo"),
 
         supabase
           .from("leads")
-          .select("id, nome, email, telefone")
+          .select("corretor_id, id, nome, email, telefone")
           .order("nome"),
 
         supabase
@@ -191,20 +147,15 @@ export async function POST(req) {
 
     const now = new Date().toISOString();
 
-    let persona_id = body.persona_id || null;
-
-    if (!persona_id && body.lead_id) {
-      persona_id = await ensurePersonaForLead(service, body.lead_id);
-
-      // Quando o lead vira persona, o FK de lead tem que sumir
-      body.lead_id = null;
-    }
+    const persona_id = body.persona_id || null;
 
     const payload = {
       imovel_id: body.imovel_id,
       corretor_id: body.corretor_id,
-      lead_id: body.lead_id,  // agora OK
-      persona_id,
+
+      lead_id: body.lead_id || null,
+      persona_id: persona_id,
+
       valor_proposta: Number(body.valor_proposta),
       entrada: body.entrada != null ? Number(body.entrada) : null,
       parcelas: body.parcelas != null ? Number(body.parcelas) : null,
@@ -213,6 +164,7 @@ export async function POST(req) {
       origem_proposta: body.origem_proposta || null,
       tipo_pagamento: body.tipo_pagamento || null,
       data_validade: body.data_validade || null,
+
       status: "pendente",
       historico_status: [{ from: null, to: "pendente", date: now }],
       created_at: now,

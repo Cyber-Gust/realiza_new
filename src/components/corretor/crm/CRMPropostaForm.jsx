@@ -7,6 +7,7 @@ import {
   Select,
   Label,
 } from "@/components/admin/ui/Form";
+import { useUser } from "@/contexts/UserContext";
 import { Button } from "@/components/admin/ui/Button";
 import { useToast } from "@/contexts/ToastContext";
 import SearchableSelect from "@/components/admin/ui/SearchableSelect"; 
@@ -40,12 +41,22 @@ const STATUS_OPTIONS = [
 
 export default function CRMPropostaForm({ onSaved, onClose, proposta = null }) {
   const toast = useToast();
+  const { user } = useUser();
+
+  useEffect(() => {
+    if (user?.id) {
+      setForm((prev) => ({
+        ...prev,
+        corretor_id: user.id
+      }));
+    }
+  }, [user?.id]);
 
   const [form, setForm] = useState({
     imovel_id: proposta?.imovel_id || "",
     lead_id: proposta?.lead_id || "",
     persona_id: proposta?.persona_id || "",
-    corretor_id: proposta?.corretor_id || "",
+    corretor_id: "",
     valor_proposta: proposta ? String(proposta.valor_proposta * 100) : "",
     condicao_garantia: proposta?.condicao_garantia || "",
     observacoes: proposta?.observacoes || "",
@@ -66,6 +77,24 @@ export default function CRMPropostaForm({ onSaved, onClose, proposta = null }) {
   const [personas, setPersonas] = useState([]);
   const [corretores, setCorretores] = useState([]);
 
+  const personasFiltradas = useMemo(() => {
+    if (!user?.id) return [];
+
+    return personas.filter((p) => {
+      // clientes → apenas do corretor logado
+      if (p.tipo === "cliente") {
+        return p.corretor_id === user.id;
+      }
+
+      // proprietários e inquilinos → todos
+      if (p.tipo === "proprietario" || p.tipo === "inquilino") {
+        return true;
+      }
+
+      return false;
+    });
+  }, [personas, user?.id]);
+
   const setValue = (field, value) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -77,13 +106,15 @@ export default function CRMPropostaForm({ onSaved, onClose, proposta = null }) {
       try {
         setLoadingData(true);
 
-        const res = await fetch("/api/crm/propostas?bootstrap=1");
+        const res = await fetch("/api/corretor/crm/propostas?bootstrap=1");
         const json = await res.json();
 
         if (!json.boot) throw new Error("Resposta inválida");
 
         setImoveis(json.boot.imoveis);
-        setLeads(json.boot.leads);
+        setLeads(
+          json.boot.leads.filter((l) => l.corretor_id === user?.id)
+        );
         setPersonas(json.boot.personas);
         setCorretores(json.boot.corretores);
 
@@ -95,7 +126,7 @@ export default function CRMPropostaForm({ onSaved, onClose, proposta = null }) {
     };
 
     loadLists();
-  }, [toast]);
+  }, [toast, user?.id]);
 
   /* ============================================================
      Mascara BRL
@@ -137,7 +168,7 @@ export default function CRMPropostaForm({ onSaved, onClose, proposta = null }) {
 
       const method = proposta ? "PATCH" : "POST";
 
-      const res = await fetch("/api/crm/propostas", {
+      const res = await fetch("/api/corretor/crm/propostas", {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
@@ -180,7 +211,7 @@ export default function CRMPropostaForm({ onSaved, onClose, proposta = null }) {
           onChange={(v) => setValue("imovel_id", v)}
           options={imoveis.map((i) => ({
             value: String(i.id),
-            label: i.titulo || i.endereco_bairro
+            label: `${i.codigo_ref} • ${i.titulo}`
           }))}
         />
       </div>
@@ -205,24 +236,11 @@ export default function CRMPropostaForm({ onSaved, onClose, proposta = null }) {
         <SearchableSelect
           value={form.persona_id}
           onChange={(v) => setValue("persona_id", v)}
-          options={personas.map((p) => ({
+          options={personasFiltradas.map((p) => ({
             value: String(p.id),
-            label: p.nome
+            label: `${p.nome} • ${p.tipo}`
           }))}
           className={form.lead_id ? "opacity-50 pointer-events-none" : ""}
-        />
-      </div>
-
-      {/* CORRETOR */}
-      <div>
-        <Label>Corretor</Label>
-        <SearchableSelect
-          value={form.corretor_id}
-          onChange={(v) => setValue("corretor_id", v)}
-          options={corretores.map((c) => ({
-            value: String(c.id),
-            label: c.nome_completo
-          }))}
         />
       </div>
 

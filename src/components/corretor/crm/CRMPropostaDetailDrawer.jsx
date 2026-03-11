@@ -31,7 +31,7 @@ export default function CRMPropostaDetailDrawer({ propostaId, onClose, onEdit })
   const fetchProposta = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/crm/propostas?id=${propostaId}`);
+      const res = await fetch(`/api/corretor/crm/propostas?id=${propostaId}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setProposta(json.data);

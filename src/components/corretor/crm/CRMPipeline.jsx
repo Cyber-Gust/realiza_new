@@ -117,7 +117,7 @@ export default function CRMPipeline() {
   const loadPipeline = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/crm/pipeline", { cache: "no-store" });
+      const res = await fetch("/api/corretor/crm/pipeline", { cache: "no-store" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setPipeline(json.data || {});
@@ -147,7 +147,7 @@ export default function CRMPipeline() {
     }
 
     try {
-      const res = await fetch("/api/crm/pipeline", {
+      const res = await fetch("/api/corretor/crm/pipeline", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: leadId, new_status: toStage }),
