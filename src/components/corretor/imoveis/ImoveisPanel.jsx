@@ -405,14 +405,14 @@ function ImoveisTable({ data = [] }) {
 
           {/* IMÓVEL */}
           <TableCell>
-            <div className="flex items-center gap-3">
+            <div className="flex rounded-xl items-center gap-3">
         
               <Image
-                src={i.imagem_principal || "/placeholder-imovel.jpg"}
+                src={i.imagem_principal || "/1Imovel_placehold.png"}
                 alt="foto imóvel"
                 width={160}
                 height={160}
-                className="w-44 md:w-32 h-32 object-cover rounded-lg border shrink-0"
+                className="w-44 md:w-32 h-32 object-cover rounded-xl border shrink-0"
               />
         
               <div className="text-xs text-muted-foreground font-medium">

@@ -5,6 +5,7 @@ import { Button } from "@/components/admin/ui/Button";
 import { Card } from "@/components/admin/ui/Card";
 import { useToast } from "@/contexts/ToastContext";
 import { createPortal } from "react-dom";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 import {
   Loader2,
@@ -16,20 +17,30 @@ import {
   Home,
   Info,
   Pencil,
+  Plus,
+  Clock
 } from "lucide-react";
 
 export default function CRMLeadDetailDrawer({ leadId, onClose, onEdit }) {
+  const supabase = createClientComponentClient();
+
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [historyText, setHistoryText] = useState("");
+  const [savingHistory, setSavingHistory] = useState(false);
+
   const toast = useToast();
 
   const fetchLead = useCallback(async () => {
     try {
       setLoading(true);
+
       const res = await fetch(`/api/crm/leads?id=${leadId}`);
       const json = await res.json();
+
       if (!res.ok) throw new Error(json.error);
+
       setLead(json.data);
     } catch (err) {
       toast.error("Erro ao carregar lead: " + err.message);
@@ -37,6 +48,39 @@ export default function CRMLeadDetailDrawer({ leadId, onClose, onEdit }) {
       setLoading(false);
     }
   }, [leadId, toast]);
+
+  async function addHistory() {
+    if (!historyText.trim()) return;
+
+    try {
+      setSavingHistory(true);
+      const { error } = await supabase.rpc("add_lead_history", {
+        p_lead_id: leadId,
+        p_texto: historyText
+      });
+
+      if (error) throw error;
+
+      toast.success("Histórico adicionado");
+
+      const newEntry = {
+        data: new Date().toISOString(),
+        texto: historyText
+      };
+
+      setLead(prev => ({
+        ...prev,
+        historico: [...(prev.historico || []), newEntry]
+      }));
+
+      setHistoryText("");
+
+    } catch (err) {
+      toast.error("Erro ao adicionar histórico: " + err.message);
+    } finally {
+      setSavingHistory(false);
+    }
+  }
 
   useEffect(() => {
     setMounted(true);
@@ -58,7 +102,10 @@ export default function CRMLeadDetailDrawer({ leadId, onClose, onEdit }) {
 
         {/* HEADER */}
         <div className="p-4 border-b border-border flex items-center justify-between">
-          <h2 className="text-lg font-semibold tracking-tight">Detalhes do Lead</h2>
+          <h2 className="text-lg font-semibold tracking-tight">
+            Detalhes do Lead
+          </h2>
+
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X size={18} />
           </Button>
@@ -83,6 +130,7 @@ export default function CRMLeadDetailDrawer({ leadId, onClose, onEdit }) {
                 <User size={16} />
                 {lead.nome}
               </div>
+
               <p className="text-muted-foreground text-xs">
                 {lead.status?.toUpperCase()}
               </p>
@@ -94,6 +142,35 @@ export default function CRMLeadDetailDrawer({ leadId, onClose, onEdit }) {
               <Field icon={<Mail size={14} />} label="Email" value={lead.email || "Não informado"} />
               <Field icon={<Info size={14} />} label="Origem" value={lead.origem || "Manual"} />
               <Field icon={<User size={14} />} label="Corretor" value={lead.profiles?.nome_completo || "Nenhum"} />
+            </Card>
+
+            {/* IMÓVEL DE INTERESSE */}
+            <Card className="p-4 space-y-2">
+              <p className="font-semibold text-sm flex items-center gap-1">
+                <Home size={14} /> Imóvel de Interesse
+              </p>
+
+              {lead.imoveis ? (
+                <div className="text-xs space-y-1">
+                  <p>
+                    <span className="text-muted-foreground">Código:</span>{" "}
+                    <span className="font-medium">{lead.imoveis?.codigo_ref}</span>
+                  </p>
+
+                  <p>
+                    <span className="text-muted-foreground">Título:</span>{" "}
+                    {lead.imoveis?.titulo}
+                  </p>
+
+                  <p className="text-muted-foreground">
+                    {lead.imoveis?.endereco_cidade} - {lead.imoveis?.endereco_bairro}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Nenhum imóvel associado
+                </p>
+              )}
             </Card>
 
             {/* PERFIL DO IMÓVEL */}
@@ -119,31 +196,67 @@ export default function CRMLeadDetailDrawer({ leadId, onClose, onEdit }) {
               </div>
             </Card>
 
-            {/* EXTRAS */}
-            <Card className="p-4 grid grid-cols-2 gap-4">
-              <Field label="Pet Friendly" value={lead.pet_friendly ? "Sim" : "Não"} />
-              <Field label="Mobiliado" value={lead.mobiliado ? "Sim" : "Não"} />
-              <Field label="Condomínio Máx." value={lead.condominio_max ? `R$ ${lead.condominio_max}` : "-"} />
-              <Field label="Urgência" value={lead.urgencia || "-"} />
+            {/* HISTÓRICO */}
+            <Card className="p-4 space-y-4">
+
+              <p className="font-semibold text-sm flex items-center gap-1">
+                <Clock size={14} /> Histórico
+              </p>
+
+              {/* INPUT */}
+              <div className="flex flex-col gap-2">
+                <textarea
+                  className="border border-border rounded-md p-2 text-xs min-h-[70px]"
+                  placeholder="Adicionar histórico do lead..."
+                  value={historyText}
+                  onChange={(e) => setHistoryText(e.target.value)}
+                />
+
+                <Button
+                  size="sm"
+                  onClick={addHistory}
+                  disabled={savingHistory}
+                  className="flex items-center gap-2 w-fit"
+                >
+                  {savingHistory ? (
+                    <Loader2 className="animate-spin" size={14} />
+                  ) : (
+                    <Plus size={14} />
+                  )}
+                  Adicionar Histórico
+                </Button>
+              </div>
+
+              {/* LISTA */}
+              <div className="space-y-2">
+                {lead.historico?.length ? (
+                  [...lead.historico]
+                    .sort((a, b) => new Date(b.data) - new Date(a.data))
+                    .map((item, i) => (
+                      <Card key={i} className="p-3 text-xs">
+                        <p className="text-muted-foreground text-[11px] mb-1">
+                          {new Date(item.data).toLocaleString("pt-BR")}
+                        </p>
+                        <p>{item.texto}</p>
+                      </Card>
+                    ))
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Nenhum histórico registrado.
+                  </p>
+                )}
+              </div>
+
             </Card>
 
-            {!!lead.motivo_busca && (
-              <Card className="p-4">
-                <p className="font-semibold text-sm">Motivo da Busca</p>
-                <p className="text-xs text-muted-foreground mt-1">{lead.motivo_busca}</p>
-              </Card>
-            )}
-
-            {!!lead.observacoes && (
-              <Card className="p-4">
-                <p className="font-semibold text-sm">Observações</p>
-                <p className="text-xs text-muted-foreground mt-1">{lead.observacoes}</p>
-              </Card>
-            )}
-
-            <Button className="w-full flex items-center justify-center gap-2" onClick={() => onEdit?.(lead)}>
+            {/* EDITAR */}
+            <Button
+              className="w-full flex items-center justify-center gap-2"
+              onClick={() => onEdit?.(lead)}
+            >
               <Pencil size={16} /> Editar Lead
             </Button>
+
           </div>
         )}
       </div>

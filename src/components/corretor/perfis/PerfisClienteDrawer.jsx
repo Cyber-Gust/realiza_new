@@ -29,7 +29,7 @@ export default function PerfisClienteDrawer({ clienteId, onClose, onEdit, reload
   const toast = useToast();
 
   const getImageSrc = (foto) => {
-    if (!foto || typeof foto !== "string") return "/placeholder-avatar.png";
+    if (!foto || typeof foto !== "string") return "/placeholder-avatar copy.png";
     if (foto.startsWith("/")) return foto;
     if (foto.startsWith("http://") || foto.startsWith("https://")) return foto;
     return "/" + foto;

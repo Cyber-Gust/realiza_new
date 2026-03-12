@@ -44,7 +44,7 @@ export default function PerfisClientesPanel() {
   });
 
   const getImageSrc = (foto) => {
-    if (!foto || typeof foto !== "string") return "/placeholder-avatar.png";
+    if (!foto || typeof foto !== "string") return "/placeholder-avatar copy.png";
 
     // se já é um caminho local válido
     if (foto.startsWith("/")) return foto;

@@ -18,6 +18,7 @@ import {
 } from "@/components/admin/ui/Table";
 import { Select } from "@/components/admin/ui/Form";
 import { Skeleton } from "@/components/admin/ui/Skeleton";
+import Link from "next/link";
 
 const PERIOD_OPTIONS = [
   { value: "7d", label: "7 dias" },
@@ -120,8 +121,12 @@ export default function DashboardCorretor() {
       {/* KPIs */}
       {summary && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <KPI title="Meus Imóveis" value={summary.imoveis?.total ?? 0} icon={Building2} />
-          <KPI title="Meus Leads" value={summary.leads?.total ?? 0} icon={Users} />
+          <Link href="/corretor/imoveis">
+            <KPI title="Meus Imóveis" value={summary.imoveis?.total ?? 0} icon={Building2} />
+          </Link>
+          <Link href="/corretor/crm">
+            <KPI title="Meus Leads" value={summary.leads?.total ?? 0} icon={Users} />
+          </Link>
           <KPI
             title="Minha Comissão"
             value={`R$ ${Number(summary.financeiro?.saldo_mes ?? 0).toLocaleString("pt-BR")}`}

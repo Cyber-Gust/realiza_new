@@ -3,282 +3,351 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kanban de Leads</title>
+    <title>Kanban de Leads - UI Premium</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- SortableJS para Drag and Drop perfeito no Mobile e Desktop -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    
     <style>
-        /* Variáveis de Cores (Light Theme) */
         :root {
             --bg-color: #f4f7f8;
-            --text-color: #333333;
-            --column-bg: #e2e4e6;
-            --column-hover: #d0d4d6;
+            --col-bg: #eef2f5;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
             --card-bg: #ffffff;
-            
-            /* Cores das etapas */
-            --color-new: #3498db;     /* Azul */
-            --color-contact: #f39c12; /* Laranja */
-            --color-neg: #9b59b6;     /* Roxo */
-            --color-won: #2ecc71;     /* Verde */
+            --col-leads: #3b82f6;
+            --col-contato: #f59e0b;
+            --col-proposta: #8b5cf6;
+            --col-fechado: #10b981;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+            font-family: 'Inter', sans-serif;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--bg-color);
-            color: var(--text-color);
-            padding: 30px;
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
         header {
-            margin-bottom: 30px;
-        }
-
-        header h1 {
-            font-size: 24px;
-            color: #2c3e50;
-        }
-
-        /* Container do Kanban */
-        .kanban-board {
-            display: flex;
-            gap: 20px;
-            overflow-x: auto;
-            align-items: flex-start;
-            padding-bottom: 20px;
-        }
-
-        /* Colunas */
-        .kanban-column {
-            background-color: var(--column-bg);
-            border-radius: 8px;
-            width: 300px;
-            min-width: 300px;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            transition: background-color 0.2s ease;
-        }
-
-        .kanban-column.drag-over {
-            background-color: var(--column-hover);
-        }
-
-        .column-header {
-            padding: 15px;
-            font-weight: 600;
-            font-size: 16px;
-            border-top-left-radius: 8px;
-            border-top-right-radius: 8px;
+            padding: 20px 24px;
+            background: #fff;
+            border-bottom: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .column-header span {
-            background: rgba(0,0,0,0.1);
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 12px;
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-main);
         }
 
-        /* Cores dos cabeçalhos das colunas */
-        #col-novos .column-header { border-top: 4px solid var(--color-new); }
-        #col-contato .column-header { border-top: 4px solid var(--color-contact); }
-        #col-negociacao .column-header { border-top: 4px solid var(--color-neg); }
-        #col-fechado .column-header { border-top: 4px solid var(--color-won); }
+        .board-container {
+            display: flex;
+            flex: 1;
+            padding: 24px;
+            gap: 20px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            /* Suavidade no scroll mobile */
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            align-items: flex-start;
+        }
 
-        /* Área onde os cards ficam */
+        /* Esconde a barra de rolagem mas mantém a funcionalidade */
+        .board-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        .board-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .kanban-column {
+            background-color: var(--col-bg);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            min-width: 320px;
+            max-width: 320px;
+            max-height: 100%;
+            flex-shrink: 0;
+            /* Alinha a coluna perfeitamente no centro ao fazer scroll no mobile */
+            scroll-snap-align: center;
+        }
+
+        .column-header {
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            font-size: 0.95rem;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+        }
+
+        .col-leads .column-header { border-top: 4px solid var(--col-leads); }
+        .col-contato .column-header { border-top: 4px solid var(--col-contato); }
+        .col-proposta .column-header { border-top: 4px solid var(--col-proposta); }
+        .col-fechado .column-header { border-top: 4px solid var(--col-fechado); }
+
+        .lead-count {
+            background: rgba(0,0,0,0.08);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
         .kanban-cards {
-            padding: 0 15px 15px 15px;
+            padding: 0 16px 16px 16px;
+            flex: 1;
+            overflow-y: auto;
             min-height: 150px;
             display: flex;
             flex-direction: column;
             gap: 12px;
         }
 
-        /* Cards de Lead */
         .card {
-            background-color: var(--card-bg);
-            border-radius: 6px;
-            padding: 15px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+            background: var(--card-bg);
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+            border: 1px solid #f1f5f9;
             cursor: grab;
-            transition: transform 0.1s ease, box-shadow 0.1s ease;
+            transition: transform 0.2s, box-shadow 0.2s;
+            /* Previne seleção de texto ao arrastar no mobile */
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         .card:active {
             cursor: grabbing;
         }
 
-        .card.dragging {
-            opacity: 0.5;
-            transform: scale(0.95);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
-
         .card-title {
+            font-size: 1rem;
             font-weight: 600;
-            margin-bottom: 8px;
-            font-size: 14px;
+            margin-bottom: 4px;
         }
 
-        .card-info {
-            font-size: 12px;
-            color: #7f8c8d;
+        .card-company {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .card-footer {
             display: flex;
             justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 12px;
         }
-        
+
+        .card-value {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #0f172a;
+        }
+
         .tag {
-            padding: 2px 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 4px 8px;
             border-radius: 4px;
-            font-size: 11px;
-            font-weight: bold;
-            color: white;
         }
 
-        .tag-hot { background-color: #e74c3c; }
-        .tag-warm { background-color: #f39c12; }
-        .tag-cold { background-color: #3498db; }
+        .tag-hot { background: #fee2e2; color: #ef4444; }
+        .tag-warm { background: #fef3c7; color: #d97706; }
+        .tag-cold { background: #e0f2fe; color: #0ea5e9; }
 
+        /* Estilos do Drag and Drop */
+        .sortable-ghost {
+            opacity: 0.4;
+            background-color: #f8fafc;
+            border: 2px dashed #cbd5e1;
+        }
+
+        .sortable-drag {
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            transform: rotate(2deg);
+        }
+
+        /* Responsividade Mobile */
+        @media (max-width: 768px) {
+            .board-container {
+                padding: 16px;
+                /* Permite ver um pedaço da próxima coluna para induzir o scroll */
+                gap: 16px;
+            }
+            .kanban-column {
+                min-width: 85vw;
+                max-width: 85vw;
+            }
+        }
     </style>
 </head>
 <body>
 
     <header>
         <h1>Pipeline de Vendas</h1>
+        <div style="font-size: 0.9rem; color: var(--text-muted);">Mês: Fevereiro</div>
     </header>
 
-    <div class="kanban-board">
-        <!-- Coluna: Novos Leads -->
-        <div class="kanban-column" id="col-novos">
+    <div class="board-container">
+        
+        <!-- Coluna 1 -->
+        <div class="kanban-column col-leads">
             <div class="column-header">
-                Novos Leads <span class="count">3</span>
+                <span>Novos Leads</span>
+                <span class="lead-count" id="count-leads">3</span>
             </div>
-            <div class="kanban-cards">
-                <div class="card" draggable="true">
-                    <div class="card-title">Empresa ABC</div>
-                    <div class="card-info">
-                        <span>R$ 5.000</span>
+            <div class="kanban-cards" id="col-leads">
+                
+                <div class="card">
+                    <div class="card-title">Sistema de Imobiliária</div>
+                    <div class="card-company">Construtora Apex</div>
+                    <div class="card-footer">
+                        <span class="card-value">R$ 15.000</span>
                         <span class="tag tag-hot">Quente</span>
                     </div>
                 </div>
-                <div class="card" draggable="true">
-                    <div class="card-title">João Silva</div>
-                    <div class="card-info">
-                        <span>R$ 1.200</span>
+
+                <div class="card">
+                    <div class="card-title">Aplicativo de Entregas</div>
+                    <div class="card-company">Logística Express</div>
+                    <div class="card-footer">
+                        <span class="card-value">R$ 22.000</span>
                         <span class="tag tag-cold">Frio</span>
                     </div>
                 </div>
-                <div class="card" draggable="true">
-                    <div class="card-title">Tech Solutions</div>
-                    <div class="card-info">
-                        <span>R$ 15.000</span>
+
+                <div class="card">
+                    <div class="card-title">Site Institucional</div>
+                    <div class="card-company">Advocacia Silva</div>
+                    <div class="card-footer">
+                        <span class="card-value">R$ 3.500</span>
                         <span class="tag tag-warm">Morno</span>
                     </div>
                 </div>
+
             </div>
         </div>
 
-        <!-- Coluna: Contato Feito -->
-        <div class="kanban-column" id="col-contato">
+        <!-- Coluna 2 -->
+        <div class="kanban-column col-contato">
             <div class="column-header">
-                Contato Feito <span class="count">1</span>
+                <span>Em Contato</span>
+                <span class="lead-count" id="count-contato">1</span>
             </div>
-            <div class="kanban-cards">
-                <div class="card" draggable="true">
-                    <div class="card-title">Maria Oliveira</div>
-                    <div class="card-info">
-                        <span>R$ 3.500</span>
-                        <span class="tag tag-warm">Morno</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Coluna: Em Negociação -->
-        <div class="kanban-column" id="col-negociacao">
-            <div class="column-header">
-                Em Negociação <span class="count">0</span>
-            </div>
-            <div class="kanban-cards">
-                <!-- Cards vazios para receber drop -->
-            </div>
-        </div>
-
-        <!-- Coluna: Fechado -->
-        <div class="kanban-column" id="col-fechado">
-            <div class="column-header">
-                Fechado / Ganho <span class="count">1</span>
-            </div>
-            <div class="kanban-cards">
-                <div class="card" draggable="true">
-                    <div class="card-title">Padaria do Zé</div>
-                    <div class="card-info">
-                        <span>R$ 800</span>
+            <div class="kanban-cards" id="col-contato">
+                
+                <div class="card">
+                    <div class="card-title">ERP Personalizado</div>
+                    <div class="card-company">Indústria Tech</div>
+                    <div class="card-footer">
+                        <span class="card-value">R$ 45.000</span>
                         <span class="tag tag-hot">Quente</span>
                     </div>
                 </div>
+
             </div>
         </div>
+
+        <!-- Coluna 3 -->
+        <div class="kanban-column col-proposta">
+            <div class="column-header">
+                <span>Proposta Enviada</span>
+                <span class="lead-count" id="count-proposta">1</span>
+            </div>
+            <div class="kanban-cards" id="col-proposta">
+                
+                <div class="card">
+                    <div class="card-title">Integração de PDV</div>
+                    <div class="card-company">Mercados Unidos</div>
+                    <div class="card-footer">
+                        <span class="card-value">R$ 8.000</span>
+                        <span class="tag tag-warm">Morno</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Coluna 4 -->
+        <div class="kanban-column col-fechado">
+            <div class="column-header">
+                <span>Negócio Fechado</span>
+                <span class="lead-count" id="count-fechado">1</span>
+            </div>
+            <div class="kanban-cards" id="col-fechado">
+                
+                <div class="card">
+                    <div class="card-title">E-commerce B2B</div>
+                    <div class="card-company">Atacadão Distribuidora</div>
+                    <div class="card-footer">
+                        <span class="card-value">R$ 28.000</span>
+                        <span class="tag tag-hot">Quente</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const cards = document.querySelectorAll('.card');
-            const dropzones = document.querySelectorAll('.kanban-cards');
-            let draggedCard = null;
-
-            // Eventos para os Cards
-            cards.forEach(card => {
-                card.addEventListener('dragstart', function() {
-                    draggedCard = this;
-                    setTimeout(() => this.classList.add('dragging'), 0);
-                });
-
-                card.addEventListener('dragend', function() {
-                    this.classList.remove('dragging');
-                    draggedCard = null;
-                    updateCounters();
-                });
-            });
-
-            // Eventos para as Zonas de Drop (Colunas)
-            dropzones.forEach(zone => {
-                zone.addEventListener('dragover', function(e) {
-                    e.preventDefault(); // Permite o drop
-                    this.parentElement.classList.add('drag-over');
-                });
-
-                zone.addEventListener('dragleave', function() {
-                    this.parentElement.classList.remove('drag-over');
-                });
-
-                zone.addEventListener('drop', function(e) {
-                    e.preventDefault();
-                    this.parentElement.classList.remove('drag-over');
-                    
-                    if (draggedCard) {
-                        this.appendChild(draggedCard);
-                    }
-                });
-            });
-
-            // Função para atualizar o contador de cards em cada coluna
-            function updateCounters() {
-                const columns = document.querySelectorAll('.kanban-column');
-                columns.forEach(col => {
-                    const cardCount = col.querySelectorAll('.card').length;
-                    const countElement = col.querySelector('.count');
-                    if (countElement) {
-                        countElement.textContent = cardCount;
-                    }
+            const columns = ['col-leads', 'col-contato', 'col-proposta', 'col-fechado'];
+            
+            // Atualiza os contadores do topo da coluna
+            function updateCounts() {
+                columns.forEach(colId => {
+                    const countEl = document.getElementById(colId.replace('col-', 'count-'));
+                    const container = document.getElementById(colId);
+                    countEl.textContent = container.children.length;
                 });
             }
+
+            // Inicializa o Drag and Drop para cada coluna
+            columns.forEach(colId => {
+                const el = document.getElementById(colId);
+                
+                new Sortable(el, {
+                    group: 'kanban', // Permite arrastar entre colunas do mesmo grupo
+                    animation: 150, // Animação suave
+                    ghostClass: 'sortable-ghost',
+                    dragClass: 'sortable-drag',
+                    
+                    // Configurações cruciais para o MOBILE:
+                    // O delay permite que o usuário faça o scroll lateral (swipe) 
+                    // sem arrastar o card acidentalmente. Ele só arrasta se segurar por 150ms.
+                    delay: 150, 
+                    delayOnTouchOnly: true, 
+                    
+                    onEnd: function (evt) {
+                        // Função chamada quando o card é solto
+                        updateCounts();
+                        // Aqui você pode adicionar lógica de API para salvar o novo status do Lead
+                        console.log(`Lead movido para: ${evt.to.id}`);
+                    }
+                });
+            });
         });
     </script>
 </body>

@@ -33,7 +33,7 @@ export default function PerfisEquipeDrawer({
   const toast = useToast();
 
   const getImageSrc = (foto) => {
-    if (!foto || typeof foto !== "string") return "/placeholder-avatar.png";
+    if (!foto || typeof foto !== "string") return "/placeholder-avatar copy.png";
 
     if (foto.startsWith("http://") || foto.startsWith("https://")) return foto;
     if (foto.startsWith("/")) return foto;

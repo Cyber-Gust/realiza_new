@@ -11,7 +11,6 @@ export async function GET(req) {
   const id = searchParams.get("id");
   const status = searchParams.get("status");
   const corretor_id = searchParams.get("corretor_id");
-  console.log("CORRETOR ID RECEBIDO:", corretor_id);
   const search = searchParams.get("search");
   const from = searchParams.get("from");
   const to = searchParams.get("to");
@@ -51,7 +50,6 @@ export async function GET(req) {
           status,
           origem,
           corretor_id,
-
           interesse_tipo,
           interesse_disponibilidade,
           faixa_preco_min,
@@ -69,13 +67,23 @@ export async function GET(req) {
           motivo_busca,
           observacoes,
           perfil_busca_json,
-
+          historico,
+          imovel_interesse_id,
           created_at,
           updated_at,
+
           profiles:corretor_id (
             id,
             nome_completo,
             role
+          ),
+          
+          imoveis:imovel_interesse_id (
+            id,
+            codigo_ref,
+            titulo,
+            endereco_cidade,
+            endereco_bairro
           )
         `
       )
@@ -129,7 +137,7 @@ export async function POST(req) {
       origem: body.origem || "manual",
       corretor_id: body.corretor_id || null,
       status: body.status || "novo",
-
+      imovel_interesse_id: body.imovel_interesse_id || null,
       /** ENUMS CORRETOS */
       interesse_tipo: body.interesse_tipo || null,
       interesse_disponibilidade: body.interesse_disponibilidade || null,
@@ -195,6 +203,7 @@ export async function PUT(req) {
 
     const updatePayload = {
       ...updates,
+      imovel_interesse_id: updates.imovel_interesse_id || null,
       interesse_tipo: updates.interesse_tipo || null,
       interesse_disponibilidade: updates.interesse_disponibilidade || null,
       updated_at: new Date().toISOString(),

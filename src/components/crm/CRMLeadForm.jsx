@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/admin/ui/Button";
 import { Input, Textarea, Select, Label } from "@/components/admin/ui/Form";
 import { useToast } from "@/contexts/ToastContext";
+import SearchableSelect from "../admin/ui/SearchableSelect";
 
 export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
   const [form, setForm] = useState({
@@ -13,6 +14,7 @@ export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
     origem: lead?.origem || "",
     status: lead?.status || "novo",
     corretor_id: lead?.corretor_id || "",
+    imovel_interesse_id: lead?.imovel_interesse_id || "",
 
     /* 🆕 Novos campos */
     interesse_tipo: lead?.interesse_tipo || "",
@@ -35,6 +37,7 @@ export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
 
   const [loading, setLoading] = useState(false);
   const [corretores, setCorretores] = useState([]);
+  const [imoveis, setImoveis] = useState([]);
 
   const toast = useToast();
 
@@ -61,6 +64,29 @@ export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
     };
 
     loadCorretores();
+  }, [toast]);
+
+  /* ============================================================
+    Carrega Imóveis 
+  ============================================================ */
+  useEffect(() => {
+    const loadImoveis = async () => {
+      try {
+        const res = await fetch("/api/imoveis", {
+          cache: "no-store",
+        });
+
+        const json = await res.json();
+
+        if (!res.ok) throw new Error(json.error);
+
+        setImoveis(json.data || []);
+      } catch (err) {
+        toast.error("Erro ao carregar imóveis", err.message);
+      }
+    };
+
+    loadImoveis();
   }, [toast]);
 
   /* ============================================================
@@ -199,7 +225,20 @@ export default function CRMLeadForm({ onSaved, onClose, lead = null }) {
 
       {/* Perfil estruturado */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
+        <div>
+                  <Label>Imóvel de interesse</Label>
+                  <SearchableSelect
+                    placeholder="Imóvel"
+                    value={form.imovel_interesse_id || ""}
+                    onChange={(value) =>
+                      handleChange("imovel_interesse_id", value || null)
+                    }
+                    options={imoveis.map((imovel) => ({
+                      value: String(imovel.id),
+                      label: `${imovel.codigo_ref} • ${imovel.titulo}`
+                    }))}
+                  />
+                </div>    
         <div>
           <Label>Tipo do imóvel desejado</Label>
           <Select

@@ -214,18 +214,6 @@ export default function CRMLeadsPanel() {
             ))}
           </Select>
 
-          <Select
-            value={filters.corretor_id}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, corretor_id: e.target.value }))
-            }
-          >
-            <option value="">Todos os corretores</option>
-            {corretores.map((c) => (
-              <option key={c.id} value={c.id}>{c.nome_completo}</option>
-            ))}
-          </Select>
-
           <Input
             placeholder="Filtrar por origem"
             value={filters.origem}
@@ -301,18 +289,6 @@ export default function CRMLeadsPanel() {
                     <Edit size={16} />
                   </Button>
 
-                  {/* DELETE */}
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteTarget(lead);
-                    }}
-                  >
-                    <Trash2 size={16} className="text-red-500" />
-                  </Button>
-
                 </TableCell>
               </TableRow>
             ))}
@@ -362,49 +338,6 @@ export default function CRMLeadsPanel() {
             setEditing(null);
           }}
         />
-      </Modal>
-
-      {/* CONFIRMAR DELETE */}
-      <Modal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        title="Remover Lead"
-      >
-        {deleteTarget && (
-          <div className="space-y-5">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="text-red-500 mt-1" />
-              <div>
-                <p>
-                  Remover o lead <strong>{deleteTarget.nome}</strong>?
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Origem: {deleteTarget.origem || "Manual"}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <Button variant="secondary" className="w-1/2" onClick={() => setDeleteTarget(null)}>
-                Cancelar
-              </Button>
-
-              <Button
-                className="w-1/2 bg-red-600 hover:bg-red-700"
-                onClick={handleConfirmDelete}
-                disabled={deleting}
-              >
-                {deleting ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin" /> Removendo...
-                  </>
-                ) : (
-                  "Confirmar"
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
       </Modal>
 
       {/* 🆕 DRAWER DE DETALHES */}

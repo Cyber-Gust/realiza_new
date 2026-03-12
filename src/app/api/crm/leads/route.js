@@ -69,12 +69,22 @@ export async function GET(req) {
           observacoes,
           perfil_busca_json,
 
+          historico,
+          imovel_interesse_id,
+
           created_at,
           updated_at,
           profiles:corretor_id (
             id,
             nome_completo,
             role
+          ),
+          imoveis:imovel_interesse_id (
+            id,
+            codigo_ref,
+            titulo,
+            endereco_cidade,
+            endereco_bairro
           )
         `
       )
@@ -128,6 +138,7 @@ export async function POST(req) {
       origem: body.origem || "manual",
       corretor_id: body.corretor_id || null,
       status: body.status || "novo",
+      imovel_interesse_id: body.imovel_interesse_id || null,
 
       /** ENUMS CORRETOS */
       interesse_tipo: body.interesse_tipo || null,
@@ -194,6 +205,7 @@ export async function PUT(req) {
 
     const updatePayload = {
       ...updates,
+      imovel_interesse_id: updates.imovel_interesse_id || null,
       interesse_tipo: updates.interesse_tipo || null,
       interesse_disponibilidade: updates.interesse_disponibilidade || null,
       updated_at: new Date().toISOString(),

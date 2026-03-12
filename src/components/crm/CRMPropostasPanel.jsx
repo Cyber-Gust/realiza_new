@@ -433,28 +433,32 @@ export default function CRMPropostasPanel() {
       )}
 
       {/* PAGINAÇÃO */}
-      <div className="flex items-center justify-between pt-2">
-        <p className="text-xs text-muted-foreground">
-          Página {filters.page} de {totalPages} • {total} propostas
-        </p>
+      <div className="flex items-center justify-center gap-4 pt-4">
 
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            disabled={filters.page <= 1}
-            onClick={() => setFilters((f) => ({ ...f, page: f.page - 1 }))}
-          >
-            Anterior
-          </Button>
+        <Button
+          variant="secondary"
+          disabled={filters.page === 1}
+          onClick={() =>
+            setFilters((f) => ({ ...f, page: f.page - 1 }))
+          }
+        >
+          ← Anterior
+        </Button>
 
-          <Button
-            variant="outline"
-            disabled={filters.page >= totalPages}
-            onClick={() => setFilters((f) => ({ ...f, page: f.page + 1 }))}
-          >
-            Próxima
-          </Button>
-        </div>
+        <span className="text-sm text-muted-foreground">
+          Página {filters.page} de {totalPages}
+        </span>
+
+        <Button
+          variant="secondary"
+          disabled={filters.page === totalPages}
+          onClick={() =>
+            setFilters((f) => ({ ...f, page: f.page + 1 }))
+          }
+        >
+          Próxima →
+        </Button>
+
       </div>
 
       {/* MODAL: FORM */}

@@ -6,7 +6,7 @@ import { Button } from "@/components/admin/ui/Button";
 import { Card } from "@/components/admin/ui/Card";
 import Modal from "@/components/admin/ui/Modal";
 import { useToast } from "@/contexts/ToastContext";
-import { Select } from "@/components/admin/ui/Form";
+import { Label, Select } from "@/components/admin/ui/Form";
 import CRMPropostaDetailDrawer from "./CRMPropostaDetailDrawer";
 import Badge from "@/components/admin/ui/Badge";
 import { useUser } from "@/contexts/UserContext";
@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 
 import CRMPropostaForm from "./CRMPropostaForm";
+import SearchableSelect from "@/components/admin/ui/SearchableSelect";
 
 /* ============================================================
    Helpers
@@ -73,7 +74,7 @@ export default function CRMPropostasPanel() {
     orderBy: "created_at",
     orderDir: "desc",
     page: 1,
-    pageSize: 9,
+    pageSize: 10,
   });
 
   const [total, setTotal] = useState(0);
@@ -285,19 +286,16 @@ export default function CRMPropostasPanel() {
           </Select>
 
           {/* Imóvel */}
-          <Select
-            value={filters.imovel_id}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, imovel_id: e.target.value, page: 1 }))
-            }
-          >
-            <option value="">Imóvel (todos)</option>
-            {imoveis.map((im) => (
-              <option key={im.id} value={im.id}>
-                {im.titulo}
-              </option>
-            ))}
-          </Select>
+
+                  <SearchableSelect
+                    placeholder="Por Imóvel"
+                    value={filters.imovel_id}
+                    onChange={(v) => setFilters((f) => ({ ...f, imovel_id: v }))}
+                    options={imoveis.map((im) => ({
+                      value: String(im.id),
+                      label: `${im.codigo_ref} • ${im.titulo}`
+                    }))}
+                  />
 
           {/* Ordenação */}
           <Select
@@ -431,28 +429,32 @@ export default function CRMPropostasPanel() {
       )}
 
       {/* PAGINAÇÃO */}
-      <div className="flex items-center justify-between pt-2">
-        <p className="text-xs text-muted-foreground">
-          Página {filters.page} de {totalPages} • {total} propostas
-        </p>
+      <div className="flex items-center justify-center gap-4 pt-4">
 
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            disabled={filters.page <= 1}
-            onClick={() => setFilters((f) => ({ ...f, page: f.page - 1 }))}
-          >
-            Anterior
-          </Button>
+        <Button
+          variant="secondary"
+          disabled={filters.page === 1}
+          onClick={() =>
+            setFilters((f) => ({ ...f, page: f.page - 1 }))
+          }
+        >
+          ← Anterior
+        </Button>
 
-          <Button
-            variant="outline"
-            disabled={filters.page >= totalPages}
-            onClick={() => setFilters((f) => ({ ...f, page: f.page + 1 }))}
-          >
-            Próxima
-          </Button>
-        </div>
+        <span className="text-sm text-muted-foreground">
+          Página {filters.page} de {totalPages}
+        </span>
+
+        <Button
+          variant="secondary"
+          disabled={filters.page === totalPages}
+          onClick={() =>
+            setFilters((f) => ({ ...f, page: f.page + 1 }))
+          }
+        >
+          Próxima →
+        </Button>
+
       </div>
 
       {/* MODAL: FORM */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback} from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 
 import {
   Loader2,
@@ -11,7 +11,6 @@ import {
   TrendingUp,
   Filter,
   RefreshCcw,
-  Award,
   PieChart,
   ListChecks,
   Handshake,
@@ -25,11 +24,13 @@ import {
   CardTitle,
   CardContent,
 } from "@/components/admin/ui/Card";
+
 import { Button } from "@/components/admin/ui/Button";
-import { Select, Input } from "@/components/admin/ui/Form";
+import { Select, Input, Label } from "@/components/admin/ui/Form";
 import KPIWidget from "@/components/admin/ui/KPIWidget";
 import { Skeleton } from "@/components/admin/ui/Skeleton";
-import Badge from "@/components/admin/ui/Badge"; // se estiver como default, ajusta o import
+import Badge from "@/components/admin/ui/Badge";
+
 import {
   Table,
   TableHeader,
@@ -37,104 +38,62 @@ import {
   TableHead,
   TableCell,
 } from "@/components/admin/ui/Table";
+
 import { useToast } from "@/contexts/ToastContext";
+import { useUser } from "@/contexts/UserContext";
 
 /* ============================================================
    Helpers
 ============================================================ */
+
 const formatNumber = (value) => {
-  if (value === null || value === undefined || Number.isNaN(value)) return "0";
+  if (!value) return "0";
   return Number(value).toLocaleString("pt-BR");
 };
 
-const formatCurrencyBRL = (value) => {
-  if (value === null || value === undefined || Number.isNaN(value))
-    return "R$ 0,00";
+const formatCurrency = (value) => {
+  if (!value) return "R$ 0,00";
+
   return Number(value).toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
-    minimumFractionDigits: 2,
   });
 };
 
 /* ============================================================
-   Skeleton (usa seu Skeleton, sem Card aninhado)
+   Skeleton
 ============================================================ */
+
 function RelatoriosSkeleton() {
   return (
-    <div className="space-y-10">
-      {/* Header */}
-      <div className="space-y-2">
-        <Skeleton className="h-7 w-64" />
-        <Skeleton className="h-4 w-80" />
-      </div>
+    <div className="space-y-6">
+      <Skeleton className="h-6 w-40" />
 
-      {/* Filtros */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-5 w-5 rounded-full" />
-            <Skeleton className="h-4 w-40" />
-          </div>
-          <Skeleton className="h-8 w-24" />
-        </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-4 gap-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* KPIs */}
       <div className="grid md:grid-cols-3 lg:grid-cols-6 gap-4">
         {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-24 w-full rounded-xl" />
+          <Skeleton key={i} className="h-24 rounded-xl" />
         ))}
       </div>
 
-      {/* Seções */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-4 w-48" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-40 w-full" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-4 w-48" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-40 w-full" />
-          </CardContent>
-        </Card>
-      </div>
+      <Skeleton className="h-40 w-full" />
     </div>
   );
 }
 
 /* ============================================================
-   Painel
+   PAGE
 ============================================================ */
 
 export default function CRMRelatoriosPanel() {
+  const { user } = useUser();
+  const toast = useToast();
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  const [corretores, setCorretores] = useState([]);
-  const [origensLista, setOrigensLista] = useState([]);
-
-  const toast = useToast();
 
   const [filtros, setFiltros] = useState({
     inicio: "",
     fim: "",
-    corretor_id: "",
     origem: "",
     status_lead: "",
     interesse_tipo: "",
@@ -144,97 +103,57 @@ export default function CRMRelatoriosPanel() {
     imovel_status: "",
   });
 
-  const leadStatus = [
-    "novo",
-    "qualificado",
-    "visita_agendada",
-    "proposta_feita",
-    "documentacao",
-    "concluido",
-    "perdido",
-  ];
-
-  const tiposImovel = ["apartamento", "casa", "terreno", "comercial", "rural"];
-  const disponibilidades = ["venda", "locacao", "ambos"];
-  const propostasStatus = ["pendente", "aceita", "recusada", "expirada"];
-  const imovelStatus = [
-    "disponivel",
-    "reservado",
-    "alugado",
-    "vendido",
-    "inativo",
-  ];
-
   /* ============================================================
      QueryString
   ============================================================ */
+
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
-    Object.entries(filtros).forEach(([k, v]) => v && params.set(k, v));
+
+    Object.entries(filtros).forEach(([k, v]) => {
+      if (v) params.set(k, v);
+    });
+
+    if (user?.id) params.set("corretor_id", user.id);
+
     return params.toString();
-  }, [filtros]);
-
-  /* ============================================================
-     Load Listas
-  ============================================================ */
-  const loadListas = async () => {
-    try {
-      const [corrRes, origRes] = await Promise.all([
-        fetch("/api/perfis/list?type=equipe", { cache: "no-store" }),
-        fetch("/api/corretor/crm/leads?origens=1", { cache: "no-store" }),
-      ]);
-
-      const [corrJson, origJson] = await Promise.all([
-        corrRes.json(),
-        origRes.json(),
-      ]);
-
-      setCorretores(corrJson.data || []);
-      setOrigensLista(origJson.data || []);
-    } catch {
-      // silencioso
-    }
-  };
+  }, [filtros, user]);
 
   /* ============================================================
      Load KPIs
   ============================================================ */
-  const loadKpis = useCallback(async () => {
+
+  const loadData = useCallback(async () => {
+    if (!user?.id) return;
+
     try {
       setLoading(true);
 
-      const res = await fetch(`/api/corretor/crm/relatorios?${queryString}`, {
-        cache: "no-store",
-      });
+      const res = await fetch(
+        `/api/corretor/crm/relatorios?${queryString}`,
+        { cache: "no-store" }
+      );
 
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Erro ao carregar relatórios");
 
-      setData(json.data || null);
+      if (!res.ok) throw new Error(json.error);
+
+      setData(json.data);
     } catch (err) {
-      toast.error("Erro", err.message || "Falha ao carregar relatórios");
-      setData(null);
+      toast.error("Erro", err.message);
     } finally {
       setLoading(false);
     }
-  }, [toast, queryString]);
-
-  /* ============================================================
-     Effects
-  ============================================================ */
-  useEffect(() => {
-    loadListas();
-  }, []);
+  }, [queryString, user, toast]);
 
   useEffect(() => {
-    loadKpis();
-  }, [loadKpis]);
+    loadData();
+  }, [loadData]);
 
   const resetFiltros = () =>
     setFiltros({
       inicio: "",
       fim: "",
-      corretor_id: "",
       origem: "",
       status_lead: "",
       interesse_tipo: "",
@@ -244,108 +163,65 @@ export default function CRMRelatoriosPanel() {
       imovel_status: "",
     });
 
-  /* ============================================================
-     Early states
-  ============================================================ */
   if (loading && !data) return <RelatoriosSkeleton />;
 
   if (!data)
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground space-y-2">
-        <BarChart3 className="w-6 h-6 opacity-70" />
-        <p className="text-sm font-medium">Nenhum dado disponível.</p>
-        <p className="text-xs">Ajuste os filtros e tente novamente.</p>
+      <div className="py-20 text-center text-muted-foreground">
+        Nenhum dado encontrado
       </div>
     );
 
-  const totalLeads = data.totalLeads || 0;
-  const totalPropostas = data.totalPropostas || 0;
-
   const totalPropostasStatus = Object.values(data.propostasStatus || {}).reduce(
-    (acc, v) => acc + v,
-    0
-  );
-  const totalOrigens = Object.values(data.origens || {}).reduce(
-    (acc, v) => acc + v,
+    (a, b) => a + b,
     0
   );
 
-  /* ============================================================
-     UI
-  ============================================================ */
+  const totalOrigens = Object.values(data.origens || {}).reduce(
+    (a, b) => a + b,
+    0
+  );
 
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-300">
-      {/* HEADER */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground mb-1">
-              CRM • Relatórios
-            </p>
-          </div>
+    <div className="space-y-10">
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={resetFiltros}
-              className="flex items-center gap-2"
-            >
-              <RefreshCcw size={14} />
-              Limpar filtros
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={loadKpis}
-              className="flex items-center gap-2"
-            >
-              <Loader2
-                size={14}
-                className={loading ? "animate-spin" : "opacity-0"}
-              />
-              Atualizar
-            </Button>
-          </div>
+      {/* HEADER */}
+
+      <div className="flex items-center justify-between">
+        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+          CRM • Relatórios
+        </p>
+
+        <div className="flex gap-2">
+          <Button size="sm" variant="secondary" onClick={resetFiltros}>
+            <RefreshCcw size={14} />
+            Limpar
+          </Button>
+
+          <Button size="sm" onClick={loadData}>
+            <Loader2
+              size={14}
+              className={loading ? "animate-spin" : "opacity-0"}
+            />
+            Atualizar
+          </Button>
         </div>
       </div>
 
-      {/* FILTROS — Card de nível raiz, conteúdo com inputs e select (sem outro Card) */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary">
-              <Filter size={16} />
-            </div>
-            <div>
-              <CardTitle className="text-sm">Filtros analíticos</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                Refine o recorte por período, corretor, origem e estágio do
-                funil.
-              </p>
-            </div>
-          </div>
+      {/* FILTROS */}
 
-          <div className="hidden md:flex gap-2 text-xs text-muted-foreground">
-            <span className="px-2 py-1 rounded-full bg-muted/60">
-              Leads no recorte:{" "}
-              <span className="font-semibold text-foreground">
-                {formatNumber(totalLeads)}
-              </span>
-            </span>
-            <span className="px-2 py-1 rounded-full bg-muted/60">
-              Conversão final:{" "}
-              <span className="font-semibold text-foreground">
-                {data.conversaoFinal.toLocaleString("pt-BR")}%
-              </span>
-            </span>
-          </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Filter size={16} />
+            Filtros
+          </CardTitle>
         </CardHeader>
 
         <CardContent>
           <div className="grid md:grid-cols-4 gap-4">
-            {/* Datas */}
+            <div className="flex flex-col gap-1">
+            <Label htmlFor="inicio">Início</Label>
             <Input
               type="date"
               value={filtros.inicio}
@@ -353,7 +229,10 @@ export default function CRMRelatoriosPanel() {
                 setFiltros((f) => ({ ...f, inicio: e.target.value }))
               }
             />
+            </div>
 
+            <div className="flex flex-col gap-1"> 
+            <Label htmlFor="fim">Fim</Label>
             <Input
               type="date"
               value={filtros.fim}
@@ -361,86 +240,9 @@ export default function CRMRelatoriosPanel() {
                 setFiltros((f) => ({ ...f, fim: e.target.value }))
               }
             />
-
-            {/* Corretor */}
-            <Select
-              value={filtros.corretor_id}
-              onChange={(e) =>
-                setFiltros((f) => ({ ...f, corretor_id: e.target.value }))
-              }
-            >
-              <option value="">Todos os Corretores</option>
-              {corretores.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nome_completo}
-                </option>
-              ))}
-            </Select>
-
-            {/* Origem */}
-            <Select
-              value={filtros.origem}
-              onChange={(e) =>
-                setFiltros((f) => ({ ...f, origem: e.target.value }))
-              }
-            >
-              <option value="">Todas as Origens</option>
-              {origensLista.map((o) => (
-                <option key={o} value={o}>
-                  {o}
-                </option>
-              ))}
-            </Select>
-
-            {/* Status Lead */}
-            <Select
-              value={filtros.status_lead}
-              onChange={(e) =>
-                setFiltros((f) => ({ ...f, status_lead: e.target.value }))
-              }
-            >
-              <option value="">Status do Lead</option>
-              {leadStatus.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </Select>
-
-            {/* Tipo Imóvel */}
-            <Select
-              value={filtros.interesse_tipo}
-              onChange={(e) =>
-                setFiltros((f) => ({ ...f, interesse_tipo: e.target.value }))
-              }
-            >
-              <option value="">Tipo de Imóvel</option>
-              {tiposImovel.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </Select>
-
-            {/* Disponibilidade */}
-            <Select
-              value={filtros.interesse_disponibilidade}
-              onChange={(e) =>
-                setFiltros((f) => ({
-                  ...f,
-                  interesse_disponibilidade: e.target.value,
-                }))
-              }
-            >
-              <option value="">Disponibilidade</option>
-              {disponibilidades.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </Select>
-
-            {/* Cidade */}
+            </div>
+            <div className="flex flex-col gap-1">
+            <Label htmlFor="origem">Origem</Label>
             <Input
               placeholder="Cidade"
               value={filtros.cidade}
@@ -448,263 +250,150 @@ export default function CRMRelatoriosPanel() {
                 setFiltros((f) => ({ ...f, cidade: e.target.value }))
               }
             />
-
-            {/* Status Proposta */}
-            <Select
-              value={filtros.status_proposta}
-              onChange={(e) =>
-                setFiltros((f) => ({ ...f, status_proposta: e.target.value }))
-              }
-            >
-              <option value="">Status da Proposta</option>
-              {propostasStatus.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </Select>
-
-            {/* Status Imóvel (Contrato) */}
-            <Select
-              value={filtros.imovel_status}
-              onChange={(e) =>
-                setFiltros((f) => ({ ...f, imovel_status: e.target.value }))
-              }
-            >
-              <option value="">Status do Imóvel</option>
-              {imovelStatus.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* KPIs — usando KPIWidget direto (sem Card) */}
+      {/* KPIs */}
+
       <div className="grid md:grid-cols-3 lg:grid-cols-6 gap-4">
+
+        <KPIWidget title="Leads" value={formatNumber(data.totalLeads)} icon={Users} />
+
+        <KPIWidget title="Visitas" value={formatNumber(data.totalVisitas)} icon={MapPin} />
+
+        <KPIWidget title="Propostas" value={formatNumber(data.totalPropostas)} icon={FileText} />
+
+        <KPIWidget title="Contratos" value={formatNumber(data.totalContratos)} icon={Handshake} />
+
         <KPIWidget
-          title="Leads"
-          value={formatNumber(data.totalLeads)}
-          icon={Users}
-        />
-        <KPIWidget
-          title="Visitas"
-          value={formatNumber(data.totalVisitas)}
-          icon={MapPin}
-        />
-        <KPIWidget
-          title="Propostas"
-          value={formatNumber(data.totalPropostas)}
-          icon={FileText}
-        />
-        <KPIWidget
-          title="Contratos"
-          value={formatNumber(data.totalContratos)}
-          icon={Handshake}
-        />
-        <KPIWidget
-          title="Conv. Lead → Proposta"
-          value={`${data.taxaConversao.toLocaleString("pt-BR")} %`}
+          title="Conversão Lead → Proposta"
+          value={`${data.taxaConversao}%`}
           icon={BarChart3}
         />
+
         <KPIWidget
           title="Conversão Final"
-          value={`${data.conversaoFinal.toLocaleString("pt-BR")} %`}
+          value={`${data.conversaoFinal}%`}
           icon={TrendingUp}
         />
+
       </div>
 
-      {/* KPIs financeiros / tempo — também direto */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <KPIWidget
-          title="Ticket médio das propostas"
-          value={formatCurrencyBRL(data.ticketMedioPropostas)}
-          icon={DollarSign}
-        />
-        <KPIWidget
-          title="Tempo médio Lead → Proposta"
-          value={
-            data.tempoMedioConversao > 0
-              ? `${data.tempoMedioConversao} dias`
-              : "—"
-          }
-          icon={Clock}
-        />
-      </div>
+      {/* FUNIL */}
 
-      {/* GRID MISTO: Lista + Lista */}
       <div className="grid lg:grid-cols-2 gap-6">
 
-        {/* FUNIL DE LEADS — LISTA EM GRID */}
         <Card>
-          <CardHeader className="flex flex-row items-center gap-2">
-            <ListChecks className="w-4 h-4 text-primary" />
-            <CardTitle className="text-sm">Funil de Leads (status)</CardTitle>
+          <CardHeader>
+            <CardTitle className="text-sm">Funil de Leads</CardTitle>
           </CardHeader>
 
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {Object.entries(data.funilLeads || {}).map(([status, count]) => (
-                <div
-                  key={status}
-                  className="flex flex-col items-center justify-center py-3"
-                >
-                  <span className="text-xs text-muted-foreground mb-1 capitalize text-center">
-                    {status.replaceAll("_", " ")}
-                  </span>
+            <div className="grid grid-cols-2 gap-4">
 
-                  <span className="text-2xl font-semibold text-primary">
+              {Object.entries(data.funilLeads || {}).map(([status, count]) => (
+                <div key={status} className="text-center">
+
+                  <p className="text-xs text-muted-foreground capitalize">
+                    {status.replaceAll("_", " ")}
+                  </p>
+
+                  <p className="text-2xl font-semibold text-primary">
                     {formatNumber(count)}
-                  </span>
+                  </p>
+
                 </div>
               ))}
+
             </div>
           </CardContent>
         </Card>
 
-        {/* FUNIL COMPLETO — LISTA HORIZONTAL */}
         <Card>
-          <CardHeader className="flex flex-row items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-primary" />
+          <CardHeader>
             <CardTitle className="text-sm">
-              Funil completo: Lead → Visita → Proposta → Contrato
+              Lead → Visita → Proposta → Contrato
             </CardTitle>
           </CardHeader>
 
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Object.entries(data.funilCompleto || {}).map(([step, count]) => (
-                <div
-                  key={step}
-                  className="flex flex-col items-center justify-center py-3"
-                >
-                  <span className="text-xs text-muted-foreground mb-1 capitalize text-center">
-                    {step}
-                  </span>
+            <div className="grid grid-cols-4 gap-4">
 
-                  <span className="text-2xl font-semibold text-primary">
+              {Object.entries(data.funilCompleto || {}).map(([step, count]) => (
+                <div key={step} className="text-center">
+
+                  <p className="text-xs text-muted-foreground capitalize">
+                    {step}
+                  </p>
+
+                  <p className="text-xl font-semibold text-primary">
                     {formatNumber(count)}
-                  </span>
+                  </p>
+
                 </div>
               ))}
+
             </div>
           </CardContent>
         </Card>
 
       </div>
 
-      {/* GRID MISTO: TABELA + TABELA */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* STATUS DAS PROPOSTAS — TABELA */}
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-2">
-            <PieChart className="w-4 h-4 text-primary" />
-            <CardTitle className="text-sm">Status das Propostas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Quantidade</TableHead>
-                  <TableHead>% do total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <tbody>
-                {Object.entries(data.propostasStatus || {}).map(
-                  ([status, count]) => {
-                    const perc =
-                      totalPropostasStatus > 0
-                        ? ((count / totalPropostasStatus) * 100).toFixed(1)
-                        : "0.0";
+      {/* STATUS PROPOSTAS */}
 
-                    return (
-                      <TableRow key={status}>
-                        <TableCell className="flex items-center gap-2">
-                          <Badge status={status}>
-                            {status.replaceAll("_", " ")}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{formatNumber(count)}</TableCell>
-                        <TableCell>{perc}%</TableCell>
-                      </TableRow>
-                    );
-                  }
-                )}
-              </tbody>
-            </Table>
-          </CardContent>
-        </Card>
+      <Card>
 
-        {/* ORIGEM DOS LEADS — TABELA */}
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-2">
-            <MapPin className="w-4 h-4 text-primary" />
-            <CardTitle className="text-sm">Origem dos Leads</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Origem</TableHead>
-                  <TableHead>Leads</TableHead>
-                  <TableHead>% do total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <tbody>
-                {Object.entries(data.origens || {}).map(([origem, count]) => {
-                  const perc =
-                    totalOrigens > 0
-                      ? ((count / totalOrigens) * 100).toFixed(1)
-                      : "0.0";
+        <CardHeader>
+          <CardTitle className="text-sm flex items-center gap-2">
+            <PieChart size={16} />
+            Status das Propostas
+          </CardTitle>
+        </CardHeader>
 
-                  return (
-                    <TableRow key={origem}>
-                      <TableCell className="capitalize">{origem}</TableCell>
-                      <TableCell>{formatNumber(count)}</TableCell>
-                      <TableCell>{perc}%</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </tbody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
+        <CardContent>
 
-      {/* TOP CORRETORES — TABELA */}
-      {data.topCorretores?.length > 0 && (
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-2">
-            <Award className="w-4 h-4 text-primary" />
-            <CardTitle className="text-sm">Top 5 Corretores</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>Corretor</TableHead>
-                  <TableHead>Leads no período</TableHead>
-                </TableRow>
-              </TableHeader>
-              <tbody>
-                {data.topCorretores.map((c, i) => (
-                  <TableRow key={c.corretor_id}>
-                    <TableCell className="font-semibold text-primary">
-                      #{i + 1}
+          <Table>
+
+            <TableHeader>
+              <TableRow>
+                <TableHead>Status</TableHead>
+                <TableHead>Qtd</TableHead>
+                <TableHead>%</TableHead>
+              </TableRow>
+            </TableHeader>
+
+            <tbody>
+
+              {Object.entries(data.propostasStatus || {}).map(([status, count]) => {
+
+                const perc =
+                  totalPropostasStatus > 0
+                    ? ((count / totalPropostasStatus) * 100).toFixed(1)
+                    : "0";
+
+                return (
+                  <TableRow key={status}>
+                    <TableCell>
+                      <Badge>{status}</Badge>
                     </TableCell>
-                    <TableCell className="font-medium">{c.nome}</TableCell>
-                    <TableCell>{formatNumber(c.total)}</TableCell>
+
+                    <TableCell>{count}</TableCell>
+
+                    <TableCell>{perc}%</TableCell>
                   </TableRow>
-                ))}
-              </tbody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
+                );
+              })}
+
+            </tbody>
+
+          </Table>
+
+        </CardContent>
+
+      </Card>
+
     </div>
   );
 }

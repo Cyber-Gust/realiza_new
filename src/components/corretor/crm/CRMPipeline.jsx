@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -10,30 +10,29 @@ import {
   DragOverlay,
   rectIntersection,
   defaultDropAnimationSideEffects,
+  useDroppable,
+  useDraggable
 } from "@dnd-kit/core";
 
-import { useDroppable, useDraggable } from "@dnd-kit/core";
 import { createPortal } from "react-dom";
 
-import { 
-  Loader2, 
-  UserPlus, 
-  UserCheck, 
-  CalendarClock, 
-  FileText, 
-  Briefcase, 
-  Trophy, 
+import {
+  Loader2,
+  UserPlus,
+  UserCheck,
+  CalendarClock,
+  FileText,
+  Briefcase,
+  Trophy,
   XCircle,
   GripVertical,
   Phone,
   MapPin
 } from "lucide-react";
-import { useToast } from "@/contexts/ToastContext";
-// import { cn } from "@/lib/utils"; // Descomente se precisar usar cn()
 
-/* ============================================================
-   CONFIGURAÇÃO VISUAL E ÍCONES
-============================================================ */
+import { useToast } from "@/contexts/ToastContext";
+import CRMLeadDetailDrawer from "./CRMLeadDetailDrawer";
+
 const STAGE_CONFIG = {
   novo: {
     label: "Novo Lead",
@@ -90,43 +89,43 @@ const STAGE_CONFIG = {
     bg: "bg-rose-50 dark:bg-rose-500/20",
     border: "border-rose-200 dark:border-rose-500/30",
     barColor: "bg-rose-500"
-  },
+  }
 };
 
 const STAGES = Object.keys(STAGE_CONFIG);
 
-/* ============================================================
-   COMPONENTE PRINCIPAL
-============================================================ */
 export default function CRMPipeline() {
   const [pipeline, setPipeline] = useState({});
   const [loading, setLoading] = useState(true);
   const [activeLead, setActiveLead] = useState(null);
   const [activeStage, setActiveStage] = useState(null);
 
+  const [selectedLead, setSelectedLead] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
   const toast = useToast();
-  
-  // TouchSensor crucial: Permite scroll nativo da página. Só ativa o drag se segurar por 250ms.
+
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
-    }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 250, 
-        tolerance: 5,
-      },
+      activationConstraint: { delay: 250, tolerance: 5 }
     })
   );
+
+  const openLeadDrawer = (lead) => {
+    setSelectedLead(lead);
+    setDrawerOpen(true);
+  };
 
   const loadPipeline = useCallback(async () => {
     try {
       setLoading(true);
+
       const res = await fetch("/api/crm/pipeline", { cache: "no-store" });
       const json = await res.json();
+
       if (!res.ok) throw new Error(json.error);
+
       setPipeline(json.data || {});
     } catch (err) {
       toast.error(err.message);
@@ -144,47 +143,51 @@ export default function CRMPipeline() {
     if (fromStage === toStage) return;
 
     const newPipeline = { ...pipeline };
-    const leadIndex = newPipeline[fromStage].findIndex(l => String(l.id) === leadId);
-    
+
+    const leadIndex = newPipeline[fromStage].findIndex(
+      (l) => String(l.id) === leadId
+    );
+
     if (leadIndex > -1) {
-       const [movedLead] = newPipeline[fromStage].splice(leadIndex, 1);
-       if (!newPipeline[toStage]) newPipeline[toStage] = [];
-       newPipeline[toStage].push(movedLead);
-       setPipeline(newPipeline);
+      const [movedLead] = newPipeline[fromStage].splice(leadIndex, 1);
+
+      if (!newPipeline[toStage]) newPipeline[toStage] = [];
+
+      newPipeline[toStage].push(movedLead);
+
+      setPipeline(newPipeline);
     }
 
     try {
       const res = await fetch("/api/crm/pipeline", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: leadId, new_status: toStage }),
+        body: JSON.stringify({ id: leadId, new_status: toStage })
       });
 
       const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.error);
-      }
+
+      if (!res.ok) throw new Error(json.error);
+
       toast.success("Lead atualizado");
     } catch (err) {
       toast.error("Erro ao mover lead");
-      loadPipeline(); 
+      loadPipeline();
     }
   };
 
   const dropAnimation = {
     sideEffects: defaultDropAnimationSideEffects({
       styles: {
-        active: {
-          opacity: '0.5',
-        },
-      },
-    }),
+        active: { opacity: "0.5" }
+      }
+    })
   };
 
   if (loading) {
     return (
       <div className="h-[80vh] flex flex-col justify-center items-center text-muted-foreground">
-        <Loader2 className="h-10 w-10 animate-spin mb-4 text-muted-foreground/50" />
+        <Loader2 className="h-10 w-10 animate-spin mb-4" />
         <p className="text-sm font-medium">Carregando oportunidades...</p>
       </div>
     );
@@ -197,204 +200,231 @@ export default function CRMPipeline() {
         collisionDetection={rectIntersection}
         onDragStart={(event) => {
           const [fromStage, leadId] = event.active.id.split(":");
+
           const lead = pipeline[fromStage]?.find(
             (l) => String(l.id) === String(leadId)
           );
+
           setActiveLead(lead || null);
           setActiveStage(fromStage);
         }}
         onDragEnd={(event) => {
           const { active, over } = event;
+
           setActiveLead(null);
           setActiveStage(null);
-          
+
           if (!over) return;
 
           const [fromStage, leadId] = active.id.split(":");
           const toStage = over.id;
-          
+
           handleMoveLead(leadId, fromStage, toStage);
         }}
       >
-        {/* CONTAINER PRINCIPAL: Vertical no Mobile (overflow-y), Horizontal no Desktop (overflow-x) */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden md:overflow-x-auto md:overflow-y-hidden scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent p-2 md:pb-4 md:pt-0">
-          <div className="flex flex-col md:flex-row h-auto md:h-full gap-5 md:gap-5 min-w-full md:min-w-max pb-16 md:pb-0">
+        <div className="flex-1 overflow-y-auto md:overflow-x-auto p-2">
+          <div className="flex flex-col md:flex-row gap-5 min-w-full md:min-w-max">
             {STAGES.map((stage) => (
               <PipelineColumn
                 key={stage}
                 id={stage}
                 stage={stage}
                 leads={pipeline[stage] || []}
+                onOpenLead={openLeadDrawer}
               />
             ))}
           </div>
         </div>
 
-        {/* CARD FLUTUANTE (DURANTE O DRAG) */}
         {createPortal(
           <DragOverlay dropAnimation={dropAnimation}>
             {activeLead && activeStage && (
-              <div className="rotate-3 cursor-grabbing scale-105 z-[9999]">
-                 <LeadCard lead={activeLead} stage={activeStage} overlay />
+              <div className="rotate-3 scale-105 z-[9999]">
+                <LeadCard lead={activeLead} stage={activeStage} overlay />
               </div>
             )}
           </DragOverlay>,
           document.body
+        )}
+
+        {drawerOpen && (
+          <CRMLeadDetailDrawer
+            leadId={selectedLead?.id}
+            onClose={() => setDrawerOpen(false)}
+          />
         )}
       </DndContext>
     </div>
   );
 }
 
-/* ============================================================
-   COLUNA (TRACK)
-============================================================ */
-function PipelineColumn({ id, stage, leads }) {
+function PipelineColumn({ id, stage, leads, onOpenLead }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   const config = STAGE_CONFIG[stage];
   const Icon = config.icon;
 
   return (
-    <div 
-      ref={setNodeRef} 
+    <div
+      ref={setNodeRef}
       className={`
-        flex flex-col shrink-0 
-        w-full md:w-[320px] 
-        h-[380px] md:h-full max-h-[60vh] md:max-h-full
-        rounded-2xl md:rounded-none 
+        flex flex-col shrink-0
+        w-full md:w-[320px]
+        h-[380px] md:h-full
+        rounded-2xl md:rounded-none
         border md:border-transparent
         p-2 md:p-0
-        transition-colors duration-200
-        ${isOver 
-            ? "bg-primary/5 border-primary/30 shadow-inner" 
-            : "bg-panel-card/30 border-border/50 md:bg-transparent" // Destaca a coluna no mobile para o usuário ver onde soltar
+        ${isOver
+          ? "bg-primary/5 border-primary/30 shadow-inner"
+          : "bg-panel-card/30 border-border/50 md:bg-transparent"
         }
       `}
     >
-      {/* CABEÇALHO DA COLUNA */}
-      <div className={`
-        flex items-center justify-between p-3 mb-3 rounded-xl border backdrop-blur-sm transition-all duration-300
-        ${isOver 
-            ? "bg-background border-primary/20 shadow-sm" 
-            : "bg-panel-card/80 border-transparent md:hover:bg-panel-card"
-        }
-      `}>
+
+      {/* HEADER COLORIDO */}
+      <div
+        className={`
+          flex items-center justify-between
+          p-3 mb-3 rounded-xl border
+          bg-panel-card/80 backdrop-blur-sm
+        `}
+      >
         <div className="flex items-center gap-2.5">
-            <div className={`p-1.5 rounded-xl ${config.bg} ${config.color} border ${config.border}`}>
-                <Icon size={16} strokeWidth={2.5} />
-            </div>
-            <span className="font-semibold text-foreground text-sm">
-                {config.label}
-            </span>
+
+          {/* ÍCONE COM CORES DO STAGE */}
+          <div
+            className={`p-1.5 rounded-xl ${config.bg} ${config.color} border ${config.border}`}
+          >
+            <Icon size={16} strokeWidth={2.5} />
+          </div>
+
+          <span className="font-semibold text-foreground text-sm">
+            {config.label}
+          </span>
         </div>
+
+        {/* CONTADOR */}
         <span className="px-2.5 py-0.5 text-xs font-bold text-muted-foreground bg-background rounded-full border border-border shadow-sm">
-            {leads.length}
+          {leads.length}
         </span>
       </div>
 
-      {/* ÁREA DOS CARDS (SCROLL VERTICAL INTERNO) */}
-      <div className="flex-1 overflow-y-auto px-1 pb-2 space-y-3 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-        {leads.length > 0 ? (
-            leads.map((lead) => (
-            <DraggableLead key={lead.id} lead={lead} stage={stage} />
-            ))
-        ) : (
-            // Placeholder vazio elegante
-            <div className="h-24 border-2 border-dashed border-border/60 rounded-xl flex flex-col items-center justify-center text-muted-foreground text-xs gap-1 opacity-60">
-                <span className="opacity-50">Sem leads</span>
-            </div>
-        )}
+      {/* CARDS */}
+      <div className="flex-1 overflow-y-auto px-1 pb-2 space-y-3">
+        {leads.map((lead) => (
+          <DraggableLead
+            key={lead.id}
+            lead={lead}
+            stage={stage}
+            onOpenLead={onOpenLead}
+          />
+        ))}
       </div>
     </div>
   );
 }
 
-/* ============================================================
-   COMPONENTE DRAGGABLE WRAPPER
-============================================================ */
-function DraggableLead({ lead, stage }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({
-      id: `${stage}:${lead.id}`,
-    });
+function DraggableLead({ lead, stage, onOpenLead }) {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({
+    id: `${stage}:${lead.id}`
+  });
 
   const style = {
     transform: transform
       ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
-      : undefined,
-    opacity: isDragging ? 0 : 1, 
+      : undefined
   };
 
   return (
-    <div 
-      ref={setNodeRef} 
-      style={style} 
-      {...listeners} 
-      {...attributes} 
-      className="cursor-grab active:cursor-grabbing"
-    >
-      <LeadCard lead={lead} stage={stage} />
+    <div ref={setNodeRef} style={style}>
+      <LeadCard
+        lead={lead}
+        stage={stage}
+        dragListeners={listeners}
+        dragAttributes={attributes}
+        onOpenLead={onOpenLead}
+      />
     </div>
   );
 }
 
-/* ============================================================
-   DESIGN DO CARD (VISUAL)
-============================================================ */
-function LeadCard({ lead, stage, overlay = false }) {
-    const config = STAGE_CONFIG[stage];
+function LeadCard({
+  lead,
+  stage,
+  overlay = false,
+  dragListeners,
+  dragAttributes,
+  onOpenLead
+}) {
+  const config = STAGE_CONFIG[stage];
 
-    return (
-        <div className={`
-            group relative p-4 rounded-xl border transition-all duration-200 ease-in-out bg-panel-card border-border
-            ${overlay 
-                ? "shadow-2xl shadow-black/20 ring-1 ring-primary/20 scale-105" 
-                : "shadow-sm hover:shadow-md hover:border-primary/30"
-            }
-        `}>
-            {/* Barra lateral colorida indicando status */}
-            <div className={`absolute left-0 top-4 bottom-4 w-1 rounded-r-full ${config.barColor}`} />
+  return (
+    <div
+      onClick={() => onOpenLead(lead)}
+      className={`
+        group relative p-4 rounded-xl border transition-all duration-200 ease-in-out 
+        bg-panel-card border-border cursor-pointer
+        ${overlay
+          ? "shadow-2xl shadow-black/20 ring-1 ring-primary/20 scale-105"
+          : "shadow-sm hover:shadow-md hover:border-primary/30"
+        }
+      `}
+    >
 
-            <div className="pl-3 flex flex-col gap-2">
-                {/* Cabeçalho do Card */}
-                <div className="flex justify-between items-start">
-                    <div>
-                        <p className="font-semibold text-foreground text-sm leading-tight mb-0.5">
-                            {lead.nome}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">
-                            {lead.origem || "Sem origem"}
-                        </p>
-                    </div>
-                    {/* Ícone de Grab para indicar que é arrastável */}
-                    <div className={`text-muted-foreground/40 ${overlay ? 'opacity-100' : 'opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity'}`}>
-                        <GripVertical size={16} />
-                    </div>
-                </div>
+      {/* BARRA LATERAL COLORIDA */}
+      <div
+        className={`absolute left-0 top-4 bottom-4 w-1 rounded-r-full ${config.barColor}`}
+      />
 
-                <div className="h-px w-full bg-border" />
+      <div className="pl-3 flex flex-col gap-2">
 
-                {/* Infos de contato */}
-                <div className="space-y-1.5">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Phone size={12} className="text-muted-foreground/70 shrink-0" />
-                        <span className="truncate">{lead.telefone}</span>
-                    </div>
-                    {lead.imovel_interesse && (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <MapPin size={12} className="text-muted-foreground/70 shrink-0" />
-                            <span className="truncate max-w-[180px] sm:max-w-[200px]">{lead.imovel_interesse}</span>
-                        </div>
-                    )}
-                </div>
-                
-                {/* Tag de Valor (se houver) */}
-                {lead.valor && (
-                    <div className="mt-1 self-start px-2 py-1 bg-background text-foreground text-[10px] font-bold rounded-md border border-border">
-                        R$ {lead.valor}
-                    </div>
-                )}
-            </div>
+        {/* HEADER */}
+        <div className="flex justify-between items-start">
+          <div>
+            <p className="font-semibold text-foreground text-sm leading-tight mb-0.5">
+              {lead.nome}
+            </p>
+
+            <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">
+              {lead.origem || "Sem origem"}
+            </p>
+          </div>
+
+          {/* DRAG HANDLE */}
+          <div
+            {...dragListeners}
+            {...dragAttributes}
+            onClick={(e) => e.stopPropagation()}
+            className="cursor-grab active:cursor-grabbing text-muted-foreground/40 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <GripVertical size={16} />
+          </div>
         </div>
-    )
+
+        <div className="h-px w-full bg-border" />
+
+        {/* TELEFONE */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Phone size={12} className="text-muted-foreground/70 shrink-0" />
+          <span className="truncate">{lead.telefone}</span>
+        </div>
+
+        {/* IMÓVEL */}
+        {lead.imovel_interesse && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <MapPin size={12} className="text-muted-foreground/70 shrink-0" />
+            <span className="truncate max-w-[200px]">
+              {lead.imovel_interesse}
+            </span>
+          </div>
+        )}
+
+        {/* VALOR */}
+        {lead.valor && (
+          <div className="mt-1 self-start px-2 py-1 bg-background text-foreground text-[10px] font-bold rounded-md border border-border">
+            R$ {lead.valor}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
