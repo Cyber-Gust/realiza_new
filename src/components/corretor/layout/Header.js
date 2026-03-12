@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Menu, X } from "lucide-react";
-import { navItems } from "@/components/admin/layout/Sidebar";
+import { navItems } from "@/components/corretor/layout/Sidebar";
 
 export function Header({ user, profile }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
