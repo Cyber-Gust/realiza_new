@@ -35,7 +35,7 @@ import { useToast } from "@/contexts/ToastContext";
 ============================================================ */
 const STAGE_CONFIG = {
   novo: {
-    label: "Novo Lead",
+    label: "Em Atendimento",
     icon: UserPlus,
     // Light: azul sólido claro | Dark: azul com transparência e texto mais claro
     color: "text-blue-700 dark:text-blue-400",
@@ -44,7 +44,7 @@ const STAGE_CONFIG = {
     barColor: "bg-blue-500"
   },
   qualificado: {
-    label: "Qualificado",
+    label: "Qualificando",
     icon: UserCheck,
     color: "text-indigo-700 dark:text-indigo-400",
     bg: "bg-indigo-50 dark:bg-indigo-500/20",
