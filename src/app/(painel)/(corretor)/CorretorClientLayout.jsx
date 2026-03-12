@@ -70,7 +70,7 @@ export default function CorretorClientLayout({ children, user, profile }) {
             />
 
             {/* MAIN */}
-            <main className="flex-1 overflow-y-auto min-w-0 bg-panel-bg p-6 pt-20 md:pt-6">
+            <main className="flex-1 overflow-y-auto min-w-0 bg-panel-bg p-6 pt-4 md:pt-6">
               <div className="mx-auto max-w-7xl space-y-6">
                 {children}
               </div>
