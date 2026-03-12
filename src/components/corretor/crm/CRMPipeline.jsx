@@ -35,7 +35,7 @@ import { useToast } from "@/contexts/ToastContext";
 ============================================================ */
 const STAGE_CONFIG = {
   novo: {
-    label: "Em Atendimento",
+    label: "Novo Lead",
     icon: UserPlus,
     // Light: azul sólido claro | Dark: azul com transparência e texto mais claro
     color: "text-blue-700 dark:text-blue-400",
