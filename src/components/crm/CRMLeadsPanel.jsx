@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
  import { useCallback } from "react";
 import {
   User2,
@@ -32,6 +32,7 @@ import {
 } from "@/components/admin/ui/Table";
 
 export default function CRMLeadsPanel() {
+  const topRef = useRef(null);
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -55,7 +56,7 @@ export default function CRMLeadsPanel() {
   });
 
   const [page, setPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(30);
 
   /* ============================================================
      LOAD
@@ -127,7 +128,7 @@ export default function CRMLeadsPanel() {
     const end = start + itemsPerPage;
 
     return filteredLeads.slice(start, end);
-  }, [filteredLeads, page]);
+  }, [filteredLeads, page, itemsPerPage]);
 
   useEffect(() => {
     setPage(1);
@@ -157,11 +158,17 @@ export default function CRMLeadsPanel() {
     }
   };
 
+  useEffect(() => {
+    topRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [page]);
   /* ============================================================
      UI
   ============================================================ */
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-200">
+    <div ref={topRef} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-200">
 
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between gap-3 md:items-center">
@@ -313,6 +320,31 @@ export default function CRMLeadsPanel() {
           </tbody>
         </Table>
       )}
+
+      <div className="flex items-center justify-between pt-4">
+
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Mostrar:</span>
+
+          <Select
+            value={itemsPerPage}
+            onChange={(e) => {
+              setItemsPerPage(Number(e.target.value));
+              setPage(1);
+              topRef.current?.scrollIntoView({ behavior: "smooth" });
+            }}
+            className="w-[110px]"
+          >
+            <option value={10}>10</option>
+            <option value={30}>30</option>
+            <option value={60}>60</option>
+            <option value={100}>100</option>
+          </Select>
+
+          <span className="text-sm text-muted-foreground">leads</span>
+        </div>
+
+      </div>
 
       <div className="flex items-center justify-center gap-4 pt-4">
 

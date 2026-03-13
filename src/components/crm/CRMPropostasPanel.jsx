@@ -72,7 +72,7 @@ export default function CRMPropostasPanel() {
     orderBy: "created_at",
     orderDir: "desc",
     page: 1,
-    pageSize: 9,
+    pageSize: 30,
   });
 
   const [total, setTotal] = useState(0);

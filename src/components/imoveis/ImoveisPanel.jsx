@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { Input, Label, Select } from "@/components/admin/ui/Form";
 import { Button } from "@/components/admin/ui/Button";
 import { Card } from "@/components/admin/ui/Card";
-import { Search, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
+
 import {
   Table,
   TableHeader,
@@ -391,7 +392,7 @@ function ImoveisTable({ data = [] }) {
               <Image
                 src={i.imagem_principal || "/1Imovel_placehold.png"}
                 alt="foto imóvel"
-                className="min-w-[176px] h-32 md:w-32 md:h-32 object-cover rounded-lg border"
+                className="min-w-[176px] rounded-xl h-32 md:w-32 md:h-32 object-cover border"
                 width={160}
                 height={160}  
               />
@@ -489,10 +490,11 @@ function ImoveisTable({ data = [] }) {
    ⬇️ PAINEL PRINCIPAL
 ============================================================ */
 export default function ImoveisPanel() {
+  
   const { imoveis, loading } = useImoveisQuery();
-
+  const topRef = useRef(null);
   const [page, setPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(30);
 
   const [filters, setFilters] = useState({
     codigo_ref: "",
@@ -568,7 +570,14 @@ export default function ImoveisPanel() {
     const end = start + itemsPerPage;
 
     return filteredImoveis.slice(start, end);
-  }, [filteredImoveis, page]);
+  }, [filteredImoveis, page, itemsPerPage]);
+
+  useEffect(() => {
+    topRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [page]);
 
   const stats = useMemo(() => {
     return imoveis.reduce(
@@ -581,7 +590,7 @@ export default function ImoveisPanel() {
   }, [imoveis]);
 
   return (
-    <div className="space-y-8">
+    <div ref={topRef} className="space-y-8">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPI title="Disponíveis" value={stats.disponivel} />
         <KPI title="Reservados" value={stats.reservado} />
@@ -602,7 +611,29 @@ export default function ImoveisPanel() {
         ) : (
           <ImoveisTable data={paginatedImoveis} />
         )}
+        <div className="flex items-center justify-between pt-4">
 
+          <div className="flex items-center gap-2">
+            <span className="text-sm">Mostrar:</span>
+
+            <Select
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setPage(1);
+              }}
+              className="w-[100px]"
+            >
+              <option value={10}>10</option>
+              <option value={30}>30</option>
+              <option value={60}>60</option>
+              <option value={100}>100</option>
+            </Select>
+
+            <span className="text-sm">imóveis</span>
+          </div>
+
+        </div>
         <div className="flex items-center justify-center gap-4 pt-4">
 
           <Button
