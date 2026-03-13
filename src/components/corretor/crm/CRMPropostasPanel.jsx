@@ -287,15 +287,15 @@ export default function CRMPropostasPanel() {
 
           {/* Imóvel */}
 
-                  <SearchableSelect
-                    placeholder="Por Imóvel"
-                    value={filters.imovel_id}
-                    onChange={(v) => setFilters((f) => ({ ...f, imovel_id: v }))}
-                    options={imoveis.map((im) => ({
-                      value: String(im.id),
-                      label: `${im.codigo_ref} • ${im.titulo}`
-                    }))}
-                  />
+          <SearchableSelect
+            placeholder="Por Imóvel"
+            value={filters.imovel_id}
+            onChange={(v) => setFilters((f) => ({ ...f, imovel_id: v }))}
+            options={imoveis.map((im) => ({
+              value: String(im.id),
+              label: `${im.codigo_ref} • ${im.titulo}`
+            }))}
+          />
 
           {/* Ordenação */}
           <Select

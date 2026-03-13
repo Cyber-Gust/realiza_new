@@ -253,7 +253,7 @@
       { "name": "perfil_busca_json", "type": "jsonb", "nullable": true },
       { "name": "created_at", "type": "timestamptz", "nullable": true, "default": "now()" },
       { "name": "updated_at", "type": "timestamptz", "nullable": true, "default": "now()" },
-      { "name": "imovel_interesse_id", "type": "uuid", "nullable": true, "constraint": "FOREIGN KEY", "foreign_table": "imoveis", "foreign_column": "id" }
+      { "name": "imovel_interesse_id", "type": "uuid", "nullable": true, "constraint": "FOREIGN KEY", "foreign_table": "imoveis", "foreign_column": "id" },
       { "name": "historico" , "type": "jsonb", "nullable": false, "default": "'[]'::jsonb" }
     ]
   },

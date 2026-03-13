@@ -14,6 +14,7 @@ import {
 // Painéis
 import CRMLeadsPanel from "@/components/crm/CRMLeadsPanel";
 import CRMPipeline from "@/components/crm/CRMPipeline";
+import CRMPipelineGeral from "@/components/crm/CRMPipelineGeral";
 import CRMPropostasPanel from "@/components/crm/CRMPropostasPanel";
 import CRMRelatoriosPanel from "@/components/crm/CRMRelatoriosPanel";
 
@@ -48,6 +49,7 @@ export default function CRMPage() {
           {[
             { id: "leads", label: "Leads" },
             { id: "pipeline", label: "Pipeline" },
+            { id: "pipeline_geral", label: "Pipeline Geral" },
             { id: "propostas", label: "Propostas" },
             { id: "relatorios", label: "Relatórios" },
           ].map(({ id, label }) => (
@@ -69,6 +71,12 @@ export default function CRMPage() {
           <TabsContent value="pipeline" className="animate-in fade-in duration-200">
             <Card className="p-6 shadow-sm border-border bg-panel-card rounded-xl">
               <CRMPipeline />
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="pipeline_geral" className="animate-in fade-in duration-200">
+            <Card className="p-6 shadow-sm border-border bg-panel-card rounded-xl">
+              <CRMPipelineGeral />
             </Card>
           </TabsContent>
 
