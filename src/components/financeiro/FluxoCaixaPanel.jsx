@@ -75,9 +75,10 @@ export default function FluxoCaixaPanel() {
 
   const dadosFiltrados = useMemo(() => {
     return dados
-      .filter((d) => d.status === "pago")
+      .filter((d) => d.status === "pago" && d.data_pagamento)
       .filter((d) => {
         const data = new Date(d.data_pagamento);
+
         const inicio = dataInicio ? new Date(dataInicio) : null;
         const fim = dataFim ? new Date(dataFim) : null;
 
@@ -95,7 +96,7 @@ export default function FluxoCaixaPanel() {
 
   const totalReceitas = useMemo(() => {
     return dadosFiltrados
-      .filter((d) => !isReceita(d))
+      .filter((d) => isReceita(d))
       .reduce((sum, r) => sum + Number(r.valor || 0), 0);
   }, [dadosFiltrados]);
 

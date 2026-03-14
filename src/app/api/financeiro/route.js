@@ -111,7 +111,7 @@ export async function GET(req) {
       `)
       .eq("modulo_financeiro", modulo)
       .neq("status", "cancelado")
-      .lte("data_vencimento", hoje)
+      .or(`data_pagamento.lte.${hoje},data_pagamento.is.null`)
       .order("data_vencimento", { ascending: true });
 
     if (error) throw error;

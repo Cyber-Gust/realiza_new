@@ -429,10 +429,11 @@ export async function POST(req) {
     }
 
     // 🔒 contrato é resolvido pelo imóvel (se existir imovel_id)
+    // 🔒 contrato é resolvido pelo imóvel (se existir imovel_id)
     const contratoId = await resolverContratoPorImovel(supabase, body.imovel_id);
 
-    // ✅ se vier imovel_id mas não tem contrato vigente, trava
-    if (body.imovel_id && !contratoId) {
+    // ✅ só exige contrato se for módulo ALUGUEL
+    if (modulo === "ALUGUEL" && body.imovel_id && !contratoId) {
       return NextResponse.json(
         { error: "Nenhum contrato vigente encontrado para este imóvel." },
         { status: 409 }

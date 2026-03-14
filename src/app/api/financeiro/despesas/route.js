@@ -7,7 +7,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 
 const TIPOS_DESPESA_AUTOMATICA = [
   "repasse_proprietario",
-  "comissao_corretor",
+
 ];
 
 const TIPOS_DESPESA_MANUAL = [
@@ -16,7 +16,7 @@ const TIPOS_DESPESA_MANUAL = [
   "seguro_incendio",
   "pagamento_condominio",
   "pagamento_iptu",
-  "consumo_agua",
+  "comissao_corretor",
   "consumo_luz",
   "taxa",
   "outros",
@@ -377,6 +377,14 @@ export async function POST(req) {
       return NextResponse.json(
         { error: "Módulo financeiro inválido." },
         { status: 400 }
+      );
+    }
+
+    // comissão é automática SOMENTE no módulo aluguel
+    if (body.tipo === "comissao_corretor" && modulo === "ALUGUEL") {
+      return NextResponse.json(
+        { error: "Comissão do corretor é automática no módulo de aluguel." },
+        { status: 403 }
       );
     }
 
