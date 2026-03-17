@@ -191,7 +191,8 @@
       { "name": "caracteristicas_extras", "type": "jsonb", "nullable": true },
       { "name": "situacao_documentacao", "type": "text", "nullable": true },
       { "name": "aceita_permuta", "type": "boolean", "nullable": true, "default": "false" },
-      { "name": "chaves_localizacao", "type": "text", "nullable": true }
+      { "name": "chaves_localizacao", "type": "text", "nullable": true },
+      { "name": "observacao_documentacao", "type": "text", "nullable": true }
     ]
   },
   {

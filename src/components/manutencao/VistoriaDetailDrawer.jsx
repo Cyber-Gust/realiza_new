@@ -174,8 +174,16 @@ export default function VistoriaDetailDrawer({
   =============================== */
   return createPortal(
     <>
-      <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm">
-        <div className="w-full sm:w-[520px] h-full bg-panel-card border-l border-border shadow-xl flex flex-col overflow-y-auto">
+      <div
+        className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm"
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+      >
+        <div
+          className="w-full sm:w-[480px] h-full bg-panel-card border-l border-border shadow-xl overflow-y-auto animate-slide-left flex flex-col"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
 
           {/* HEADER */}
           <div className="p-4 border-b flex justify-between items-center">

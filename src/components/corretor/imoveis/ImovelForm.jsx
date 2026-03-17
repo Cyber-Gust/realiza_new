@@ -83,6 +83,7 @@ export default function ImovelForm({ data = {}, onChange, disabled = false }) {
       disponibilidade: data.disponibilidade ?? "venda",
       codigo_ref: data.codigo_ref ?? "",
       observacoes: data.observacoes ?? "",
+      observacao_documentacao: data.observacao_documentacao ?? "",
       ...data,
     };
   });
@@ -1495,6 +1496,25 @@ export default function ImovelForm({ data = {}, onChange, disabled = false }) {
                     onCheckedChange={(v) => handleChange("aceita_permuta", v)}
                   />
                   <Label>Aceita permuta</Label>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="font-semibold text-sm md:text-base">
+                Observação da documentação
+              </h3>
+
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <Label>Observação documental</Label>
+                  <Textarea
+                    value={form.observacao_documentacao || ""}
+                    onChange={(e) =>
+                      handleChange("observacao_documentacao", e.target.value)
+                    }
+                    placeholder="Ex.: imóvel em inventário, escritura pendente, matrícula atualizada em 2025, documentação parcial enviada..."
+                  />
                 </div>
               </div>
             </div>

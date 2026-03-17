@@ -300,6 +300,24 @@ function ImoveisFilters({ filters, setFilters }) {
         </Select>
       </div>
 
+      {/* Proprietário */}
+      <div className="min-w-[220px]">
+        <Label>Proprietário</Label>
+        <Select
+          value={filters.proprietario_id}
+          onChange={(e) =>
+            handleChange("proprietario_id", e.target.value)
+          }
+        >
+          <option value="">Todos</option>
+          {proprietarios.map((p) => (
+            <option key={p.value} value={p.value}>
+              {p.label}
+            </option>
+          ))}
+        </Select>
+      </div>
+
       {/* Preços */}
       <div className="min-w-[150px]">
         <Label>Preço mín.</Label>
@@ -568,6 +586,10 @@ export default function ImoveisPanel() {
         i.corretor_id !== filters.corretor_id)
         return false;  
 
+      if (filters.proprietario_id &&
+        i.proprietario_id !== filters.proprietario_id)
+      return false;   
+
       const preco = i.preco_venda || i.preco_locacao || 0;
 
       if (filters.preco_min && preco < Number(filters.preco_min))
@@ -579,6 +601,10 @@ export default function ImoveisPanel() {
       return true;
     });
   }, [imoveis, filters]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filters]);
 
   const totalPages = Math.ceil(filteredImoveis.length / itemsPerPage);
 
