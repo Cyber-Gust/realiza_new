@@ -4,6 +4,7 @@ import { useState, useRef, useMemo, useEffect } from "react";
 import { Input, Label, Select } from "@/components/admin/ui/Form";
 import { Button } from "@/components/admin/ui/Button";
 import { Card } from "@/components/admin/ui/Card";
+import SearchableSelect from "@/components/admin/ui/SearchableSelect";
 import { MapPin } from "lucide-react";
 
 import {
@@ -283,19 +284,15 @@ function ImoveisFilters({ filters, setFilters }) {
       {/* Proprietário */}
       <div className="min-w-[220px]">
         <Label>Proprietário</Label>
-        <Select
+        <SearchableSelect
           value={filters.proprietario_id}
-          onChange={(e) =>
-            handleChange("proprietario_id", e.target.value)
-          }
-        >
-          <option value="">Todos</option>
-          {proprietarios.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.label}
-            </option>
-          ))}
-        </Select>
+          onChange={(value) => handleChange("proprietario_id", value)}
+          options={[
+            { label: "Todos", value: "" },
+            ...proprietarios,
+          ]}
+          placeholder="Todos"
+        />
       </div>
 
       {/* Preços */}
