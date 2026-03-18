@@ -552,11 +552,10 @@ export default function ImovelForm({ data = {}, onChange, disabled = false }) {
               onChange={(val) => handleChange("corretor_id", val || null)}
             />
 
-            {(corretorSelecionado?.telefone || corretorSelecionado?.contato_telefone) && (
+            {(corretorSelecionado?.telefone) && (
               <p className="mt-1 text-sm text-gray-500">
                 {formatPhoneBR(
-                  corretorSelecionado.telefone ||
-                  corretorSelecionado.contato_telefone
+                  corretorSelecionado.telefone
                 )}
               </p>
             )}
